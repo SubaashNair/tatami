@@ -13,8 +13,18 @@ struct LiveWindow: Identifiable {
     var frame: CGRect
     var minimized: Bool
     var stageID: UUID
-    var minimizedByTatami: Bool = false
+    /// Set while Tatami hides the window for an inactive Stage. Holds the frame to restore.
+    var hidden: HiddenState?
+    var realFrame: CGRect { hidden?.realFrame ?? frame }
     var icon: NSImage? { NSRunningApplication(processIdentifier: pid)?.icon }
+}
+
+enum HiddenState {
+    /// Moved to a display corner (M1 decision 1).
+    case parked(real: CGRect)
+    /// Fallback when a window refuses to leave the screen or no corner is free.
+    case minimized(real: CGRect)
+    var realFrame: CGRect { switch self { case .parked(let real), .minimized(let real): real } }
 }
 
 struct DisplayInfo: Identifiable {
@@ -30,6 +40,8 @@ struct RecoveryEntry: Codable {
     let title: String
     let frame: Rect
     var windowNumber: UInt32?
+    /// Nil in 0.1 journals, which only minimized.
+    var parked: Bool?
 }
 
 @MainActor final class WindowService {
@@ -48,6 +60,14 @@ struct RecoveryEntry: Codable {
     private var flushScheduled = false
     /// Moves and resizes fire continuously during drags; coalesce them into one rescan.
     private let eventCoalescing: TimeInterval = 0.05
+    /// Tatami must not move anything while paused, not even to rescue windows.
+    var managing = false
+    /// Windows present at launch belong to their previous state (or another manager); only later arrivals are rescued.
+    private var initialScanDone = false
+    /// Integration tests scope Tatami to specific apps so the user's real windows are never touched.
+    private let onlyBundles = ProcessInfo.processInfo.environment["TATAMI_ONLY_BUNDLES"].map { Set($0.split(separator: ",").map(String.init)) }
+    /// Bumped on every write so a scan that started before it cannot overwrite fresher frames.
+    private var writeGeneration = 0
 
     init(directory: URL) {
         journalURL = directory.appendingPathComponent("recovery.json")
@@ -80,7 +100,8 @@ struct RecoveryEntry: Codable {
 
     private func regularApps() -> [AppInfo] {
         NSWorkspace.shared.runningApplications.compactMap { app in
-            guard app.activationPolicy == .regular, app.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return nil }
+            guard app.activationPolicy == .regular, app.processIdentifier != ProcessInfo.processInfo.processIdentifier,
+                  onlyBundles.map({ $0.contains(app.bundleIdentifier ?? "") }) ?? true else { return nil }
             return AppInfo(pid: app.processIdentifier, bundleID: app.bundleIdentifier ?? "pid.\(app.processIdentifier)", name: app.localizedName ?? "Application")
         }
     }
@@ -90,25 +111,25 @@ struct RecoveryEntry: Codable {
     func scan(state: WorkspaceState) async {
         guard trusted else { return }
         let apps = regularApps()
-        let observers = observers!
+        let observers = observers!, generation = writeGeneration
         let scanned = await ax.run {
             observers.sync(pids: Set(apps.map(\.pid)))
             let windows = AXScanner.scan(apps)
             observers.watch(windows)
             return windows
         }
-        merge(scanned, only: nil, state: state)
+        merge(scanned, only: nil, state: state, stale: generation != writeGeneration)
     }
 
     private func rescan(pids: Set<pid_t>, state: WorkspaceState) async {
         let apps = regularApps().filter { pids.contains($0.pid) }
-        let observers = observers!
+        let observers = observers!, generation = writeGeneration
         let scanned = await ax.run {
             let windows = AXScanner.scan(apps)
             observers.watch(windows)
             return windows
         }
-        merge(scanned, only: pids, state: state)
+        merge(scanned, only: pids, state: state, stale: generation != writeGeneration)
     }
 
     private func handleEvent(pid: pid_t, notification: String) {
@@ -137,29 +158,42 @@ struct RecoveryEntry: Codable {
     }
 
     /// Merges on the main thread against current state, so changes made while a scan was running survive.
-    private func merge(_ scanned: [ScannedWindow], only pids: Set<pid_t>?, state: WorkspaceState) {
+    /// A stale scan (a write happened meanwhile) only adds and removes windows; its frames are out of date.
+    private func merge(_ scanned: [ScannedWindow], only pids: Set<pid_t>?, state: WorkspaceState, stale: Bool) {
         var merged = pids.map { pids in windows.filter { !pids.contains($0.pid) } } ?? []
-        var restore: [AXUIElement] = []
+        var reveal: [UUID] = [], rescue: [(UUID, CGRect)] = []
+        let screens = displays.map(\.fullFrame)
         for found in scanned {
             if var existing = windows.first(where: { isSame(found, $0) }) {
                 existing.title = found.title
                 existing.windowNumber = found.windowNumber ?? existing.windowNumber
-                if !existing.minimizedByTatami { existing.frame = found.frame }
-                existing.minimized = found.minimized
-                // Unminimizing from the Dock is an explicit escape hatch.
-                if existing.minimizedByTatami && !found.minimized { existing.minimizedByTatami = false; existing.stageID = state.activeStageID }
-                if state.excludedBundleIDs.contains(found.bundleID), existing.minimizedByTatami {
-                    restore.append(found.element); existing.minimizedByTatami = false
+                if !stale {
+                    existing.frame = found.frame
+                    existing.minimized = found.minimized
+                    // Restoring from the Dock, or dragging a parked window back, is an explicit escape hatch.
+                    switch existing.hidden {
+                    case .minimized where !found.minimized, .parked where !ParkPlanner.isParked(found.frame, displays: screens):
+                        existing.hidden = nil; existing.stageID = state.activeStageID
+                    default: break
+                    }
                 }
+                if existing.hidden != nil && state.excludedBundleIDs.contains(found.bundleID) { reveal.append(existing.id) }
                 merged.append(existing)
             } else {
-                merged.append(LiveWindow(id: UUID(), element: found.element, pid: found.pid, bundleID: found.bundleID, appName: found.appName,
-                                         windowNumber: found.windowNumber, title: found.title, frame: found.frame, minimized: found.minimized,
-                                         stageID: state.destination(bundleID: found.bundleID, title: found.title) ?? state.activeStageID))
+                let window = LiveWindow(id: UUID(), element: found.element, pid: found.pid, bundleID: found.bundleID, appName: found.appName,
+                                        windowNumber: found.windowNumber, title: found.title, frame: found.frame, minimized: found.minimized,
+                                        stageID: state.destination(bundleID: found.bundleID, title: found.title) ?? state.activeStageID)
+                // An app that quit while parked may reopen its window where it was saved: off-screen.
+                if managing, initialScanDone, !found.minimized, ParkPlanner.isParked(found.frame, displays: screens), let area = (display(for: found.frame) ?? displays.first)?.area {
+                    rescue.append((window.id, Geometry.visibleFrame(found.frame, in: area)))
+                }
+                merged.append(window)
             }
         }
         windows = merged
-        if !restore.isEmpty { ax.sync { restore.forEach { _ = AX.setMinimized($0, false) } } }
+        if pids == nil { initialScanDone = true }
+        if !reveal.isEmpty { _ = show(windows.indices.filter { reveal.contains(windows[$0].id) }) }
+        for (id, frame) in rescue { move(id, to: frame) }
     }
 
     func display(for frame: CGRect) -> DisplayInfo? {
@@ -171,64 +205,129 @@ struct RecoveryEntry: Codable {
 
     // MARK: visibility
 
+    private enum HideResult { case parked(CGRect), minimized, failed }
+
+    /// Shows the target Stage first, then hides the rest, so the desk is never empty (M1 decision 12).
     func applyVisibility(state: WorkspaceState) -> Int {
-        guard trusted else { return windows.filter(\.minimizedByTatami).count }
+        guard trusted else { return windows.filter { $0.hidden != nil }.count }
+        func visible(_ window: LiveWindow) -> Bool { state.excludedBundleIDs.contains(window.bundleID) || window.stageID == state.activeStageID }
+        let showing = windows.indices.filter { windows[$0].hidden != nil && visible(windows[$0]) }
+        let hiding = windows.indices.filter { windows[$0].hidden == nil && !windows[$0].minimized && !visible(windows[$0]) }
+        return show(showing) + hide(hiding)
+    }
+
+    private func show(_ indices: [Int]) -> Int {
+        guard !indices.isEmpty else { return 0 }
+        let jobs = indices.map { (windows[$0].pid, windows[$0].element, windows[$0].hidden!) }
+        writeGeneration += 1
+        let results: [Bool] = ax.sync {
+            Self.perApp(jobs.map(\.0)) { i in
+                let (_, element, hidden) = jobs[i]
+                switch hidden {
+                case .parked(let real): return AX.setFrame(element, real)
+                case .minimized: return AX.setMinimized(element, false)
+                }
+            }
+        }
         var failures = 0
-        for i in windows.indices {
-            let excluded = state.excludedBundleIDs.contains(windows[i].bundleID)
-            let visible = excluded || windows[i].stageID == state.activeStageID
-            let element = windows[i].element
-            if visible && windows[i].minimizedByTatami {
-                if ax.sync({ AX.setMinimized(element, false) }) {
-                    windows[i].minimizedByTatami = false; windows[i].minimized = false
-                } else { failures += 1 }
-            } else if !visible && !windows[i].minimized && !windows[i].minimizedByTatami {
-                // Journal before changing a window. A crash still leaves native Dock recovery available.
-                windows[i].minimizedByTatami = true
-                do { try writeJournal() } catch { windows[i].minimizedByTatami = false; failures += 1; continue }
-                if ax.sync({ AX.setMinimized(element, true) }) { windows[i].minimized = true }
-                else { windows[i].minimizedByTatami = false; failures += 1 }
+        for (i, index) in indices.enumerated() {
+            guard results[i] else { failures += 1; continue }
+            windows[index].frame = windows[index].realFrame
+            windows[index].hidden = nil; windows[index].minimized = false
+        }
+        try? writeJournal()
+        return failures
+    }
+
+    private func hide(_ indices: [Int]) -> Int {
+        guard !indices.isEmpty else { return 0 }
+        let screens = displays.map(\.fullFrame)
+        let jobs: [(pid_t, AXUIElement, CGRect?)] = indices.map { index in
+            let window = windows[index]
+            let home = display(for: window.frame)?.fullFrame ?? screens.first ?? .zero
+            return (window.pid, window.element, ParkPlanner.parkFrame(size: window.frame.size, display: home, others: screens.filter { $0 != home }))
+        }
+        // Journal real frames before any window leaves the screen, so a crash can always put it back.
+        for (i, index) in indices.enumerated() {
+            windows[index].hidden = jobs[i].2 == nil ? .minimized(real: windows[index].frame) : .parked(real: windows[index].frame)
+        }
+        do { try writeJournal() } catch {
+            for index in indices { windows[index].hidden = nil }
+            return indices.count
+        }
+        writeGeneration += 1
+        let results: [HideResult] = ax.sync {
+            Self.perApp(jobs.map(\.0)) { i in
+                let (_, element, park) = jobs[i]
+                if let park, AX.setPosition(element, park.origin), let actual = AX.frame(of: element), ParkPlanner.isParked(actual, displays: screens) {
+                    return .parked(actual)
+                }
+                // Refused to leave the screen, or no free corner: minimize instead (M1 decision 1).
+                return AX.setMinimized(element, true) ? .minimized : .failed
+            }
+        }
+        var failures = 0
+        for (i, index) in indices.enumerated() {
+            let real = windows[index].realFrame
+            switch results[i] {
+            case .parked(let actual): windows[index].frame = actual
+            case .minimized: windows[index].hidden = .minimized(real: real); windows[index].minimized = true
+            case .failed: windows[index].hidden = nil; failures += 1
             }
         }
         try? writeJournal()
         return failures
     }
 
-    func restoreOwnedWindows() -> Int {
-        var failures = 0
-        for i in windows.indices where windows[i].minimizedByTatami {
-            let element = windows[i].element
-            if ax.sync({ AX.setMinimized(element, false) }) {
-                windows[i].minimizedByTatami = false; windows[i].minimized = false
-            } else { failures += 1 }
+    /// Runs `body` for every job, in parallel across apps and in order within one app (M1 decision 7).
+    nonisolated private static func perApp<R>(_ pids: [pid_t], _ body: (Int) -> R) -> [R] {
+        let groups = Array(Dictionary(grouping: pids.indices, by: { pids[$0] }).values)
+        var results = [R?](repeating: nil, count: pids.count)
+        results.withUnsafeMutableBufferPointer { buffer in
+            // Safe: each job writes only its own slot, and groups never share a slot.
+            nonisolated(unsafe) let slots = buffer
+            DispatchQueue.concurrentPerform(iterations: groups.count) { g in
+                for i in groups[g] { slots[i] = body(i) }
+            }
         }
-        try? writeJournal()
-        return failures
+        return results.map { $0! }
     }
+
+    func restoreOwnedWindows() -> Int { show(windows.indices.filter { windows[$0].hidden != nil }) }
 
     func recoverPreviousSession() -> Int {
         guard trusted, let data = try? Data(contentsOf: journalURL),
               let entries = try? JSONDecoder().decode([RecoveryEntry].self, from: data) else { return 0 }
+        // Clamp on the main thread, where display geometry lives; the saved display may be gone.
+        let targets = entries.map { entry -> CGRect in
+            let frame = entry.frame.cgRect
+            return display(for: frame).map { Geometry.visibleFrame(frame, in: $0.area) } ?? frame
+        }
         let pending: [RecoveryEntry] = ax.sync {
-            entries.filter { entry in
+            zip(entries, targets).filter { entry, target in
                 guard let app = NSRunningApplication(processIdentifier: entry.pid), app.bundleIdentifier == entry.bundleID else { return false }
-                let application = AXUIElementCreateApplication(entry.pid)
-                guard let elements: [AXUIElement] = AX.attribute(application, kAXWindowsAttribute) else { return true }
+                guard let elements: [AXUIElement] = AX.attribute(AXUIElementCreateApplication(entry.pid), kAXWindowsAttribute) else { return true }
                 // Only recover the same live app process. Never launch or close applications.
                 let matches = elements.filter { element in
                     if let number = entry.windowNumber { return AX.windowNumber(element) == number }
                     return (AX.attribute(element, kAXTitleAttribute) as String?) == entry.title
                 }
-                return matches.contains { !AX.setMinimized($0, false) }
-            }
+                return matches.contains { element in
+                    entry.parked == true ? !AX.setFrame(element, target) : !AX.setMinimized(element, false)
+                }
+            }.map(\.0)
         }
         if let data = try? JSONEncoder().encode(pending) { try? data.write(to: journalURL, options: .atomic) }
         return pending.count
     }
 
     private func writeJournal() throws {
-        let entries = windows.filter(\.minimizedByTatami).map {
-            RecoveryEntry(pid: $0.pid, bundleID: $0.bundleID, title: $0.title, frame: Rect($0.frame), windowNumber: $0.windowNumber)
+        let entries = windows.compactMap { window -> RecoveryEntry? in
+            guard let hidden = window.hidden else { return nil }
+            var isParked = false
+            if case .parked = hidden { isParked = true }
+            return RecoveryEntry(pid: window.pid, bundleID: window.bundleID, title: window.title, frame: Rect(hidden.realFrame),
+                                 windowNumber: window.windowNumber, parked: isParked)
         }
         try JSONEncoder().encode(entries).write(to: journalURL, options: .atomic)
     }
@@ -238,6 +337,7 @@ struct RecoveryEntry: Codable {
     @discardableResult func move(_ id: UUID, to frame: CGRect) -> Bool {
         guard let index = windows.firstIndex(where: { $0.id == id }), trusted else { return false }
         let element = windows[index].element
+        writeGeneration += 1
         let (moved, actual) = ax.sync { (AX.setFrame(element, frame), AX.frame(of: element)) }
         if let actual { windows[index].frame = actual }
         return moved

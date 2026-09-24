@@ -31,10 +31,10 @@ extension AppModel {
         let windows = eligible.enumerated().map { index, window -> PlanWindow in
             let ref = "w\(index + 1)"
             refs[ref] = window.id
-            let display = service.display(for: window.frame).flatMap { d in service.displays.firstIndex { $0.id == d.id } } ?? 0
+            let display = service.display(for: window.realFrame).flatMap { d in service.displays.firstIndex { $0.id == d.id } } ?? 0
             return PlanWindow(ref: ref, appName: window.appName, bundleID: window.bundleID, title: window.title,
                               stageName: state.stages.first { $0.id == window.stageID }?.name ?? state.activeStage.name,
-                              display: display + 1, frame: window.frame)
+                              display: display + 1, frame: window.realFrame)
         }
         return (PlanContext(windows: windows, stageNames: state.stages.map(\.name), displays: service.displays.map(\.area.size)), refs)
     }

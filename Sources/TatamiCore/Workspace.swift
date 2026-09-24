@@ -62,6 +62,8 @@ public struct WorkspaceState: Codable {
     public var rules: [RoutingRule] = []
     public var excludedBundleIDs: [String] = []
     public var followSentWindow = false
+    /// Focusing a window from another Stage switches to it (M1 decision 11).
+    public var followActivatedWindows = true
     public var shortcutPreset: ShortcutPreset = .standard
     public var gap: Double = 12
     public var ai: AIConfig?
@@ -72,7 +74,7 @@ public struct WorkspaceState: Codable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, stages, activeStageID, saved, rules, excludedBundleIDs, followSentWindow, shortcutPreset, gap, ai
+        case version, stages, activeStageID, saved, rules, excludedBundleIDs, followSentWindow, followActivatedWindows, shortcutPreset, gap, ai
     }
 
     // Missing keys fall back to defaults so older files keep loading. Legacy `europeanShortcuts` is ignored: every file migrates to `.standard`.
@@ -86,6 +88,7 @@ public struct WorkspaceState: Codable {
         rules = try c.decodeIfPresent([RoutingRule].self, forKey: .rules) ?? defaults.rules
         excludedBundleIDs = try c.decodeIfPresent([String].self, forKey: .excludedBundleIDs) ?? defaults.excludedBundleIDs
         followSentWindow = try c.decodeIfPresent(Bool.self, forKey: .followSentWindow) ?? defaults.followSentWindow
+        followActivatedWindows = try c.decodeIfPresent(Bool.self, forKey: .followActivatedWindows) ?? defaults.followActivatedWindows
         shortcutPreset = try c.decodeIfPresent(ShortcutPreset.self, forKey: .shortcutPreset) ?? defaults.shortcutPreset
         gap = try c.decodeIfPresent(Double.self, forKey: .gap) ?? defaults.gap
         ai = try c.decodeIfPresent(AIConfig.self, forKey: .ai)

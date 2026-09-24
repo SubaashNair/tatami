@@ -193,7 +193,7 @@ struct Dashboard: View {
             }
             HStack(spacing: 9) {
                 Image(systemName: "info.circle")
-                Text(model.managing ? "Switching Stages minimizes inactive windows. Your other apps stay running." : "Management is paused. Stage selection previews your groups without hiding windows.")
+                Text(model.managing ? "Switching Stages moves inactive windows just off screen. Your other apps stay running." : "Management is paused. Stage selection previews your groups without hiding windows.")
             }.font(.system(size: 11)).foregroundStyle(Theme.muted)
         }
     }
@@ -371,6 +371,8 @@ struct Dashboard: View {
             heading("Make yourself at home.", "Small adjustments for a desk that feels like yours.")
             settingsBox("WORKFLOW") {
                 Toggle("Launch Tatami at login", isOn: Binding(get: { model.loginEnabled }, set: { model.setLogin($0) }))
+                Divider()
+                Toggle("Switch Stage when you focus a window from another Stage (Cmd+Tab, Dock)", isOn: Binding(get: { model.state.followActivatedWindows }, set: { model.state.followActivatedWindows = $0; model.persist() }))
                 Divider()
                 Toggle("Follow a window when sending it to another Stage", isOn: Binding(get: { model.state.followSentWindow }, set: { model.state.followSentWindow = $0; model.persist() }))
                 Divider()

@@ -6,8 +6,13 @@ import SwiftUI
         let app = NSApplication.shared
         let delegate = AppDelegate()
         app.delegate = delegate
+        // `kill` / `killall Tatami` should restore windows like Quit does, not behave like a crash.
+        signal(SIGTERM, SIG_IGN)
+        let terminate = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
+        terminate.setEventHandler { NSApp.terminate(nil) }
+        terminate.resume()
         app.setActivationPolicy(.regular)
-        withExtendedLifetime(delegate) { app.run() }
+        withExtendedLifetime((delegate, terminate)) { app.run() }
     }
 }
 
@@ -42,6 +47,7 @@ final class OrganizerPanel: NSPanel {
         model.showOrganizer = { [weak self] in self?.toggleOrganizer() }
         model.hideOrganizer = { [weak self] in self?.panel.orderOut(nil) }
         model.start()
+        if ProcessInfo.processInfo.environment["TATAMI_AUTOSTART"] == "1" && model.trusted { model.toggleManagement() }  // integration tests
         showWindow()
     }
 

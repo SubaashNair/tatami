@@ -31,6 +31,11 @@ import TatamiCore
     private var displayObserver: NSObjectProtocol?
     private var wakeObserver: NSObjectProtocol?
     private var appObservers: [NSObjectProtocol] = []
+    /// Stage → window last focused there, restored when returning to the Stage (M1 decision 12).
+    private var lastFocused: [UUID: UUID] = [:]
+    /// Our own switch moves focus around; ignore focus events until it settles.
+    private var suppressFollowUntil = Date.distantPast
+    private let followSuppression: TimeInterval = 1
     /// Events drive updates; this rescan only catches notifications apps fail to send (M1 decision 3).
     private let safetyNetInterval: TimeInterval = 5
     var undoSnapshot: SavedWorkspace?
@@ -38,7 +43,9 @@ import TatamiCore
     var menuChanged: (() -> Void)?
 
     init() {
-        directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("Tatami", isDirectory: true)
+        // TATAMI_DATA_DIR isolates integration tests from the user's real state.
+        directory = ProcessInfo.processInfo.environment["TATAMI_DATA_DIR"].map { URL(fileURLWithPath: $0, isDirectory: true) }
+            ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("Tatami", isDirectory: true)
         stateURL = directory.appendingPathComponent("workspace.json")
         var initial = WorkspaceState()
         var loadError: String?
@@ -63,7 +70,10 @@ import TatamiCore
         trusted = service.trusted
         if trusted { _ = service.recoverPreviousSession() }
         service.stateProvider = { [weak self] in self?.state ?? WorkspaceState() }
-        service.onWindowsChanged = { [weak self] _ in self?.windowsChanged() }
+        service.onWindowsChanged = { [weak self] notifications in
+            self?.windowsChanged()
+            if notifications.contains(kAXFocusedWindowChangedNotification) || notifications.contains(kAXMainWindowChangedNotification) { self?.followFocus() }
+        }
         refresh()
         timer = Timer.scheduledTimer(withTimeInterval: safetyNetInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.refresh() }
@@ -84,6 +94,10 @@ import TatamiCore
                 Task { @MainActor in self?.refresh() }
             }
         }
+        // Cmd+Tab and Dock clicks activate an app without changing its focused window.
+        appObservers.append(workspace.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.followFocus() }
+        })
     }
 
     /// Fire-and-forget: the scan runs on the AX thread and results land on the main thread.
@@ -93,8 +107,8 @@ import TatamiCore
         let wasTrusted = trusted
         trusted = service.trusted
         if wasTrusted && !trusted {
-            managing = false; hotkeys.unregister()
-            error = "Accessibility access was removed. Stage management is paused. Minimized windows remain available in the Dock; grant access again to restore them."
+            managing = false; service.managing = false; hotkeys.unregister()
+            error = "Accessibility access was removed, so Tatami cannot move windows. Grant access again and parked windows return automatically. Until then, minimized windows are in the Dock, and Window → Fill in an app's menu brings a window back on screen."
         }
         if !wasTrusted && trusted {
             _ = service.recoverPreviousSession()
@@ -135,9 +149,28 @@ import TatamiCore
     var selectedWindow: LiveWindow? { windows.first { $0.id == selectedWindowID } }
     var canUndo: Bool { undoSnapshot != nil }
 
+    /// Two managers moving the same windows fight each other and can strand windows off-screen.
+    static let conflictingManagers = ["bobko.aerospace": "AeroSpace", "com.koekeishiya.yabai": "yabai", "com.amethyst.Amethyst": "Amethyst",
+                                      "app.betterstage.BetterStage": "BetterStage", "com.betterstage.app": "BetterStage"]
+
+    func runningConflictingManager() -> String? {
+        let running = NSWorkspace.shared.runningApplications
+        if let app = running.first(where: { Self.conflictingManagers[$0.bundleIdentifier ?? ""] != nil }) { return Self.conflictingManagers[app.bundleIdentifier!] }
+        // yabai and AeroSpace can also run as bare executables.
+        return running.contains { ["yabai", "AeroSpace"].contains($0.executableURL?.lastPathComponent ?? "") } ? "another tiling window manager" : nil
+    }
+
     func toggleManagement() {
         guard trusted else { service.requestAccess(); return }
+        if !managing, let other = runningConflictingManager(), ProcessInfo.processInfo.environment["TATAMI_AUTOSTART"] != "1" {
+            let alert = NSAlert()
+            alert.messageText = "\(other) is running"
+            alert.informativeText = "Tatami and \(other) both move windows, and will fight over them. Quit \(other) first, or start anyway if you have configured it to ignore the apps Tatami manages."
+            alert.addButton(withTitle: "Cancel"); alert.addButton(withTitle: "Start Anyway")
+            guard alert.runModal() == .alertSecondButtonReturn else { return }
+        }
         managing.toggle()
+        service.managing = managing
         if managing {
             let conflicts = hotkeys.register(preset: state.shortcutPreset)
             if conflicts > 0 { error = "\(conflicts) shortcuts are already in use. Those shortcuts were not registered." }
@@ -153,8 +186,30 @@ import TatamiCore
     func switchStage(_ id: UUID) {
         guard state.stages.contains(where: { $0.id == id }) else { return }
         state.activeStageID = id; selectedWindowID = nil; search = ""
-        if managing { reportFailures(service.applyVisibility(state: state), action: "switch") }
+        if managing {
+            suppressFollowUntil = Date().addingTimeInterval(followSuppression)
+            reportFailures(service.applyVisibility(state: state), action: "switch")
+            focusAfterSwitch(to: id)
+        }
         publish(); persist()
+    }
+
+    /// Typing must never go to a parked window: focus something visible on the new Stage, or the desktop.
+    private func focusAfterSwitch(to stage: UUID) {
+        let candidates = service.windows.filter { $0.stageID == stage && $0.hidden == nil && !$0.minimized }
+        if let id = lastFocused[stage], candidates.contains(where: { $0.id == id }) { service.focus(id) }
+        else if let first = candidates.first { service.focus(first.id) }
+        else { NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.finder").first?.activate() }
+    }
+
+    /// Follow activated windows (M1 decision 11), and remember the last focused window per Stage.
+    func followFocus() {
+        guard managing, Date() >= suppressFollowUntil, let id = service.focusedID(),
+              let window = service.windows.first(where: { $0.id == id }) else { return }
+        lastFocused[window.stageID] = id
+        guard window.stageID != state.activeStageID, !state.excludedBundleIDs.contains(window.bundleID),
+              state.followActivatedWindows, state.stages.contains(where: { $0.id == window.stageID }) else { return }
+        switchStage(window.stageID)
     }
 
     func addStage(_ name: String) {
@@ -186,7 +241,12 @@ import TatamiCore
         undoSnapshot = snapshot(name: "Before moving window")
         service.windows[index].stageID = stageID
         if state.followSentWindow { state.activeStageID = stageID }
-        if managing { reportFailures(service.applyVisibility(state: state), action: "move window") }
+        if managing {
+            // The sent window keeps focus while parked; without this, follow-on-focus would chase it.
+            suppressFollowUntil = Date().addingTimeInterval(followSuppression)
+            reportFailures(service.applyVisibility(state: state), action: "move window")
+            if service.windows[index].stageID != state.activeStageID { focusAfterSwitch(to: state.activeStageID) }
+        }
         publish(); persist()
         notice = "Window assigned to \(state.stages.first(where: { $0.id == stageID })?.name ?? "Stage")."
     }
@@ -214,7 +274,7 @@ import TatamiCore
     }
 
     func rescue() {
-        managing = false; hotkeys.unregister()
+        managing = false; service.managing = false; hotkeys.unregister()
         let failures = service.restoreOwnedWindows()
         for window in service.windows {
             if let display = service.display(for: window.frame) {
@@ -236,7 +296,7 @@ import TatamiCore
         let snapshots = service.windows.map { window -> WindowSnapshot in
             let key = window.bundleID + "\u{0}" + window.title
             let occurrence = occurrences[key, default: 0]; occurrences[key] = occurrence + 1
-            return WindowSnapshot(bundleID: window.bundleID, title: window.title, occurrence: occurrence, stageID: window.stageID, frame: window.frame)
+            return WindowSnapshot(bundleID: window.bundleID, title: window.title, occurrence: occurrence, stageID: window.stageID, frame: window.realFrame)
         }
         return SavedWorkspace(name: name, stages: state.stages, activeStageID: state.activeStageID, windows: snapshots)
     }
