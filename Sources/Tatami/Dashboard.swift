@@ -106,7 +106,7 @@ struct Dashboard: View {
                         Circle().fill(stage.id == model.state.activeStageID ? Theme.accent : Theme.muted.opacity(0.3)).frame(width: 6, height: 6)
                         Text(stage.name).lineLimit(1)
                         Spacer()
-                        Text("\(model.state.europeanShortcuts ? "⌃⌥" : "⌥")\(index + 1)").font(.system(size: 11, design: .monospaced)).foregroundStyle(Theme.muted)
+                        Text("\(model.state.shortcutPreset.stageModifiers)\(index + 1)").font(.system(size: 11, design: .monospaced)).foregroundStyle(Theme.muted)
                     }.padding(.horizontal, 14).padding(.vertical, 11)
                         .background(stage.id == model.state.activeStageID ? Color.white.opacity(0.7) : .clear, in: RoundedRectangle(cornerRadius: 8))
                 }.buttonStyle(.plain).padding(.horizontal, 12)
@@ -364,8 +364,8 @@ struct Dashboard: View {
                 Divider()
                 Toggle("Follow a window when sending it to another Stage", isOn: Binding(get: { model.state.followSentWindow }, set: { model.state.followSentWindow = $0; model.persist() }))
                 Divider()
-                Toggle("European shortcuts (Control + Option + number)", isOn: Binding(get: { model.state.europeanShortcuts }, set: { model.state.europeanShortcuts = $0; model.updateShortcuts() }))
-                Text("Shortcuts are active only while management is running. Standard uses Option + 1–9 to switch and Option + Shift + 1–9 to send windows.").font(.system(size: 11)).foregroundStyle(Theme.muted)
+                Toggle("Classic shortcuts (Option + number, Option + arrows)", isOn: Binding(get: { model.state.shortcutPreset == .classic }, set: { model.state.shortcutPreset = $0 ? .classic : .standard; model.updateShortcuts() }))
+                Text("Shortcuts are active only while management is running. Standard uses Control + Option + 1–9 to switch, adds Shift to send windows, and Control + Option + Command + arrows to cycle, open the dashboard, and arrange. Classic uses Option alone, which blocks typing characters such as ¡ and ™ and replaces word navigation with Option + arrows.").font(.system(size: 11)).foregroundStyle(Theme.muted)
             }
             settingsBox("WINDOW SPACING") {
                 HStack { Text("Space between windows"); Spacer(); Text("\(Int(model.state.gap)) pt").foregroundStyle(Theme.muted).monospacedDigit() }

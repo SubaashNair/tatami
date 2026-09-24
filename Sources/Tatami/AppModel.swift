@@ -112,9 +112,9 @@ import TatamiCore
         guard trusted else { service.requestAccess(); return }
         managing.toggle()
         if managing {
-            let conflicts = hotkeys.register(european: state.europeanShortcuts)
+            let conflicts = hotkeys.register(preset: state.shortcutPreset)
             if conflicts > 0 { error = "\(conflicts) shortcuts are already in use. Those shortcuts were not registered." }
-            notice = "Stage management is on. Switch with \(state.europeanShortcuts ? "⌃⌥" : "⌥")1–9."
+            notice = "Stage management is on. Switch with \(state.shortcutPreset.stageModifiers)1–9."
         } else {
             let failures = service.restoreOwnedWindows()
             hotkeys.unregister()
@@ -291,7 +291,7 @@ import TatamiCore
 
     func updateShortcuts() {
         persist()
-        if managing { let failures = hotkeys.register(european: state.europeanShortcuts); reportFailures(failures, action: "register shortcuts") }
+        if managing { let failures = hotkeys.register(preset: state.shortcutPreset); reportFailures(failures, action: "register shortcuts") }
     }
 
     func shutdown() { timer?.invalidate(); hotkeys.unregister(); _ = service.restoreOwnedWindows(); persist() }

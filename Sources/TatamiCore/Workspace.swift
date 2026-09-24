@@ -62,12 +62,31 @@ public struct WorkspaceState: Codable {
     public var rules: [RoutingRule] = []
     public var excludedBundleIDs: [String] = []
     public var followSentWindow = false
-    public var europeanShortcuts = false
+    public var shortcutPreset: ShortcutPreset = .standard
     public var gap: Double = 12
 
     public init() {
         stages = [Stage(name: "Work", symbol: "square.grid.2x2"), Stage(name: "Comms", symbol: "bubble.left.and.bubble.right"), Stage(name: "Browse", symbol: "globe")]
         activeStageID = stages[0].id
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case version, stages, activeStageID, saved, rules, excludedBundleIDs, followSentWindow, shortcutPreset, gap
+    }
+
+    // Missing keys fall back to defaults so older files keep loading. Legacy `europeanShortcuts` is ignored: every file migrates to `.standard`.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let defaults = WorkspaceState()
+        version = try c.decode(Int.self, forKey: .version)
+        stages = try c.decode([Stage].self, forKey: .stages)
+        activeStageID = try c.decode(UUID.self, forKey: .activeStageID)
+        saved = try c.decodeIfPresent([SavedWorkspace].self, forKey: .saved) ?? defaults.saved
+        rules = try c.decodeIfPresent([RoutingRule].self, forKey: .rules) ?? defaults.rules
+        excludedBundleIDs = try c.decodeIfPresent([String].self, forKey: .excludedBundleIDs) ?? defaults.excludedBundleIDs
+        followSentWindow = try c.decodeIfPresent(Bool.self, forKey: .followSentWindow) ?? defaults.followSentWindow
+        shortcutPreset = try c.decodeIfPresent(ShortcutPreset.self, forKey: .shortcutPreset) ?? defaults.shortcutPreset
+        gap = try c.decodeIfPresent(Double.self, forKey: .gap) ?? defaults.gap
     }
 
     public var activeStage: Stage { stages.first(where: { $0.id == activeStageID }) ?? stages[0] }
@@ -111,6 +130,13 @@ public struct WorkspaceState: Codable {
         if activeStageID == id { activeStageID = stages[0].id }
         return activeStageID
     }
+}
+
+/// `standard` keeps plain Option free for typing and word navigation. `classic` uses Option alone for Stage actions.
+public enum ShortcutPreset: String, Codable, CaseIterable {
+    case standard, classic
+    public var stageModifiers: String { self == .standard ? "⌃⌥" : "⌥" }
+    public var navigationModifiers: String { self == .standard ? "⌃⌥⌘" : "⌥" }
 }
 
 public enum ValidationError: LocalizedError {

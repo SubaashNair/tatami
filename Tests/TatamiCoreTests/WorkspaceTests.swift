@@ -107,4 +107,24 @@ final class WorkspaceTests: XCTestCase {
         XCTAssertEqual(restored.stages, state.stages)
         XCTAssertEqual(restored.saved[0].windows[0].frame, window.frame)
     }
+
+    func testLegacyFileMigratesToStandardShortcuts() throws {
+        let stage = UUID()
+        let legacy = """
+        {"version":1,"stages":[{"id":"\(stage)","name":"Work","symbol":"square"}],"activeStageID":"\(stage)",
+         "saved":[],"rules":[],"excludedBundleIDs":[],"followSentWindow":false,"europeanShortcuts":false,"gap":12}
+        """
+        var state = try JSONDecoder().decode(WorkspaceState.self, from: Data(legacy.utf8))
+        try state.validate()
+        XCTAssertEqual(state.shortcutPreset, .standard)
+    }
+
+    func testMinimalFileUsesDefaults() throws {
+        let stage = UUID()
+        let minimal = #"{"version":1,"stages":[{"id":"\#(stage)","name":"Work","symbol":"square"}],"activeStageID":"\#(stage)"}"#
+        let state = try JSONDecoder().decode(WorkspaceState.self, from: Data(minimal.utf8))
+        XCTAssertEqual(state.gap, 12)
+        XCTAssertTrue(state.rules.isEmpty)
+        XCTAssertEqual(state.shortcutPreset, .standard)
+    }
 }

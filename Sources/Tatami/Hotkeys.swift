@@ -28,10 +28,13 @@ enum HotkeyAction {
 
     func unregister() { refs.forEach { UnregisterEventHotKey($0) }; refs.removeAll(); actions.removeAll() }
 
-    func register(european: Bool) -> Int {
+    func register(preset: ShortcutPreset) -> Int {
         unregister()
         var failures = 0
-        let base = UInt32(optionKey | (european ? controlKey : 0))
+        let classic = preset == .classic
+        let base = UInt32(optionKey | (classic ? 0 : controlKey))
+        // Plain Option+arrows is word/paragraph navigation; standard moves navigation to Control+Option+Command.
+        let navigation = UInt32(optionKey | (classic ? 0 : controlKey | cmdKey))
         let numbers = [kVK_ANSI_1, kVK_ANSI_2, kVK_ANSI_3, kVK_ANSI_4, kVK_ANSI_5, kVK_ANSI_6, kVK_ANSI_7, kVK_ANSI_8, kVK_ANSI_9]
         func bind(_ code: Int, _ modifiers: UInt32, _ action: HotkeyAction) {
             let number = UInt32(actions.count + 1)
@@ -41,10 +44,10 @@ enum HotkeyAction {
             if status == noErr, let ref { refs.append(ref) } else { failures += 1 }
         }
         for (i, code) in numbers.enumerated() { bind(code, base, .stage(i)); bind(code, base | UInt32(shiftKey), .send(i)) }
-        bind(kVK_LeftArrow, UInt32(optionKey), .cycle(-1))
-        bind(kVK_RightArrow, UInt32(optionKey), .cycle(1))
-        bind(kVK_UpArrow, UInt32(optionKey), .dashboard)
-        bind(kVK_DownArrow, UInt32(optionKey), .retile)
+        bind(kVK_LeftArrow, navigation, .cycle(-1))
+        bind(kVK_RightArrow, navigation, .cycle(1))
+        bind(kVK_UpArrow, navigation, .dashboard)
+        bind(kVK_DownArrow, navigation, .retile)
         bind(kVK_ANSI_R, UInt32(controlKey | optionKey | cmdKey), .rescue)
         let zones: [(Int, SnapZone)] = [(kVK_LeftArrow,.left),(kVK_RightArrow,.right),(kVK_UpArrow,.top),(kVK_DownArrow,.bottom),
             (kVK_ANSI_U,.topLeft),(kVK_ANSI_I,.topRight),(kVK_ANSI_J,.bottomLeft),(kVK_ANSI_K,.bottomRight),

@@ -31,7 +31,7 @@ The package can also be opened directly in Xcode with `Package.swift`. The packa
 - Accessibility permission onboarding and standard-window discovery.
 - Per-window minimization for Stage visibility, recovery journal, pause/restore, and rescue.
 - Sixteen snap zones, per-display grid arrangement, spacing preference, and geometry undo.
-- Carbon global shortcuts with conflict reporting; Standard and European presets.
+- Carbon global shortcuts with conflict reporting; Standard and Classic presets.
 - Save, preview, rename, delete, and load arrangements of currently open windows.
 - Ordered app and title routing rules; app-wide always-visible exclusions.
 - Local JSON persistence, validated settings backup/import, and launch-at-login preference.
@@ -40,21 +40,21 @@ The package can also be opened directly in Xcode with `Package.swift`. The packa
 
 Global shortcuts register only while Stage management is running.
 
-| Action | Standard shortcut |
-|---|---|
-| Switch Stage | Option + 1–9 |
-| Send focused window | Option + Shift + 1–9 |
-| Previous / next Stage | Option + Left / Right |
-| Show dashboard | Option + Up |
-| Arrange active Stage | Option + Down |
-| Snap halves | Control + Option + arrows |
-| Snap quarters | Control + Option + U / I / J / K |
-| Snap thirds | Control + Option + A / S / D |
-| Snap two thirds | Control + Option + Q / R / W |
-| Center / maximize | Control + Option + C / Return |
-| Rescue and pause | Control + Option + Command + R |
+| Action | Standard shortcut | Classic shortcut |
+|---|---|---|
+| Switch Stage | Control + Option + 1–9 | Option + 1–9 |
+| Send focused window | Control + Option + Shift + 1–9 | Option + Shift + 1–9 |
+| Previous / next Stage | Control + Option + Command + Left / Right | Option + Left / Right |
+| Show dashboard | Control + Option + Command + Up | Option + Up |
+| Arrange active Stage | Control + Option + Command + Down | Option + Down |
+| Snap halves | Control + Option + arrows | same |
+| Snap quarters | Control + Option + U / I / J / K | same |
+| Snap thirds | Control + Option + A / S / D | same |
+| Snap two thirds | Control + Option + Q / R / W | same |
+| Center / maximize | Control + Option + C / Return | same |
+| Rescue and pause | Control + Option + Command + R | same |
 
-The European preset adds Control to Stage switching and sending. Select a window row to use the dashboard's snap controls.
+Standard is the default because Option alone is macOS word navigation and character input. Classic is available in Preferences. Select a window row to use the dashboard's snap controls.
 
 ## Current limits
 
