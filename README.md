@@ -35,6 +35,15 @@ The package can also be opened directly in Xcode with `Package.swift`. The packa
 - Save, preview, rename, delete, and load arrangements of currently open windows.
 - Ordered app and title routing rules; app-wide always-visible exclusions.
 - Local JSON persistence, validated settings backup/import, and launch-at-login preference.
+- AI Organizer with your own key (Anthropic, OpenAI, Gemini, DeepSeek, OpenRouter, custom OpenAI-compatible) or a local model (Ollama, LM Studio). Describe a desk; review the proposed plan; apply it as one undoable step.
+
+## AI Organizer
+
+Open it with Control + Option + Z while managing, from the menu bar (Arrange with AI…), or from the dashboard sidebar. Choose a provider and save its key under Preferences → AI Organizer; keys are stored in your Keychain.
+
+The AI can create and rename Stages, move windows between Stages, and snap windows into zones on any display. It cannot delete Stages, change rules or preferences, or open and close apps. Every action is validated against your open windows before the preview is shown, and invalid actions are listed with a reason.
+
+What is sent: app names, bundle IDs, window positions, Stage names, display sizes, and (unless turned off per provider) window titles. Before the first request to a cloud provider, Tatami shows the destination host and asks for confirmation. Requests go directly to the provider; redirects are refused so keys only reach the configured host. Local presets never leave this Mac. AI settings are not included in settings exports or imports.
 
 ## Controls
 
@@ -58,7 +67,7 @@ Standard is the default because Option alone is macOS word navigation and charac
 
 ## Current limits
 
-This is the first implementation milestone, not full PRD parity. Tabbed Tiling, Action Wheel, AI Organizer, display pinning, licensing, arbitrary shortcut recording, automatic layout continuity, and full app/document reopening are not implemented. Stage previews are app-icon schematics, not captured thumbnails. No network requests are made.
+This is the first implementation milestone, not full PRD parity. Tabbed Tiling, Action Wheel, AI Recipes, managed AI, display pinning, licensing, arbitrary shortcut recording, automatic layout continuity, and full app/document reopening are not implemented. Stage previews are app-icon schematics, not captured thumbnails. The only network requests are AI Organizer requests you start, sent to the provider you chose.
 
 Window management uses native minimization rather than off-screen parking. Windows minimized by the user are left minimized during normal Stage switching. Restoring one through the Dock moves it to the active Stage. If Accessibility is revoked, macOS prevents Tatami from restoring windows; they remain recoverable from the Dock. After an abnormal exit, Tatami attempts recovery when it next has Accessibility access.
 

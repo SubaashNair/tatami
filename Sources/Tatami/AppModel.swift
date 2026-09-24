@@ -267,7 +267,8 @@ import TatamiCore
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             // No window titles, application paths, or live workspace state in portable backup.
-            var copy = state; copy.saved = []
+            // AI endpoints are not portable: an imported file must never redirect keys or skip the disclosure.
+            var copy = state; copy.saved = []; copy.ai = nil
             let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             try encoder.encode(copy).write(to: url, options: .atomic); notice = "Settings exported. Saved window layouts stay on this Mac."
         } catch { self.error = error.localizedDescription }
@@ -284,7 +285,7 @@ import TatamiCore
             alert.informativeText = "This replaces Stage names, shortcuts preferences, and routing rules. Your saved workspaces remain on this Mac. Window management will pause."
             alert.addButton(withTitle: "Import"); alert.addButton(withTitle: "Cancel")
             guard alert.runModal() == .alertFirstButtonReturn else { return }
-            rescue(); imported.saved = state.saved; state = imported
+            rescue(); imported.saved = state.saved; imported.ai = state.ai; state = imported
             for i in service.windows.indices { service.windows[i].stageID = state.activeStageID }
             persist(); publish(); notice = "Settings imported. Start managing when you are ready."
         } catch { self.error = error.localizedDescription }

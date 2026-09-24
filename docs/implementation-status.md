@@ -25,7 +25,7 @@ The PRD is the long-term product specification. This first milestone establishes
 1. AX observer pipeline, durable window matching, stable display reconciliation, and automatic checkpoint recovery.
 2. Tiling tree model and tests, tabbed-pane overlay, native-tab identity, per-monitor mode storage, and layout editor.
 3. Stage Strip hot edge, drag-to-Stage assignment, and configurable Action Wheel.
-4. AI provider adapters, structured plan validation, preview/apply transaction, recipe editor, and Keychain secrets.
+4. ~~AI provider adapters, structured plan validation, preview/apply transaction, and Keychain secrets~~ (done, see [ai-organizer-plan.md](ai-organizer-plan.md)). Remaining: Recipes, temperature, managed AI.
 5. Signing/notarization, updates, entitlements, packaging, and supported-device QA.
 
 ## Validation boundary

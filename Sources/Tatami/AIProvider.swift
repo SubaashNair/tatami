@@ -101,11 +101,12 @@ enum AIClient {
         if let body { request.httpBody = try JSONSerialization.data(withJSONObject: body) }
 
         let data: Data, response: URLResponse
-        do { (data, response) = try await URLSession.shared.data(for: request) }
+        do { (data, response) = try await URLSession.shared.data(for: request, delegate: RejectRedirects.shared) }
         catch let error as URLError where error.code == .cancelled { throw CancellationError() }
         catch is URLError { throw AIError.unreachable(local: preset.isLocal(config)) }
 
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        if (300..<400).contains(status) { throw AIError.provider(status, "The endpoint tried to redirect. Tatami only sends keys to the configured host.") }
         let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
         switch status {
         case 200..<300: return json
@@ -117,6 +118,12 @@ enum AIClient {
             throw AIError.provider(status, String(message.prefix(300)))
         }
     }
+}
+
+/// Keys are attached per request, so a redirect would replay them to whatever host the server names.
+final class RejectRedirects: NSObject, URLSessionTaskDelegate {
+    static let shared = RejectRedirects()
+    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest) async -> URLRequest? { nil }
 }
 
 /// API keys, one Keychain item per preset. Never written to workspace.json, exports, or logs.
@@ -141,7 +148,7 @@ enum KeychainStore {
         guard !value.isEmpty else { return }
         var q = query(account)
         q[kSecValueData as String] = Data(value.utf8)
-        q[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlocked
+        q[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         let status = SecItemAdd(q as CFDictionary, nil)
         guard status == errSecSuccess else { throw NSError(domain: NSOSStatusErrorDomain, code: Int(status), userInfo: [NSLocalizedDescriptionKey: "Could not save the key to the Keychain (\(status))."]) }
     }

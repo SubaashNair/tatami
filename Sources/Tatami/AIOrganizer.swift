@@ -68,9 +68,9 @@ extension AppModel {
                 guard let self, !Task.isCancelled else { return }
                 self.aiRefs = refs
                 self.aiState = .ready(plan.validate(against: context))
-            } catch is CancellationError {
-                self?.aiState = .idle
             } catch {
+                // A superseded request must not overwrite the newer one's state; cancelOrganize already reset it.
+                guard !Task.isCancelled, !(error is CancellationError) else { return }
                 self?.aiState = .failed(error.localizedDescription)
             }
         }
@@ -153,8 +153,9 @@ extension AppModel {
         Task { [weak self] in
             do {
                 let list = try await AIClient.models(preset: preset, config: config, key: key)
-                self?.aiModels = list
-                self?.notice = "Connected to \(preset.name). \(list.count) models available."
+                guard let self, self.aiPreset.id == preset.id else { return }  // provider changed while waiting
+                self.aiModels = list
+                self.notice = "Connected to \(preset.name). \(list.count) models available."
             } catch { self?.error = error.localizedDescription }
         }
     }

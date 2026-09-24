@@ -90,6 +90,18 @@ final class AIPlanTests: XCTestCase {
         XCTAssertEqual(result.dropped.count, 1)
     }
 
+    func testCaseOnlyRenameIsAllowed() throws {
+        let plan = try AIPlan.parse(#"{"summary":"","actions":[{"type":"renameStage","from":"comms","to":"COMMS"},{"type":"assign","window":"w2","stage":"Comms"}]}"#)
+        let result = plan.validate(against: context)
+        XCTAssertEqual(result.valid, [.renameStage(from: "Comms", to: "COMMS"), .assign(window: "w2", stage: "COMMS")])
+    }
+
+    func testSummaryIsCapped() throws {
+        let long = String(repeating: "a", count: 1000)
+        let result = try AIPlan.parse(#"{"summary":"\#(long)","actions":[]}"#).validate(against: context)
+        XCTAssertEqual(result.summary.count, AIPlan.maxSummaryLength)
+    }
+
     func testActionCap() throws {
         let many = Array(repeating: #"{"type":"snap","window":"w1","zone":"left"}"#, count: AIPlan.maxActions + 5).joined(separator: ",")
         let result = try AIPlan.parse(#"{"summary":"","actions":[\#(many)]}"#).validate(against: context)

@@ -1,6 +1,6 @@
 # AI Organizer (BYOK) implementation plan
 
-Status: decisions settled (design review 2026-09-24), ready to build. Covers PRD AIO-01 to AIO-04, AIO-06, AIO-07, AIO-09, AIO-10, scoped to arrangement only.
+Status: implemented 2026-09-24. Decisions settled in design review the same day. Covers PRD AIO-01 to AIO-04, AIO-06, AIO-07, AIO-09, AIO-10, scoped to arrangement only.
 
 ## Decisions
 
@@ -109,6 +109,16 @@ Estimated size: about 700 lines including tests.
 - [ ] Prompt builder: includes refs and Stage names, omits titles when disabled, omits excluded apps.
 - [ ] Legacy `workspace.json` (no `ai`, has `europeanShortcuts`) decodes.
 - [ ] Manual: Anthropic, OpenAI, Ollama each produce an applicable plan; Undo restores; bad key shows a clear error and nothing moves; cancel works; export contains no key; panel dismissal keeps plan.
+
+## Review follow-ups (applied)
+
+- Settings import keeps the current AI config and export omits it, so an imported file cannot redirect keys to another endpoint or pre-acknowledge the disclosure. This deviates from PRD SET-03, which exports AI config without credentials.
+- HTTP redirects are refused so `x-api-key` / `Authorization` never reach a host other than the configured one.
+- Keychain items use `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`.
+- A superseded or cancelled request cannot overwrite a newer plan; Test Connection results are dropped if the provider changed meanwhile.
+- Case-only Stage renames are allowed; model summaries are capped at 300 characters.
+- The AI hotkey is Control+Option+Z in both presets (it types nothing, so Classic needs no variant).
+- Known and accepted: two `snap` actions for one window apply last-wins; the panel also hides when a system input picker takes focus.
 
 ## Other findings (not in this work)
 

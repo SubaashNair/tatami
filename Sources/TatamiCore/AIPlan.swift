@@ -58,6 +58,8 @@ public enum AIPlanError: LocalizedError, Equatable {
 /// The model's raw, untrusted reply. Every field is optional so one bad action cannot sink the whole plan.
 public struct AIPlan: Decodable {
     public static let maxActions = 200
+    /// The summary is model-written text shown as-is; keep it short so it cannot dominate the preview.
+    public static let maxSummaryLength = 300
 
     public struct RawAction: Decodable {
         public var type: String?
@@ -127,10 +129,11 @@ public struct AIPlan: Decodable {
             guard let name = name?.trimmingCharacters(in: .whitespacesAndNewlines) else { return nil }
             return stages.first { $0.caseInsensitiveCompare(name) == .orderedSame }
         }
-        func newNameProblem(_ name: String?) -> String? {
+        /// `renaming` is the Stage being renamed, so a case-only rename is not a duplicate of itself.
+        func newNameProblem(_ name: String?, renaming: String? = nil) -> String? {
             let name = name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             if name.isEmpty || name.count > 60 { return "Stage names must be 1 to 60 characters." }
-            if canonical(name) != nil { return "A Stage named \(name) already exists." }
+            if let existing = canonical(name), existing != renaming { return "A Stage named \(name) already exists." }
             return nil
         }
         func stageProblem(_ name: String?) -> String {
@@ -151,7 +154,7 @@ public struct AIPlan: Decodable {
             case "renameStage":
                 let to = raw.to?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
                 if let from = canonical(raw.from) {
-                    if let p = newNameProblem(to) { problem = p }
+                    if let p = newNameProblem(to, renaming: from) { problem = p }
                     else { stages[stages.firstIndex(of: from)!] = to; valid.append(.renameStage(from: from, to: to)) }
                 } else { problem = stageProblem(raw.from) }
                 if problem != nil { missing.insert(to.lowercased()) }
@@ -173,7 +176,7 @@ public struct AIPlan: Decodable {
             }
             if let problem { dropped.append(.init(description: raw.label, reason: problem)) }
         }
-        return ValidatedPlan(summary: summary, valid: valid, dropped: dropped)
+        return ValidatedPlan(summary: String(summary.prefix(Self.maxSummaryLength)), valid: valid, dropped: dropped)
     }
 }
 
