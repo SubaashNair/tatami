@@ -11,9 +11,16 @@ import SwiftUI
     }
 }
 
-@MainActor final class AppDelegate: NSObject, NSApplicationDelegate {
+/// Titled so it can take keyboard focus; non-activating so it floats over the desk being described.
+final class OrganizerPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+    override func cancelOperation(_ sender: Any?) { orderOut(nil) }
+}
+
+@MainActor final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var model: AppModel!
     private var window: NSWindow!
+    private var panel: OrganizerPanel!
     private var statusItem: NSStatusItem!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -31,6 +38,9 @@ import SwiftUI
         statusItem.button?.image = NSImage(systemSymbolName: "square.split.2x2", accessibilityDescription: "Tatami")
         model.showDashboard = { [weak self] in self?.showWindow() }
         model.menuChanged = { [weak self] in self?.updateStatusMenu() }
+        setupOrganizerPanel()
+        model.showOrganizer = { [weak self] in self?.toggleOrganizer() }
+        model.hideOrganizer = { [weak self] in self?.panel.orderOut(nil) }
         model.start()
         showWindow()
     }
@@ -42,6 +52,36 @@ import SwiftUI
     @objc func showWindow() { window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true) }
     @objc private func toggleManagement() { model.toggleManagement() }
     @objc private func rescue() { model.rescue() }
+
+    private func setupOrganizerPanel() {
+        panel = OrganizerPanel(contentRect: NSRect(x: 0, y: 0, width: 580, height: 180), styleMask: [.titled, .fullSizeContentView, .nonactivatingPanel], backing: .buffered, defer: true)
+        panel.titleVisibility = .hidden
+        panel.titlebarAppearsTransparent = true
+        panel.isMovableByWindowBackground = true
+        panel.level = .floating
+        panel.hidesOnDeactivate = false
+        panel.isReleasedWhenClosed = false
+        panel.backgroundColor = NSColor(red: 0.96, green: 0.96, blue: 0.94, alpha: 1)
+        [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton].forEach { panel.standardWindowButton($0)?.isHidden = true }
+        let host = NSHostingController(rootView: AIOrganizerView(model: model).padding(22).frame(width: 580))
+        host.sizingOptions = .preferredContentSize
+        panel.contentViewController = host
+        panel.delegate = self
+    }
+
+    // Hides on outside click (decision 17). An unapplied plan stays in the model for next time.
+    func windowDidResignKey(_ notification: Notification) {
+        if (notification.object as? NSWindow) === panel { panel.orderOut(nil) }
+    }
+
+    @objc private func toggleOrganizer() {
+        if panel.isVisible { panel.orderOut(nil); return }
+        if let screen = NSScreen.main {
+            let area = screen.visibleFrame
+            panel.setFrameTopLeftPoint(NSPoint(x: area.midX - panel.frame.width / 2, y: area.maxY - 80))
+        }
+        panel.makeKeyAndOrderFront(nil)
+    }
     @objc private func selectStage(_ sender: NSMenuItem) { if let id = sender.representedObject as? UUID { model.switchStage(id) } }
     @objc private func preferences() { model.selection = "settings"; showWindow() }
 
@@ -59,6 +99,7 @@ import SwiftUI
         }
         menu.addItem(.separator())
         add(menu, "Open Tatami", #selector(showWindow))
+        add(menu, "Arrange with AI…", #selector(toggleOrganizer))
         add(menu, model.managing ? "Pause & Restore Windows" : "Start Managing", #selector(toggleManagement))
         add(menu, "Rescue Windows", #selector(rescue))
         add(menu, "Preferences…", #selector(preferences))

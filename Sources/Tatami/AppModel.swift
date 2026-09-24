@@ -15,6 +15,14 @@ import TatamiCore
     @Published var error: String?
     @Published var loginEnabled = SMAppService.mainApp.status == .enabled
     @Published var search = ""
+    @Published var aiPrompt = ""
+    @Published var aiState: AIState = .idle
+    @Published var aiModels: [String] = []
+    var aiTask: Task<Void, Never>?
+    /// ref ("w1") → live window, captured when the plan was requested.
+    var aiRefs: [String: UUID] = [:]
+    var showOrganizer: (() -> Void)?
+    var hideOrganizer: (() -> Void)?
     let service: WindowService
     let hotkeys = Hotkeys()
     let directory: URL
@@ -22,7 +30,7 @@ import TatamiCore
     private var timer: Timer?
     private var displayObserver: NSObjectProtocol?
     private var wakeObserver: NSObjectProtocol?
-    private var undoSnapshot: SavedWorkspace?
+    var undoSnapshot: SavedWorkspace?
     var showDashboard: (() -> Void)?
     var menuChanged: (() -> Void)?
 
@@ -295,7 +303,7 @@ import TatamiCore
     }
 
     func shutdown() { timer?.invalidate(); hotkeys.unregister(); _ = service.restoreOwnedWindows(); persist() }
-    private func reportFailures(_ count: Int, action: String) { if count > 0 { error = "Could not \(action) for \(count) item(s). Some applications may not support the requested action." } }
+    func reportFailures(_ count: Int, action: String) { if count > 0 { error = "Could not \(action) for \(count) item(s). Some applications may not support the requested action." } }
 
     private func handle(_ action: HotkeyAction) {
         switch action {
@@ -308,6 +316,7 @@ import TatamiCore
         case .dashboard: showDashboard?()
         case .retile: retile()
         case .rescue: rescue()
+        case .organizer: showOrganizer?()
         }
     }
 }

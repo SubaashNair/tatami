@@ -32,6 +32,7 @@ struct Dashboard: View {
                         switch model.selection {
                         case "saved": savedWorkspaces
                         case "rules": routing
+                        case "ai": aiOrganizer
                         case "settings": settings
                         default: stages
                         }
@@ -96,6 +97,7 @@ struct Dashboard: View {
             nav("stages", "Stages", "square.grid.2x2", badge: "\(model.state.stages.count)")
             nav("saved", "Saved Workspaces", "bookmark", badge: model.state.saved.isEmpty ? nil : "\(model.state.saved.count)")
             nav("rules", "App Routing", "arrow.triangle.branch")
+            nav("ai", "AI Organizer", "sparkles")
             nav("settings", "Preferences", "slider.horizontal.3")
             Divider().padding(.horizontal, 22).padding(.vertical, 24)
             HStack { Text("STAGES").font(.system(size: 10, weight: .semibold)).tracking(1.6); Spacer(); Button { name = ""; newStage = true } label: { Image(systemName: "plus") }.buttonStyle(.plain).help("Create a Stage") }
@@ -139,7 +141,7 @@ struct Dashboard: View {
 
     private var toolbar: some View {
         HStack {
-            HStack(spacing: 7) { Image(systemName: "desktopcomputer"); Text("My Mac"); Image(systemName: "chevron.right").font(.system(size: 8)); Text(model.selection == "stages" ? "Stages" : model.selection == "saved" ? "Saved Workspaces" : model.selection == "rules" ? "App Routing" : "Preferences").foregroundStyle(Theme.ink) }
+            HStack(spacing: 7) { Image(systemName: "desktopcomputer"); Text("My Mac"); Image(systemName: "chevron.right").font(.system(size: 8)); Text(model.selection == "stages" ? "Stages" : model.selection == "saved" ? "Saved Workspaces" : model.selection == "rules" ? "App Routing" : model.selection == "ai" ? "AI Organizer" : "Preferences").foregroundStyle(Theme.ink) }
                 .font(.system(size: 11)).foregroundStyle(Theme.muted)
             Spacer()
             Label("\(model.displays.count) display\(model.displays.count == 1 ? "" : "s")", systemImage: "display.2").font(.system(size: 11)).foregroundStyle(Theme.muted)
@@ -356,6 +358,14 @@ struct Dashboard: View {
         }
     }
 
+    private var aiOrganizer: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            heading("Describe it. Review it. Apply it.", "Your AI provider proposes an arrangement. Nothing moves until you apply, and Undo restores the previous desk.")
+            AIOrganizerView(model: model).padding(24).background(.white.opacity(0.7), in: RoundedRectangle(cornerRadius: 12))
+            Button("Provider and key settings…") { model.selection = "settings" }.buttonStyle(.link)
+        }
+    }
+
     private var settings: some View {
         VStack(alignment: .leading, spacing: 24) {
             heading("Make yourself at home.", "Small adjustments for a desk that feels like yours.")
@@ -372,6 +382,7 @@ struct Dashboard: View {
                 Slider(value: Binding(get: { model.state.gap }, set: { model.state.gap = $0; model.persist() }), in: 0...40, step: 2)
                 Text("Applied the next time you snap or arrange windows.").font(.system(size: 11)).foregroundStyle(Theme.muted)
             }
+            AISettingsBox(model: model)
             settingsBox("YOUR DATA") {
                 HStack { VStack(alignment: .leading, spacing: 6) { Text("Portable settings"); Text("Stage names, rules, exclusions, and preferences. No live window data.").font(.system(size: 11)).foregroundStyle(Theme.muted) }; Spacer(); Button("Import…") { model.importBackup() }; Button("Export…") { model.exportBackup() } }
                 Divider()
@@ -381,7 +392,7 @@ struct Dashboard: View {
                 HStack { VStack(alignment: .leading, spacing: 6) { Text("Bring your windows back"); Text("Restores windows minimized by Tatami and pauses Stage management.").font(.system(size: 11)).foregroundStyle(Theme.muted) }; Spacer(); Button("Rescue Windows") { model.rescue() } }
                 Text("Emergency shortcut while managing: Control + Option + Command + R. macOS Stage Manager should be turned off while using Tatami.").font(.system(size: 11)).foregroundStyle(Theme.muted)
             }
-            Text("TATAMI 0.1 · LOCAL FIRST\nThis foundation release includes Freeform Stages, snapping, routing, and saved arrangements. Tabbed Tiling, AI Organizer, display pinning, and Action Wheel are planned next.").font(.system(size: 11)).foregroundStyle(Theme.muted).lineSpacing(5)
+            Text("TATAMI 0.1 · LOCAL FIRST\nThis foundation release includes Freeform Stages, snapping, routing, and saved arrangements. It also includes the AI Organizer with your own key or a local model. Tabbed Tiling, display pinning, and Action Wheel are planned next.").font(.system(size: 11)).foregroundStyle(Theme.muted).lineSpacing(5)
         }.toggleStyle(.switch).controlSize(.small)
     }
 

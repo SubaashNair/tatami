@@ -3,7 +3,7 @@ import Carbon
 import TatamiCore
 
 enum HotkeyAction {
-    case stage(Int), send(Int), cycle(Int), snap(SnapZone), dashboard, retile, rescue
+    case stage(Int), send(Int), cycle(Int), snap(SnapZone), dashboard, retile, rescue, organizer
 }
 
 @MainActor final class Hotkeys {
@@ -54,6 +54,8 @@ enum HotkeyAction {
             (kVK_ANSI_A,.leftThird),(kVK_ANSI_S,.centerThird),(kVK_ANSI_D,.rightThird),
             (kVK_ANSI_Q,.leftTwoThirds),(kVK_ANSI_R,.centerTwoThirds),(kVK_ANSI_W,.rightTwoThirds),(kVK_ANSI_C,.center),(kVK_Return,.maximize)]
         for (key, zone) in zones { bind(key, UInt32(controlKey | optionKey), .snap(zone)) }
+        // ponytail: same combo in both presets; Control+Option+Z types nothing, so Classic needs no variant.
+        bind(kVK_ANSI_Z, UInt32(controlKey | optionKey), .organizer)
         return failures
     }
 }
