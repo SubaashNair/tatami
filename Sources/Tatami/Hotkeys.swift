@@ -1,0 +1,56 @@
+import AppKit
+import Carbon
+import TatamiCore
+
+enum HotkeyAction {
+    case stage(Int), send(Int), cycle(Int), snap(SnapZone), dashboard, retile, rescue
+}
+
+@MainActor final class Hotkeys {
+    private var refs: [EventHotKeyRef] = []
+    private var handler: EventHandlerRef?
+    private var actions: [UInt32: HotkeyAction] = [:]
+    var onAction: ((HotkeyAction) -> Void)?
+
+    init() {
+        var type = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
+        InstallEventHandler(GetApplicationEventTarget(), { _, event, context -> OSStatus in
+            guard let event, let context else { return OSStatus(eventNotHandledErr) }
+            var id = EventHotKeyID()
+            GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), nil, MemoryLayout<EventHotKeyID>.size, nil, &id)
+            let manager = Unmanaged<Hotkeys>.fromOpaque(context).takeUnretainedValue()
+            MainActor.assumeIsolated {
+                if let action = manager.actions[id.id] { manager.onAction?(action) }
+            }
+            return noErr
+        }, 1, &type, Unmanaged.passUnretained(self).toOpaque(), &handler)
+    }
+
+    func unregister() { refs.forEach { UnregisterEventHotKey($0) }; refs.removeAll(); actions.removeAll() }
+
+    func register(european: Bool) -> Int {
+        unregister()
+        var failures = 0
+        let base = UInt32(optionKey | (european ? controlKey : 0))
+        let numbers = [kVK_ANSI_1, kVK_ANSI_2, kVK_ANSI_3, kVK_ANSI_4, kVK_ANSI_5, kVK_ANSI_6, kVK_ANSI_7, kVK_ANSI_8, kVK_ANSI_9]
+        func bind(_ code: Int, _ modifiers: UInt32, _ action: HotkeyAction) {
+            let number = UInt32(actions.count + 1)
+            actions[number] = action
+            var ref: EventHotKeyRef?
+            let status = RegisterEventHotKey(UInt32(code), modifiers, EventHotKeyID(signature: 0x54415441, id: number), GetApplicationEventTarget(), 0, &ref)
+            if status == noErr, let ref { refs.append(ref) } else { failures += 1 }
+        }
+        for (i, code) in numbers.enumerated() { bind(code, base, .stage(i)); bind(code, base | UInt32(shiftKey), .send(i)) }
+        bind(kVK_LeftArrow, UInt32(optionKey), .cycle(-1))
+        bind(kVK_RightArrow, UInt32(optionKey), .cycle(1))
+        bind(kVK_UpArrow, UInt32(optionKey), .dashboard)
+        bind(kVK_DownArrow, UInt32(optionKey), .retile)
+        bind(kVK_ANSI_R, UInt32(controlKey | optionKey | cmdKey), .rescue)
+        let zones: [(Int, SnapZone)] = [(kVK_LeftArrow,.left),(kVK_RightArrow,.right),(kVK_UpArrow,.top),(kVK_DownArrow,.bottom),
+            (kVK_ANSI_U,.topLeft),(kVK_ANSI_I,.topRight),(kVK_ANSI_J,.bottomLeft),(kVK_ANSI_K,.bottomRight),
+            (kVK_ANSI_A,.leftThird),(kVK_ANSI_S,.centerThird),(kVK_ANSI_D,.rightThird),
+            (kVK_ANSI_Q,.leftTwoThirds),(kVK_ANSI_R,.centerTwoThirds),(kVK_ANSI_W,.rightTwoThirds),(kVK_ANSI_C,.center),(kVK_Return,.maximize)]
+        for (key, zone) in zones { bind(key, UInt32(controlKey | optionKey), .snap(zone)) }
+        return failures
+    }
+}
