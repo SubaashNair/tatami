@@ -12,6 +12,10 @@ bash scripts/package_app.sh
 open dist/Tatami.app
 ```
 
+If the project lives in `~/Documents` (or another iCloud/Finder-tagged folder), `swift test` may fail with "resource fork, Finder information, or similar detritus not allowed". Build outside it: `swift test --scratch-path /tmp/tatami-build`.
+
+To sign with a stable identity (needed so Keychain-stored AI keys don't re-prompt after each rebuild), list identities with `security find-identity -v -p codesigning` and run `TATAMI_SIGN_IDENTITY="Apple Development: …" bash scripts/package_app.sh`.
+
 The package can also be opened directly in Xcode with `Package.swift`. The packaging script builds a local, ad-hoc signed app. Distribution requires your own Developer ID signing and notarization.
 
 1. Open Tatami and choose **Connect Tatami**.
