@@ -30,6 +30,9 @@ import TatamiCore
     private var timer: Timer?
     private var displayObserver: NSObjectProtocol?
     private var wakeObserver: NSObjectProtocol?
+    private var appObservers: [NSObjectProtocol] = []
+    /// Events drive updates; this rescan only catches notifications apps fail to send (M1 decision 3).
+    private let safetyNetInterval: TimeInterval = 5
     var undoSnapshot: SavedWorkspace?
     var showDashboard: (() -> Void)?
     var menuChanged: (() -> Void)?
@@ -59,8 +62,10 @@ import TatamiCore
     func start() {
         trusted = service.trusted
         if trusted { _ = service.recoverPreviousSession() }
+        service.stateProvider = { [weak self] in self?.state ?? WorkspaceState() }
+        service.onWindowsChanged = { [weak self] _ in self?.windowsChanged() }
         refresh()
-        timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
+        timer = Timer.scheduledTimer(withTimeInterval: safetyNetInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.refresh() }
         }
         displayObserver = NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
@@ -73,9 +78,18 @@ import TatamiCore
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.service.updateDisplays(); self?.refresh() }
         }
+        let workspace = NSWorkspace.shared.notificationCenter
+        appObservers = [NSWorkspace.didLaunchApplicationNotification, NSWorkspace.didTerminateApplicationNotification].map { name in
+            workspace.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor in self?.refresh() }
+            }
+        }
     }
 
-    func refresh() {
+    /// Fire-and-forget: the scan runs on the AX thread and results land on the main thread.
+    func refresh() { Task { await refreshNow() } }
+
+    func refreshNow() async {
         let wasTrusted = trusted
         trusted = service.trusted
         if wasTrusted && !trusted {
@@ -86,7 +100,12 @@ import TatamiCore
             _ = service.recoverPreviousSession()
             notice = "Accessibility is connected. You can start managing your desk."
         }
-        service.scan(state: state)
+        await service.scan(state: state)
+        windowsChanged()
+    }
+
+    /// After any scan: new windows may need hiding (routing to inactive Stages), then the UI updates.
+    func windowsChanged() {
         if managing {
             let failures = service.applyVisibility(state: state)
             if failures > 0 { notice = "\(failures) window(s) could not be managed. Their app may not support this action." }

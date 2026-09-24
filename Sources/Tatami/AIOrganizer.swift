@@ -49,8 +49,7 @@ extension AppModel {
             updateAI { $0.disclosed.append(preset.id) }
         }
         guard let model = aiModel else { aiState = .failed(AIError.missingModel.localizedDescription); return }
-        refresh()
-        let (context, refs) = planContext()
+        let (context, refs) = planContext()  // events keep the window list current
         guard !context.windows.isEmpty else {
             aiState = .failed(trusted ? "There are no windows to arrange." : "Connect Accessibility so Tatami can see your windows.")
             return

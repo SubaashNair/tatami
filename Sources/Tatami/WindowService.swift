@@ -8,6 +8,7 @@ struct LiveWindow: Identifiable {
     let pid: pid_t
     let bundleID: String
     let appName: String
+    var windowNumber: UInt32?
     var title: String
     var frame: CGRect
     var minimized: Bool
@@ -28,14 +29,35 @@ struct RecoveryEntry: Codable {
     let bundleID: String
     let title: String
     let frame: Rect
+    var windowNumber: UInt32?
 }
 
 @MainActor final class WindowService {
     var windows: [LiveWindow] = []
     var displays: [DisplayInfo] = []
+    let ax = AXThread()
+    private var observers: AXObservers!
     private let journalURL: URL
+    /// Supplies routing rules and the active Stage for windows discovered by events.
+    var stateProvider: () -> WorkspaceState = { WorkspaceState() }
+    /// Called on the main thread after an event-driven rescan merged new window data.
+    var onWindowsChanged: ((_ notifications: Set<String>) -> Void)?
+    private var pendingPids: Set<pid_t> = []
+    private var pendingNotifications: Set<String> = []
+    private var needsFullScan = false
+    private var flushScheduled = false
+    /// Moves and resizes fire continuously during drags; coalesce them into one rescan.
+    private let eventCoalescing: TimeInterval = 0.05
 
-    init(directory: URL) { journalURL = directory.appendingPathComponent("recovery.json"); updateDisplays() }
+    init(directory: URL) {
+        journalURL = directory.appendingPathComponent("recovery.json")
+        ax.perform { AX.configureGlobalTimeout() }
+        observers = AXObservers(thread: ax) { [weak self] pid, notification in
+            MainActor.assumeIsolated { self?.handleEvent(pid: pid, notification: notification) }
+        }
+        updateDisplays()
+    }
+
     var trusted: Bool { AXIsProcessTrusted() }
 
     func requestAccess() {
@@ -56,38 +78,88 @@ struct RecoveryEntry: Codable {
         }
     }
 
-    func scan(state: WorkspaceState) {
+    private func regularApps() -> [AppInfo] {
+        NSWorkspace.shared.runningApplications.compactMap { app in
+            guard app.activationPolicy == .regular, app.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return nil }
+            return AppInfo(pid: app.processIdentifier, bundleID: app.bundleIdentifier ?? "pid.\(app.processIdentifier)", name: app.localizedName ?? "Application")
+        }
+    }
+
+    // MARK: scanning (off the main thread)
+
+    func scan(state: WorkspaceState) async {
         guard trusted else { return }
-        var found: [LiveWindow] = []
-        for app in NSWorkspace.shared.runningApplications where app.activationPolicy == .regular && app.processIdentifier != ProcessInfo.processInfo.processIdentifier {
-            let application = AXUIElementCreateApplication(app.processIdentifier)
-            AXUIElementSetMessagingTimeout(application, 0.2)
-            guard let elements: [AXUIElement] = attribute(application, kAXWindowsAttribute) else { continue }
-            for element in elements {
-                let role: String? = attribute(element, kAXSubroleAttribute)
-                guard role == kAXStandardWindowSubrole as String,
-                      let frame = frame(of: element), frame.width > 80, frame.height > 60 else { continue }
-                let title: String = attribute(element, kAXTitleAttribute) ?? "Untitled window"
-                let minimized: Bool = attribute(element, kAXMinimizedAttribute) ?? false
-                let bundleID = app.bundleIdentifier ?? "pid.\(app.processIdentifier)"
-                if var existing = windows.first(where: { CFEqual($0.element, element) }) {
-                    existing.title = title
-                    if !existing.minimizedByTatami { existing.frame = frame }
-                    existing.minimized = minimized
-                    // Unminimizing from the Dock is an explicit escape hatch.
-                    if existing.minimizedByTatami && !minimized { existing.minimizedByTatami = false; existing.stageID = state.activeStageID }
-                    if state.excludedBundleIDs.contains(bundleID), existing.minimizedByTatami {
-                        _ = setMinimized(false, element: element); existing.minimizedByTatami = false
-                    }
-                    found.append(existing)
-                } else {
-                    found.append(LiveWindow(id: UUID(), element: element, pid: app.processIdentifier, bundleID: bundleID,
-                                            appName: app.localizedName ?? "Application", title: title, frame: frame, minimized: minimized,
-                                            stageID: state.destination(bundleID: bundleID, title: title) ?? state.activeStageID))
+        let apps = regularApps()
+        let observers = observers!
+        let scanned = await ax.run {
+            observers.sync(pids: Set(apps.map(\.pid)))
+            let windows = AXScanner.scan(apps)
+            observers.watch(windows)
+            return windows
+        }
+        merge(scanned, only: nil, state: state)
+    }
+
+    private func rescan(pids: Set<pid_t>, state: WorkspaceState) async {
+        let apps = regularApps().filter { pids.contains($0.pid) }
+        let observers = observers!
+        let scanned = await ax.run {
+            let windows = AXScanner.scan(apps)
+            observers.watch(windows)
+            return windows
+        }
+        merge(scanned, only: pids, state: state)
+    }
+
+    private func handleEvent(pid: pid_t, notification: String) {
+        // A destroyed window can no longer report its pid; rescan everything.
+        if pid <= 0 { needsFullScan = true } else { pendingPids.insert(pid) }
+        pendingNotifications.insert(notification)
+        guard !flushScheduled else { return }
+        flushScheduled = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + eventCoalescing) { [weak self] in
+            MainActor.assumeIsolated { self?.flushEvents() }
+        }
+    }
+
+    private func flushEvents() {
+        let pids = pendingPids, full = needsFullScan, notifications = pendingNotifications
+        pendingPids = []; pendingNotifications = []; needsFullScan = false; flushScheduled = false
+        Task {
+            if full { await scan(state: stateProvider()) } else { await rescan(pids: pids, state: stateProvider()) }
+            onWindowsChanged?(notifications)
+        }
+    }
+
+    private func isSame(_ scanned: ScannedWindow, _ window: LiveWindow) -> Bool {
+        if let a = scanned.windowNumber, let b = window.windowNumber { return scanned.pid == window.pid && a == b }
+        return CFEqual(scanned.element, window.element)
+    }
+
+    /// Merges on the main thread against current state, so changes made while a scan was running survive.
+    private func merge(_ scanned: [ScannedWindow], only pids: Set<pid_t>?, state: WorkspaceState) {
+        var merged = pids.map { pids in windows.filter { !pids.contains($0.pid) } } ?? []
+        var restore: [AXUIElement] = []
+        for found in scanned {
+            if var existing = windows.first(where: { isSame(found, $0) }) {
+                existing.title = found.title
+                existing.windowNumber = found.windowNumber ?? existing.windowNumber
+                if !existing.minimizedByTatami { existing.frame = found.frame }
+                existing.minimized = found.minimized
+                // Unminimizing from the Dock is an explicit escape hatch.
+                if existing.minimizedByTatami && !found.minimized { existing.minimizedByTatami = false; existing.stageID = state.activeStageID }
+                if state.excludedBundleIDs.contains(found.bundleID), existing.minimizedByTatami {
+                    restore.append(found.element); existing.minimizedByTatami = false
                 }
+                merged.append(existing)
+            } else {
+                merged.append(LiveWindow(id: UUID(), element: found.element, pid: found.pid, bundleID: found.bundleID, appName: found.appName,
+                                         windowNumber: found.windowNumber, title: found.title, frame: found.frame, minimized: found.minimized,
+                                         stageID: state.destination(bundleID: found.bundleID, title: found.title) ?? state.activeStageID))
             }
         }
-        windows = found
+        windows = merged
+        if !restore.isEmpty { ax.sync { restore.forEach { _ = AX.setMinimized($0, false) } } }
     }
 
     func display(for frame: CGRect) -> DisplayInfo? {
@@ -97,21 +169,24 @@ struct RecoveryEntry: Codable {
         }
     }
 
+    // MARK: visibility
+
     func applyVisibility(state: WorkspaceState) -> Int {
         guard trusted else { return windows.filter(\.minimizedByTatami).count }
         var failures = 0
         for i in windows.indices {
             let excluded = state.excludedBundleIDs.contains(windows[i].bundleID)
             let visible = excluded || windows[i].stageID == state.activeStageID
+            let element = windows[i].element
             if visible && windows[i].minimizedByTatami {
-                if setMinimized(false, element: windows[i].element) {
+                if ax.sync({ AX.setMinimized(element, false) }) {
                     windows[i].minimizedByTatami = false; windows[i].minimized = false
                 } else { failures += 1 }
             } else if !visible && !windows[i].minimized && !windows[i].minimizedByTatami {
                 // Journal before changing a window. A crash still leaves native Dock recovery available.
                 windows[i].minimizedByTatami = true
                 do { try writeJournal() } catch { windows[i].minimizedByTatami = false; failures += 1; continue }
-                if setMinimized(true, element: windows[i].element) { windows[i].minimized = true }
+                if ax.sync({ AX.setMinimized(element, true) }) { windows[i].minimized = true }
                 else { windows[i].minimizedByTatami = false; failures += 1 }
             }
         }
@@ -122,7 +197,8 @@ struct RecoveryEntry: Codable {
     func restoreOwnedWindows() -> Int {
         var failures = 0
         for i in windows.indices where windows[i].minimizedByTatami {
-            if setMinimized(false, element: windows[i].element) {
+            let element = windows[i].element
+            if ax.sync({ AX.setMinimized(element, false) }) {
                 windows[i].minimizedByTatami = false; windows[i].minimized = false
             } else { failures += 1 }
         }
@@ -133,65 +209,61 @@ struct RecoveryEntry: Codable {
     func recoverPreviousSession() -> Int {
         guard trusted, let data = try? Data(contentsOf: journalURL),
               let entries = try? JSONDecoder().decode([RecoveryEntry].self, from: data) else { return 0 }
-        var pending: [RecoveryEntry] = []
-        for entry in entries {
-            guard let app = NSRunningApplication(processIdentifier: entry.pid), app.bundleIdentifier == entry.bundleID else { continue }
-            let application = AXUIElementCreateApplication(entry.pid)
-            AXUIElementSetMessagingTimeout(application, 0.2)
-            guard let elements: [AXUIElement] = attribute(application, kAXWindowsAttribute) else { pending.append(entry); continue }
-            let matches = elements.filter { (attribute($0, kAXTitleAttribute) as String?) == entry.title }
-            // Only recover the same live app process and title. Never launch or close applications.
-            for element in matches { if !setMinimized(false, element: element) { pending.append(entry) } }
+        let pending: [RecoveryEntry] = ax.sync {
+            entries.filter { entry in
+                guard let app = NSRunningApplication(processIdentifier: entry.pid), app.bundleIdentifier == entry.bundleID else { return false }
+                let application = AXUIElementCreateApplication(entry.pid)
+                guard let elements: [AXUIElement] = AX.attribute(application, kAXWindowsAttribute) else { return true }
+                // Only recover the same live app process. Never launch or close applications.
+                let matches = elements.filter { element in
+                    if let number = entry.windowNumber { return AX.windowNumber(element) == number }
+                    return (AX.attribute(element, kAXTitleAttribute) as String?) == entry.title
+                }
+                return matches.contains { !AX.setMinimized($0, false) }
+            }
         }
         if let data = try? JSONEncoder().encode(pending) { try? data.write(to: journalURL, options: .atomic) }
         return pending.count
     }
 
     private func writeJournal() throws {
-        let entries = windows.filter(\.minimizedByTatami).map { RecoveryEntry(pid: $0.pid, bundleID: $0.bundleID, title: $0.title, frame: Rect($0.frame)) }
+        let entries = windows.filter(\.minimizedByTatami).map {
+            RecoveryEntry(pid: $0.pid, bundleID: $0.bundleID, title: $0.title, frame: Rect($0.frame), windowNumber: $0.windowNumber)
+        }
         try JSONEncoder().encode(entries).write(to: journalURL, options: .atomic)
     }
+
+    // MARK: writes
 
     @discardableResult func move(_ id: UUID, to frame: CGRect) -> Bool {
         guard let index = windows.firstIndex(where: { $0.id == id }), trusted else { return false }
         let element = windows[index].element
-        var point = frame.origin, size = frame.size
-        guard let position = AXValueCreate(.cgPoint, &point), let dimensions = AXValueCreate(.cgSize, &size) else { return false }
-        let sizeResult = AXUIElementSetAttributeValue(element, kAXSizeAttribute as CFString, dimensions)
-        let positionResult = AXUIElementSetAttributeValue(element, kAXPositionAttribute as CFString, position)
-        if let actual = self.frame(of: element) { windows[index].frame = actual }
-        return sizeResult == .success && positionResult == .success
+        let (moved, actual) = ax.sync { (AX.setFrame(element, frame), AX.frame(of: element)) }
+        if let actual { windows[index].frame = actual }
+        return moved
     }
 
     func focusedID() -> UUID? {
         guard let app = NSWorkspace.shared.frontmostApplication else { return nil }
-        let application = AXUIElementCreateApplication(app.processIdentifier)
-        guard let focused: AXUIElement = attribute(application, kAXFocusedWindowAttribute) else { return nil }
-        return windows.first(where: { CFEqual($0.element, focused) })?.id
+        let pid = app.processIdentifier
+        let focused: (AXUIElement, UInt32?)? = ax.sync {
+            guard let element: AXUIElement = AX.attribute(AXUIElementCreateApplication(pid), kAXFocusedWindowAttribute) else { return nil }
+            return (element, AX.windowNumber(element))
+        }
+        guard let (element, number) = focused else { return nil }
+        return windows.first { window in
+            if let number, let own = window.windowNumber { return window.pid == pid && own == number }
+            return CFEqual(window.element, element)
+        }?.id
     }
 
     func focus(_ id: UUID) {
         guard let window = windows.first(where: { $0.id == id }) else { return }
-        _ = setMinimized(false, element: window.element)
+        let element = window.element
+        ax.sync {
+            _ = AX.setMinimized(element, false)
+            AXUIElementPerformAction(element, kAXRaiseAction as CFString)
+        }
         NSRunningApplication(processIdentifier: window.pid)?.activate()
-        AXUIElementPerformAction(window.element, kAXRaiseAction as CFString)
-    }
-
-    func frame(of element: AXUIElement) -> CGRect? {
-        guard let position: AXValue = attribute(element, kAXPositionAttribute),
-              let size: AXValue = attribute(element, kAXSizeAttribute),
-              AXValueGetType(position) == .cgPoint, AXValueGetType(size) == .cgSize else { return nil }
-        var origin = CGPoint.zero, dimensions = CGSize.zero
-        guard AXValueGetValue(position, .cgPoint, &origin), AXValueGetValue(size, .cgSize, &dimensions) else { return nil }
-        return CGRect(origin: origin, size: dimensions)
-    }
-
-    private func attribute<T>(_ element: AXUIElement, _ name: String) -> T? {
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success else { return nil }
-        return value as? T
-    }
-    private func setMinimized(_ minimized: Bool, element: AXUIElement) -> Bool {
-        AXUIElementSetAttributeValue(element, kAXMinimizedAttribute as CFString, minimized ? kCFBooleanTrue : kCFBooleanFalse) == .success
     }
 }
