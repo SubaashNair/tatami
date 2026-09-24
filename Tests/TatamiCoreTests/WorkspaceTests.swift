@@ -117,6 +117,21 @@ final class WorkspaceTests: XCTestCase {
         var state = try JSONDecoder().decode(WorkspaceState.self, from: Data(legacy.utf8))
         try state.validate()
         XCTAssertEqual(state.shortcutPreset, .standard)
+        XCTAssertNil(state.ai)
+    }
+
+    func testAIConfigRoundTripsAndRejectsInsecureEndpoints() throws {
+        var state = WorkspaceState()
+        var config = AIConfig(); config.presetID = "custom"; config.customBaseURL = "http://localhost:8080/v1"; config.models["custom"] = "llama"
+        state.ai = config
+        var decoded = try JSONDecoder().decode(WorkspaceState.self, from: JSONEncoder().encode(state))
+        try decoded.validate()
+        XCTAssertEqual(decoded.ai, config)
+        XCTAssertTrue(AIConfig.acceptableBaseURL("https://api.example.com/v1"))
+        XCTAssertFalse(AIConfig.acceptableBaseURL("http://api.example.com/v1"))
+        XCTAssertFalse(AIConfig.acceptableBaseURL("file:///etc/passwd"))
+        decoded.ai?.customBaseURL = "http://evil.example.com"
+        XCTAssertThrowsError(try decoded.validate())
     }
 
     func testMinimalFileUsesDefaults() throws {

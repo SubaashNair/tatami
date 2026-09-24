@@ -64,6 +64,7 @@ public struct WorkspaceState: Codable {
     public var followSentWindow = false
     public var shortcutPreset: ShortcutPreset = .standard
     public var gap: Double = 12
+    public var ai: AIConfig?
 
     public init() {
         stages = [Stage(name: "Work", symbol: "square.grid.2x2"), Stage(name: "Comms", symbol: "bubble.left.and.bubble.right"), Stage(name: "Browse", symbol: "globe")]
@@ -71,7 +72,7 @@ public struct WorkspaceState: Codable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, stages, activeStageID, saved, rules, excludedBundleIDs, followSentWindow, shortcutPreset, gap
+        case version, stages, activeStageID, saved, rules, excludedBundleIDs, followSentWindow, shortcutPreset, gap, ai
     }
 
     // Missing keys fall back to defaults so older files keep loading. Legacy `europeanShortcuts` is ignored: every file migrates to `.standard`.
@@ -87,6 +88,7 @@ public struct WorkspaceState: Codable {
         followSentWindow = try c.decodeIfPresent(Bool.self, forKey: .followSentWindow) ?? defaults.followSentWindow
         shortcutPreset = try c.decodeIfPresent(ShortcutPreset.self, forKey: .shortcutPreset) ?? defaults.shortcutPreset
         gap = try c.decodeIfPresent(Double.self, forKey: .gap) ?? defaults.gap
+        ai = try c.decodeIfPresent(AIConfig.self, forKey: .ai)
     }
 
     public var activeStage: Stage { stages.first(where: { $0.id == activeStageID }) ?? stages[0] }
@@ -96,7 +98,7 @@ public struct WorkspaceState: Codable {
         guard !stages.isEmpty, stages.count <= 9, Set(stages.map(\.id)).count == stages.count,
               stages.allSatisfy({ !$0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && $0.name.count <= 60 }),
               gap.isFinite, (0...40).contains(gap), saved.count <= 100,
-              rules.count <= 500 else { throw ValidationError.invalidState }
+              rules.count <= 500, ai?.isValid ?? true else { throw ValidationError.invalidState }
         guard stages.contains(where: { $0.id == activeStageID }) else { throw ValidationError.invalidState }
         for workspace in saved {
             guard !workspace.stages.isEmpty, workspace.stages.count <= 9,
@@ -129,6 +131,28 @@ public struct WorkspaceState: Codable {
         stages.removeAll { $0.id == id }
         if activeStageID == id { activeStageID = stages[0].id }
         return activeStageID
+    }
+}
+
+/// Non-secret AI settings, keyed by provider preset ID. API keys live only in the Keychain.
+public struct AIConfig: Codable, Equatable {
+    public var presetID = "anthropic"
+    public var customBaseURL = ""
+    public var models: [String: String] = [:]
+    /// Missing means true: titles are sent unless the user opts out for that provider.
+    public var sendTitles: [String: Bool] = [:]
+    public var disclosed: [String] = []
+    public init() {}
+
+    public var isValid: Bool {
+        presetID.count <= 40 && models.count <= 20 && models.values.allSatisfy { $0.count <= 200 } && disclosed.count <= 20 &&
+            (customBaseURL.isEmpty || Self.acceptableBaseURL(customBaseURL))
+    }
+
+    /// HTTPS anywhere, plain HTTP only for this Mac, so keys never cross the network unencrypted.
+    public static func acceptableBaseURL(_ text: String) -> Bool {
+        guard text.count <= 500, let url = URL(string: text), let host = url.host?.lowercased() else { return false }
+        return url.scheme == "https" || (url.scheme == "http" && ["localhost", "127.0.0.1", "::1"].contains(host))
     }
 }
 
