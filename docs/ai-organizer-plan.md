@@ -15,7 +15,7 @@ Status: implemented 2026-09-24. Decisions settled in design review the same day.
 | 7 | Shortcut conflict | Fix first: Control+Option becomes the default preset. |
 | 8 | Preset migration | Replace `europeanShortcuts: Bool` with `shortcutPreset` (`standard` = Control+Option, `classic` = Option only). All existing files migrate to `standard`. Standard cycle/dashboard/arrange move to Control+Option+Command+arrows. |
 | 9 | Panel location | Floating Spotlight-style panel for the hotkey, same SwiftUI view also reachable from a sidebar section. |
-| 10 | Hotkey | Control+Option+Z (Control+Option+Command+Z in Classic), registered only while managing. |
+| 10 | Hotkey | Control+Option+Z in both presets, registered only while managing. Also reachable from the menu bar and dashboard. |
 | 11 | Stale windows | At Apply, actions whose window has closed are skipped and reported. New windows are left alone. |
 | 12 | Undo | Single-slot undo, same as today. A later manual action replaces the AI undo. |
 | 13 | Default models | Anthropic defaults to `claude-haiku-4-5`. Other presets: fetch model list after the key is entered, remember the choice. |
@@ -82,7 +82,7 @@ Stages are referenced by name so a Stage created earlier in the plan can be targ
 
 ## Apply and undo
 
-`AppModel.apply(_ plan: ValidatedPlan)`: take `snapshot(name: "Before AI arrangement")`, then run the actions through internal variants of `addStage`, `renameStage`, `send`, `snap` that skip their own undo and visibility work, then one `applyVisibility`, one `persist`. Windows closed since the request are skipped and counted (decision 11). Undo is the existing `undo()`.
+`AppModel.apply(_ plan: ValidatedPlan)`: take `snapshot(name: "Before AI arrangement")`, then apply Stage creates, renames, and assignments directly to state, run one `applyVisibility` (so windows are unminimized before moving), then the snaps, then one `persist`. No refactor of `send`/`snap` was needed. Windows closed since the request are skipped and counted (decision 11). Undo is the existing `undo()`.
 
 ## Secrets
 
@@ -104,10 +104,10 @@ Estimated size: about 700 lines including tests.
 
 ## Test plan
 
-- [ ] Parse: bare JSON, fenced, after prose, malformed, unknown action type.
-- [ ] Validate: unknown window ref, unknown Stage, create-then-use, cascade drop, 10th Stage, duplicate name, bad zone, bad display, action cap.
-- [ ] Prompt builder: includes refs and Stage names, omits titles when disabled, omits excluded apps.
-- [ ] Legacy `workspace.json` (no `ai`, has `europeanShortcuts`) decodes.
+- [x] Parse: bare JSON, fenced, after prose, malformed, unknown action type.
+- [x] Validate: unknown window ref, unknown Stage, create-then-use, cascade drop, 10th Stage, duplicate name, bad zone, bad display, action cap.
+- [x] Prompt builder: includes refs and Stage names, omits titles when disabled, omits excluded apps.
+- [x] Legacy `workspace.json` (no `ai`, has `europeanShortcuts`) decodes.
 - [ ] Manual: Anthropic, OpenAI, Ollama each produce an applicable plan; Undo restores; bad key shows a clear error and nothing moves; cancel works; export contains no key; panel dismissal keeps plan.
 
 ## Review follow-ups (applied)
