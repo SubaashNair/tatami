@@ -79,9 +79,7 @@ expect_frame "$B" "$B_FRAME" "restored to its exact original frame"
 
 echo "5. Crash recovery"
 launch_tatami 1
-focus_doc "$B"
-key 19 "control down, option down, shift down"
-expect "$B" parked "parked before crash"
+expect "$B" parked "checkpoint put the window back on Stage 2 at launch, parked"
 kill -KILL "$tatami_pid"; wait "$tatami_pid" 2>/dev/null || true; tatami_pid=""
 expect "$B" parked "still parked after crash (no cleanup ran)"
 launch_tatami 0
