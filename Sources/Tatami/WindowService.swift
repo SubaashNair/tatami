@@ -340,6 +340,23 @@ struct RecoveryEntry: Codable {
 
     // MARK: writes
 
+    /// Changes where a hidden window will reappear, without showing it.
+    func setRealFrame(_ id: UUID, _ frame: CGRect) {
+        guard let index = windows.firstIndex(where: { $0.id == id }) else { return }
+        switch windows[index].hidden {
+        case .parked: windows[index].hidden = .parked(real: frame)
+        case .minimized: windows[index].hidden = .minimized(real: frame)
+        case nil: break
+        }
+    }
+
+    /// Visible windows move now; hidden ones reappear at `frame` when their Stage is shown.
+    @discardableResult func place(_ id: UUID, at frame: CGRect) -> Bool {
+        guard let window = windows.first(where: { $0.id == id }) else { return false }
+        if window.hidden != nil { setRealFrame(id, frame); try? writeJournal(); return true }
+        return move(id, to: frame)
+    }
+
     @discardableResult func move(_ id: UUID, to frame: CGRect) -> Bool {
         guard let index = windows.firstIndex(where: { $0.id == id }), trusted else { return false }
         let element = windows[index].element

@@ -4,7 +4,7 @@ import TatamiCore
 
 /// Workspace continuity (M1 decision 13): which Stage each window belongs to survives quits, crashes, and reboots.
 extension AppModel {
-    private var checkpointURL: URL { directory.appendingPathComponent("checkpoint.json") }
+    var checkpointURL: URL { directory.appendingPathComponent("checkpoint.json") }
     private static let checkpointDelay: TimeInterval = 1
 
     func scheduleCheckpoint() {

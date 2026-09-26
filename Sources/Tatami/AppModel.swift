@@ -34,6 +34,10 @@ import TatamiCore
     /// Stage → window last focused there, restored when returning to the Stage (M1 decision 12).
     var lastFocused: [UUID: UUID] = [:]
     var checkpointWork: DispatchWorkItem?
+    /// Windows moved off a disconnected display: window → (display key, original frame), for Restore on reconnect.
+    var displaced: [UUID: (display: String, frame: CGRect)] = [:]
+    /// Shows the Restore / Keep Current panel (M1 decision 8).
+    var onReconnectOffer: ((ReconnectOffer) -> Void)?
     var sleepObserver: NSObjectProtocol?
     /// Our own switch moves focus around; ignore focus events until it settles.
     private var suppressFollowUntil = Date.distantPast
@@ -82,12 +86,7 @@ import TatamiCore
             Task { @MainActor in self?.refresh() }
         }
         displayObserver = NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in
-                self?.service.updateDisplays()
-                self?.writeCheckpoint()
-                self?.refresh()
-                self?.notice = "Display setup changed. Rescue windows can bring misplaced windows back into view."
-            }
+            Task { @MainActor in self?.displaysChanged() }
         }
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.service.updateDisplays(); self?.refresh() }

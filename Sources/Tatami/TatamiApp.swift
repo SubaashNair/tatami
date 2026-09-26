@@ -26,6 +26,7 @@ final class OrganizerPanel: NSPanel {
     private var model: AppModel!
     private var window: NSWindow!
     private var panel: OrganizerPanel!
+    private var reconnectPanels: [NSPanel] = []
     private var statusItem: NSStatusItem!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -46,6 +47,7 @@ final class OrganizerPanel: NSPanel {
         setupOrganizerPanel()
         model.showOrganizer = { [weak self] in self?.toggleOrganizer() }
         model.hideOrganizer = { [weak self] in self?.panel.orderOut(nil) }
+        model.onReconnectOffer = { [weak self] offer in self?.showReconnect(offer) }
         model.start()
         if ProcessInfo.processInfo.environment["TATAMI_AUTOSTART"] == "1" && model.trusted { model.toggleManagement() }  // integration tests
         showWindow()
@@ -78,6 +80,29 @@ final class OrganizerPanel: NSPanel {
     // Hides on outside click (decision 17). An unapplied plan stays in the model for next time.
     func windowDidResignKey(_ notification: Notification) {
         if (notification.object as? NSWindow) === panel { panel.orderOut(nil) }
+    }
+
+    /// Non-blocking Restore / Keep Current Layout, on the display under the pointer (M1 decision 8).
+    private func showReconnect(_ offer: ReconnectOffer) {
+        let reconnect = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 380, height: 120), styleMask: [.titled, .fullSizeContentView, .nonactivatingPanel], backing: .buffered, defer: true)
+        reconnect.titleVisibility = .hidden
+        reconnect.titlebarAppearsTransparent = true
+        reconnect.level = .floating
+        reconnect.isReleasedWhenClosed = false
+        reconnect.hidesOnDeactivate = false
+        let host = NSHostingController(rootView: ReconnectView(offer: offer) { [weak self, weak reconnect] restore in
+            self?.model.resolveReconnect(offer, restore: restore)
+            reconnect?.orderOut(nil)
+        })
+        host.sizingOptions = .preferredContentSize
+        reconnect.contentViewController = host
+        let screen = NSScreen.screens.first { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) } ?? NSScreen.main
+        if let area = screen?.visibleFrame {
+            reconnect.setFrameTopLeftPoint(NSPoint(x: area.maxX - reconnect.frame.width - 20, y: area.maxY - 20))
+        }
+        reconnect.orderFrontRegardless()
+        reconnectPanels.removeAll { !$0.isVisible }
+        reconnectPanels.append(reconnect)
     }
 
     @objc private func toggleOrganizer() {
