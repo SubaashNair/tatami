@@ -48,6 +48,8 @@ import TatamiCore
     var undoSnapshot: SavedWorkspace?
     var showDashboard: (() -> Void)?
     var showStagesBar: (() -> Void)?
+    var onStageSwitched: ((_ index: Int, _ stage: Stage) -> Void)?
+    var onDockPreferenceChanged: (() -> Void)?
     let scrollSwitcher = ScrollSwitcher()
     var menuChanged: (() -> Void)?
 
@@ -98,7 +100,7 @@ import TatamiCore
         let workspace = NSWorkspace.shared.notificationCenter
         appObservers = [NSWorkspace.didLaunchApplicationNotification, NSWorkspace.didTerminateApplicationNotification].map { name in
             workspace.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                Task { @MainActor in self?.refresh() }
+                Task { @MainActor in self?.pauseIfConflictingManagerStarted(); self?.refresh() }
             }
         }
         sleepObserver = workspace.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
@@ -171,6 +173,13 @@ import TatamiCore
         return running.contains { ["yabai", "AeroSpace"].contains($0.executableURL?.lastPathComponent ?? "") } ? "another tiling window manager" : nil
     }
 
+    /// A tiling manager started while Tatami manages: step aside instead of fighting over windows.
+    func pauseIfConflictingManagerStarted() {
+        guard managing, ProcessInfo.processInfo.environment["TATAMI_AUTOSTART"] != "1", let other = runningConflictingManager() else { return }
+        toggleManagement()
+        error = "\(other) started, so Tatami paused and restored every window it had hidden. Two window managers moving the same windows fight each other. Quit \(other) and choose Start managing to continue."
+    }
+
     func toggleManagement() {
         guard trusted else { service.requestAccess(); return }
         if !managing, let other = runningConflictingManager(), ProcessInfo.processInfo.environment["TATAMI_AUTOSTART"] != "1" {
@@ -210,6 +219,7 @@ import TatamiCore
             focusAfterSwitch(to: id)
             Self.signposter.endInterval("switchStage", interval)
             let ms = (ContinuousClock.now - start) / .milliseconds(1)
+            if state.showSwitchIndicator, let index = state.stages.firstIndex(where: { $0.id == id }) { onStageSwitched?(index, state.stages[index]) }
             Self.log.info("Stage switch took \(ms, format: .fixed(precision: 1)) ms for \(self.service.windows.count) windows")
         }
         publish(); persist()

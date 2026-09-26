@@ -64,6 +64,10 @@ public struct WorkspaceState: Codable {
     public var followSentWindow = false
     /// Focusing a window from another Stage switches to it (M1 decision 11).
     public var followActivatedWindows = true
+    /// Brief Stage name pill after a switch (M2 decision 9).
+    public var showSwitchIndicator = true
+    /// Menu-bar-only by default (M2 decision 6).
+    public var showInDock = false
     public var shortcutPreset: ShortcutPreset = .standard
     public var gap: Double = 12
     public var ai: AIConfig?
@@ -74,7 +78,7 @@ public struct WorkspaceState: Codable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, stages, activeStageID, saved, rules, excludedBundleIDs, followSentWindow, followActivatedWindows, shortcutPreset, gap, ai
+        case version, stages, activeStageID, saved, rules, excludedBundleIDs, followSentWindow, followActivatedWindows, showSwitchIndicator, showInDock, shortcutPreset, gap, ai
     }
 
     // Missing keys fall back to defaults so older files keep loading. Legacy `europeanShortcuts` is ignored: every file migrates to `.standard`.
@@ -89,6 +93,8 @@ public struct WorkspaceState: Codable {
         excludedBundleIDs = try c.decodeIfPresent([String].self, forKey: .excludedBundleIDs) ?? defaults.excludedBundleIDs
         followSentWindow = try c.decodeIfPresent(Bool.self, forKey: .followSentWindow) ?? defaults.followSentWindow
         followActivatedWindows = try c.decodeIfPresent(Bool.self, forKey: .followActivatedWindows) ?? defaults.followActivatedWindows
+        showSwitchIndicator = try c.decodeIfPresent(Bool.self, forKey: .showSwitchIndicator) ?? defaults.showSwitchIndicator
+        showInDock = try c.decodeIfPresent(Bool.self, forKey: .showInDock) ?? defaults.showInDock
         shortcutPreset = try c.decodeIfPresent(ShortcutPreset.self, forKey: .shortcutPreset) ?? defaults.shortcutPreset
         gap = try c.decodeIfPresent(Double.self, forKey: .gap) ?? defaults.gap
         ai = try c.decodeIfPresent(AIConfig.self, forKey: .ai)

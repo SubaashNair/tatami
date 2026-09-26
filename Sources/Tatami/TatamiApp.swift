@@ -11,7 +11,6 @@ import SwiftUI
         let terminate = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
         terminate.setEventHandler { NSApp.terminate(nil) }
         terminate.resume()
-        app.setActivationPolicy(.regular)
         withExtendedLifetime((delegate, terminate)) { app.run() }
     }
 }
@@ -27,6 +26,12 @@ final class OrganizerPanel: NSPanel {
     private var window: NSWindow!
     private var panel: OrganizerPanel!
     private var reconnectPanels: [NSPanel] = []
+    private let indicator = SwitchIndicator()
+
+    /// Menu-bar-only unless the user asks for a Dock icon (M2 decision 6).
+    private func applyDockPreference() {
+        NSApp.setActivationPolicy(model.state.showInDock ? .regular : .accessory)
+    }
     private var statusItem: NSStatusItem!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -44,6 +49,9 @@ final class OrganizerPanel: NSPanel {
         statusItem.button?.image = NSImage(systemSymbolName: "square.split.2x2", accessibilityDescription: "Tatami")
         model.showDashboard = { [weak self] in self?.showWindow() }
         model.showStagesBar = { [weak self] in self?.showWindow() }  // M2 step 3 replaces this with the Stages Bar
+        model.onStageSwitched = { [weak self] index, stage in self?.indicator.show(index: index, stage: stage) }
+        model.onDockPreferenceChanged = { [weak self] in self?.applyDockPreference() }
+        applyDockPreference()
         model.menuChanged = { [weak self] in self?.updateStatusMenu() }
         setupOrganizerPanel()
         model.showOrganizer = { [weak self] in self?.toggleOrganizer() }
