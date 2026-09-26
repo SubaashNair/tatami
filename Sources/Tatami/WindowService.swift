@@ -87,14 +87,20 @@ struct RecoveryEntry: Codable {
 
     func updateDisplays() {
         let primaryHeight = NSScreen.screens.first?.frame.height ?? 900
-        displays = NSScreen.screens.enumerated().map { index, screen in
+        let screens = NSScreen.screens
+        // Hardware identity survives port changes and replugging (M1 decision 4).
+        let fingerprints = screens.enumerated().map { index, screen -> DisplayFingerprint in
             let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber
             let displayID = number?.uint32Value ?? 0
-            let uuid = CGDisplayCreateUUIDFromDisplayID(displayID)?.takeRetainedValue()
-            let stableID = uuid.map { CFUUIDCreateString(nil, $0) as String } ?? "display-\(index)"
-            return DisplayInfo(id: stableID, name: screen.localizedName,
-                               area: Geometry.accessibilityFrame(screen.visibleFrame, primaryHeight: primaryHeight),
-                               fullFrame: Geometry.accessibilityFrame(screen.frame, primaryHeight: primaryHeight))
+            let cfUUID = CGDisplayCreateUUIDFromDisplayID(displayID)?.takeRetainedValue()
+            let uuid = cfUUID.map { CFUUIDCreateString(nil, $0) as String } ?? "display-\(index)"
+            return DisplayFingerprint(vendor: CGDisplayVendorNumber(displayID), model: CGDisplayModelNumber(displayID), serial: CGDisplaySerialNumber(displayID),
+                                      uuid: uuid, frame: Geometry.accessibilityFrame(screen.frame, primaryHeight: primaryHeight))
+        }
+        let keys = DisplayFingerprint.keys(for: fingerprints)
+        displays = screens.indices.map { i in
+            DisplayInfo(id: keys[i], name: screens[i].localizedName,
+                        area: Geometry.accessibilityFrame(screens[i].visibleFrame, primaryHeight: primaryHeight), fullFrame: fingerprints[i].frame)
         }
     }
 

@@ -88,5 +88,11 @@ launch_tatami 0
 expect "$B" visible "recovered on next launch from the journal"
 expect_frame "$B" "$B_FRAME" "recovered to its exact original frame"
 
+echo "6. Checkpoint restores Stage membership"
+kill -TERM "$tatami_pid"; wait "$tatami_pid" 2>/dev/null || true; tatami_pid=""
+launch_tatami 1
+expect "$B" parked  "after restart, the window is back on Stage 2 and parked"
+expect "$A" visible "Stage 1 window stays visible"
+
 echo
 if [ "$failures" -eq 0 ]; then echo "All checks passed."; else echo "$failures check(s) failed."; exit 1; fi

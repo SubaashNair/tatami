@@ -32,7 +32,9 @@ import TatamiCore
     private var wakeObserver: NSObjectProtocol?
     private var appObservers: [NSObjectProtocol] = []
     /// Stage → window last focused there, restored when returning to the Stage (M1 decision 12).
-    private var lastFocused: [UUID: UUID] = [:]
+    var lastFocused: [UUID: UUID] = [:]
+    var checkpointWork: DispatchWorkItem?
+    var sleepObserver: NSObjectProtocol?
     /// Our own switch moves focus around; ignore focus events until it settles.
     private var suppressFollowUntil = Date.distantPast
     private let followSuppression: TimeInterval = 1
@@ -70,17 +72,19 @@ import TatamiCore
         trusted = service.trusted
         if trusted { _ = service.recoverPreviousSession() }
         service.stateProvider = { [weak self] in self?.state ?? WorkspaceState() }
+        applyLaunchAtLoginDefault()
         service.onWindowsChanged = { [weak self] notifications in
             self?.windowsChanged()
             if notifications.contains(kAXFocusedWindowChangedNotification) || notifications.contains(kAXMainWindowChangedNotification) { self?.followFocus() }
         }
-        refresh()
+        Task { await refreshNow(); restoreCheckpoint() }
         timer = Timer.scheduledTimer(withTimeInterval: safetyNetInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.refresh() }
         }
         displayObserver = NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in
                 self?.service.updateDisplays()
+                self?.writeCheckpoint()
                 self?.refresh()
                 self?.notice = "Display setup changed. Rescue windows can bring misplaced windows back into view."
             }
@@ -93,6 +97,9 @@ import TatamiCore
             workspace.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
                 Task { @MainActor in self?.refresh() }
             }
+        }
+        sleepObserver = workspace.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.writeCheckpoint() }
         }
         // Cmd+Tab and Dock clicks activate an app without changing its focused window.
         appObservers.append(workspace.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] _ in
@@ -130,6 +137,7 @@ import TatamiCore
     func publish() {
         windows = service.windows; displays = service.displays
         if let id = selectedWindowID, !windows.contains(where: { $0.id == id }) { selectedWindowID = nil }
+        scheduleCheckpoint()
         menuChanged?()
     }
 
@@ -382,7 +390,7 @@ import TatamiCore
         if managing { let failures = hotkeys.register(preset: state.shortcutPreset); reportFailures(failures, action: "register shortcuts") }
     }
 
-    func shutdown() { timer?.invalidate(); hotkeys.unregister(); _ = service.restoreOwnedWindows(); persist() }
+    func shutdown() { timer?.invalidate(); hotkeys.unregister(); _ = service.restoreOwnedWindows(); writeCheckpoint(); persist() }
     func reportFailures(_ count: Int, action: String) { if count > 0 { error = "Could not \(action) for \(count) item(s). Some applications may not support the requested action." } }
 
     private func handle(_ action: HotkeyAction) {
