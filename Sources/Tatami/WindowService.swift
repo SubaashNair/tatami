@@ -66,6 +66,10 @@ struct RecoveryEntry: Codable {
     private var initialScanDone = false
     /// Integration tests scope Tatami to specific apps so the user's real windows are never touched.
     private let onlyBundles = ProcessInfo.processInfo.environment["TATAMI_ONLY_BUNDLES"].map { Set($0.split(separator: ",").map(String.init)) }
+    /// macOS moves windows itself around display changes and wake; for a short while, a parked window
+    /// found on screen was put there by macOS, not rescued by the user, so it is re-parked.
+    private var displaysChangedAt = Date.distantPast
+    private let displayChangeGrace: TimeInterval = 3
     /// Bumped on every write so a scan that started before it cannot overwrite fresher frames.
     private var writeGeneration = 0
 
@@ -86,6 +90,7 @@ struct RecoveryEntry: Codable {
     }
 
     func updateDisplays() {
+        displaysChangedAt = Date()
         let primaryHeight = NSScreen.screens.first?.frame.height ?? 900
         let screens = NSScreen.screens
         // Hardware identity survives port changes and replugging (M1 decision 4).
@@ -167,7 +172,8 @@ struct RecoveryEntry: Codable {
     /// A stale scan (a write happened meanwhile) only adds and removes windows; its frames are out of date.
     private func merge(_ scanned: [ScannedWindow], only pids: Set<pid_t>?, state: WorkspaceState, stale: Bool) {
         var merged = pids.map { pids in windows.filter { !pids.contains($0.pid) } } ?? []
-        var reveal: [UUID] = [], rescue: [(UUID, CGRect)] = []
+        var reveal: [UUID] = [], rescue: [(UUID, CGRect)] = [], repark: [UUID] = []
+        let displaysSettling = Date().timeIntervalSince(displaysChangedAt) < displayChangeGrace
         let screens = displays.map(\.fullFrame)
         for found in scanned {
             if var existing = windows.first(where: { isSame(found, $0) }) {
@@ -178,6 +184,8 @@ struct RecoveryEntry: Codable {
                     existing.minimized = found.minimized
                     // Restoring from the Dock, or dragging a parked window back, is an explicit escape hatch.
                     switch existing.hidden {
+                    case .parked where !ParkPlanner.isParked(found.frame, displays: screens) && displaysSettling:
+                        repark.append(existing.id)
                     case .minimized where !found.minimized, .parked where !ParkPlanner.isParked(found.frame, displays: screens):
                         existing.hidden = nil; existing.stageID = state.activeStageID
                     default: break
@@ -199,6 +207,7 @@ struct RecoveryEntry: Codable {
         windows = merged
         if pids == nil { initialScanDone = true }
         if !reveal.isEmpty { _ = show(windows.indices.filter { reveal.contains(windows[$0].id) }) }
+        if managing, !repark.isEmpty { _ = hide(windows.indices.filter { repark.contains(windows[$0].id) }) }
         for (id, frame) in rescue { move(id, to: frame) }
     }
 
@@ -255,7 +264,8 @@ struct RecoveryEntry: Codable {
         }
         // Journal real frames before any window leaves the screen, so a crash can always put it back.
         for (i, index) in indices.enumerated() {
-            windows[index].hidden = jobs[i].2 == nil ? .minimized(real: windows[index].frame) : .parked(real: windows[index].frame)
+            let real = windows[index].realFrame  // re-parking keeps the frame the window will return to
+            windows[index].hidden = jobs[i].2 == nil ? .minimized(real: real) : .parked(real: real)
         }
         do { try writeJournal() } catch {
             for index in indices { windows[index].hidden = nil }
@@ -310,17 +320,20 @@ struct RecoveryEntry: Codable {
             return display(for: frame).map { Geometry.visibleFrame(frame, in: $0.area) } ?? frame
         }
         let pending: [RecoveryEntry] = ax.sync {
-            zip(entries, targets).filter { entry, target in
+            var claimed: [AXUIElement] = []
+            return zip(entries, targets).filter { entry, target in
                 guard let app = NSRunningApplication(processIdentifier: entry.pid), app.bundleIdentifier == entry.bundleID else { return false }
                 guard let elements: [AXUIElement] = AX.attribute(AXUIElementCreateApplication(entry.pid), kAXWindowsAttribute) else { return true }
                 // Only recover the same live app process. Never launch or close applications.
-                let matches = elements.filter { element in
+                // Exactly one window per entry: duplicate titles must not share (and overwrite) a saved frame.
+                let match = elements.first { element in
+                    guard !claimed.contains(where: { CFEqual($0, element) }) else { return false }
                     if let number = entry.windowNumber { return AX.windowNumber(element) == number }
                     return (AX.attribute(element, kAXTitleAttribute) as String?) == entry.title
                 }
-                return matches.contains { element in
-                    entry.parked == true ? !AX.setFrame(element, target) : !AX.setMinimized(element, false)
-                }
+                guard let match else { return false }
+                claimed.append(match)
+                return entry.parked == true ? !AX.setFrame(match, target) : !AX.setMinimized(match, false)
             }.map(\.0)
         }
         if let data = try? JSONEncoder().encode(pending) { try? data.write(to: journalURL, options: .atomic) }
