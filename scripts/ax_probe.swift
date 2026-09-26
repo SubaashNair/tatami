@@ -1,7 +1,15 @@
 // Integration-test helper: prints each window of an app as "visible" or "parked" with its frame.
-// Usage: ax_probe <app name>
+// Usage: ax_probe <app name> | ax_probe scroll <lines>   (posts a Control+Option scroll)
 import AppKit
 import ApplicationServices
+
+if CommandLine.arguments.dropFirst().first == "scroll" {
+    let lines = Int32(CommandLine.arguments.dropFirst(2).first ?? "-3") ?? -3
+    let event = CGEvent(scrollWheelEvent2Source: nil, units: .line, wheelCount: 1, wheel1: lines, wheel2: 0, wheel3: 0)!
+    event.flags = [.maskControl, .maskAlternate]
+    event.post(tap: .cghidEventTap)
+    exit(0)
+}
 
 let name = CommandLine.arguments.dropFirst().first ?? "TextEdit"
 guard AXIsProcessTrusted() else { print("ERROR not trusted"); exit(2) }

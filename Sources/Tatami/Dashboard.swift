@@ -18,7 +18,6 @@ struct Dashboard: View {
     @State private var name = ""
     @State private var rename: Stage?
     @State private var pendingLoad: SavedWorkspace?
-    @State private var pendingDelete: Stage?
 
     var body: some View {
         HStack(spacing: 0) {
@@ -75,10 +74,6 @@ struct Dashboard: View {
                 }
             }.padding(32).frame(width: 450)
         }
-        .alert("Remove Stage?", isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } })) {
-            Button("Cancel", role: .cancel) { pendingDelete = nil }
-            Button("Remove", role: .destructive) { if let stage = pendingDelete { model.deleteStage(stage.id) }; pendingDelete = nil }
-        } message: { Text("Its windows will move to another Stage. You can undo this change.") }
         .alert("Tatami needs your attention", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK") { model.error = nil }
         } message: { Text(model.error ?? "") }
@@ -236,7 +231,7 @@ struct Dashboard: View {
                     Button("Move Left") { model.reorderStage(stage.id, direction: -1) }.disabled(index == 0)
                     Button("Move Right") { model.reorderStage(stage.id, direction: 1) }.disabled(index == model.state.stages.count - 1)
                     Divider()
-                    Button("Remove Stage", role: .destructive) { pendingDelete = stage }.disabled(model.state.stages.count == 1)
+                    Button("Close Stage", role: .destructive) { model.deleteStage(stage.id) }.disabled(model.state.stages.count == 1)
                 } label: { Image(systemName: "ellipsis") }.menuStyle(.borderlessButton).frame(width: 20).help("Stage actions")
             }.padding(.horizontal, 16).padding(.bottom, 12)
         }.background(active ? Color.white : Color.white.opacity(0.45), in: RoundedRectangle(cornerRadius: 12))

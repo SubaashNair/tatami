@@ -92,5 +92,31 @@ launch_tatami 1
 expect "$B" parked  "after restart, the window is back on Stage 2 and parked"
 expect "$A" visible "Stage 1 window stays visible"
 
+echo "7. Cycle Stages with Tab"
+key 48 "control down, option down"                # next Stage
+expect "$B" visible "Control+Option+Tab shows the next Stage"
+expect "$A" parked  "and parks the previous one"
+key 48 "control down, option down, shift down"    # previous Stage
+expect "$A" visible "Control+Option+Shift+Tab goes back"
+
+echo "8. Scroll to switch"
+"$probe" scroll -3; sleep 1
+expect "$B" visible "Control+Option+scroll down switches to the next Stage"
+"$probe" scroll 3; sleep 1
+expect "$A" visible "scroll up switches back"
+expect "$B" parked  "and parks the other Stage"
+
+echo "9. Merge All"
+key 46 "control down, option down"                # M
+expect "$A" visible "merge shows every window"
+expect "$B" visible "including the one from Stage 2"
+
+echo "10. New and Close Stage"
+key 45 "control down, option down"                # N: new Stage, switched to
+expect "$A" parked "a new empty Stage parks the others"
+key 7 "control down, option down"                 # X: close current Stage
+expect "$A" visible "closing it returns to a Stage with the windows"
+expect "$B" visible "all windows are back"
+
 echo
 if [ "$failures" -eq 0 ]; then echo "All checks passed."; else echo "$failures check(s) failed."; exit 1; fi

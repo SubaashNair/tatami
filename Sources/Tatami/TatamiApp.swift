@@ -43,6 +43,7 @@ final class OrganizerPanel: NSPanel {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.button?.image = NSImage(systemSymbolName: "square.split.2x2", accessibilityDescription: "Tatami")
         model.showDashboard = { [weak self] in self?.showWindow() }
+        model.showStagesBar = { [weak self] in self?.showWindow() }  // M2 step 3 replaces this with the Stages Bar
         model.menuChanged = { [weak self] in self?.updateStatusMenu() }
         setupOrganizerPanel()
         model.showOrganizer = { [weak self] in self?.toggleOrganizer() }

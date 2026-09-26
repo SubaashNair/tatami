@@ -47,6 +47,8 @@ import TatamiCore
     private let safetyNetInterval: TimeInterval = 5
     var undoSnapshot: SavedWorkspace?
     var showDashboard: (() -> Void)?
+    var showStagesBar: (() -> Void)?
+    let scrollSwitcher = ScrollSwitcher()
     var menuChanged: (() -> Void)?
 
     init() {
@@ -71,6 +73,7 @@ import TatamiCore
         service = WindowService(directory: directory)
         error = loadError
         hotkeys.onAction = { [weak self] action in self?.handle(action) }
+        scrollSwitcher.onSwitch = { [weak self] offset in guard let self else { return }; self.switchStage(self.state.stageID(offset: offset)) }
     }
 
     func start() {
@@ -114,7 +117,7 @@ import TatamiCore
         let wasTrusted = trusted
         trusted = service.trusted
         if wasTrusted && !trusted {
-            managing = false; service.managing = false; hotkeys.unregister()
+            managing = false; service.managing = false; hotkeys.unregister(); scrollSwitcher.stop()
             error = "Accessibility access was removed, so Tatami cannot move windows. Grant access again and parked windows return automatically. Until then, minimized windows are in the Dock, and Window → Fill in an app's menu brings a window back on screen."
         }
         if !wasTrusted && trusted {
@@ -181,11 +184,12 @@ import TatamiCore
         service.managing = managing
         if managing {
             let conflicts = hotkeys.register(preset: state.shortcutPreset)
+            scrollSwitcher.start(preset: state.shortcutPreset)
             if conflicts > 0 { error = "\(conflicts) shortcuts are already in use. Those shortcuts were not registered." }
             notice = "Stage management is on. Switch with \(state.shortcutPreset.stageModifiers)1–9."
         } else {
             let failures = service.restoreOwnedWindows()
-            hotkeys.unregister()
+            hotkeys.unregister(); scrollSwitcher.stop()
             notice = failures == 0 ? "Management paused. All Tatami-minimized windows were restored." : "Management paused. \(failures) windows could not be restored; use their Dock icons."
         }
         refresh()
@@ -250,7 +254,17 @@ import TatamiCore
         guard let destination = state.removeStage(id) else { return }
         for i in service.windows.indices where service.windows[i].stageID == id { service.windows[i].stageID = destination }
         if managing { reportFailures(service.applyVisibility(state: state), action: "delete Stage") }
-        publish(); persist(); notice = "Stage removed. Its windows were moved to \(state.activeStage.name). Undo is available."
+        publish(); persist(); notice = "Stage closed. Its windows moved to \(state.activeStage.name). Undo is available."
+    }
+
+    /// Merge All (M2 decision 8). Undo restores every Stage and assignment.
+    func mergeAll() {
+        guard state.stages.count > 1 else { return }
+        undoSnapshot = snapshot(name: "Before merging Stages")
+        let first = state.mergeAll()
+        for i in service.windows.indices { service.windows[i].stageID = first }
+        if managing { reportFailures(service.applyVisibility(state: state), action: "merge Stages") }
+        publish(); persist(); notice = "All Stages merged into \(state.activeStage.name). Undo is available."
     }
 
     func send(_ windowID: UUID, to stageID: UUID) {
@@ -291,7 +305,7 @@ import TatamiCore
     }
 
     func rescue() {
-        managing = false; service.managing = false; hotkeys.unregister()
+        managing = false; service.managing = false; hotkeys.unregister(); scrollSwitcher.stop()
         let failures = service.restoreOwnedWindows()
         for window in service.windows {
             if let display = service.display(for: window.frame) {
@@ -396,21 +410,22 @@ import TatamiCore
 
     func updateShortcuts() {
         persist()
-        if managing { let failures = hotkeys.register(preset: state.shortcutPreset); reportFailures(failures, action: "register shortcuts") }
+        if managing { let failures = hotkeys.register(preset: state.shortcutPreset); scrollSwitcher.stop(); scrollSwitcher.start(preset: state.shortcutPreset); reportFailures(failures, action: "register shortcuts") }
     }
 
-    func shutdown() { timer?.invalidate(); hotkeys.unregister(); _ = service.restoreOwnedWindows(); writeCheckpoint(); persist() }
+    func shutdown() { timer?.invalidate(); hotkeys.unregister(); scrollSwitcher.stop(); _ = service.restoreOwnedWindows(); writeCheckpoint(); persist() }
     func reportFailures(_ count: Int, action: String) { if count > 0 { error = "Could not \(action) for \(count) item(s). Some applications may not support the requested action." } }
 
     private func handle(_ action: HotkeyAction) {
         switch action {
         case .stage(let index): if state.stages.indices.contains(index) { switchStage(state.stages[index].id) }
         case .send(let index): if state.stages.indices.contains(index), let id = service.focusedID() { send(id, to: state.stages[index].id) }
-        case .cycle(let offset):
-            let index = state.stages.firstIndex(where: { $0.id == state.activeStageID }) ?? 0
-            switchStage(state.stages[(index + offset + state.stages.count) % state.stages.count].id)
+        case .cycle(let offset): switchStage(state.stageID(offset: offset))
         case .snap(let zone): snap(zone)
-        case .dashboard: showDashboard?()
+        case .stagesBar: showStagesBar?()
+        case .newStage: addStage(state.nextStageName())
+        case .closeStage: deleteStage(state.activeStageID)
+        case .mergeAll: mergeAll()
         case .retile: retile()
         case .rescue: rescue()
         case .organizer: showOrganizer?()

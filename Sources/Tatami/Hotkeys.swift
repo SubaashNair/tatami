@@ -3,7 +3,7 @@ import Carbon
 import TatamiCore
 
 enum HotkeyAction {
-    case stage(Int), send(Int), cycle(Int), snap(SnapZone), dashboard, retile, rescue, organizer
+    case stage(Int), send(Int), cycle(Int), snap(SnapZone), stagesBar, retile, rescue, organizer, newStage, closeStage, mergeAll
 }
 
 @MainActor final class Hotkeys {
@@ -46,9 +46,14 @@ enum HotkeyAction {
         for (i, code) in numbers.enumerated() { bind(code, base, .stage(i)); bind(code, base | UInt32(shiftKey), .send(i)) }
         bind(kVK_LeftArrow, navigation, .cycle(-1))
         bind(kVK_RightArrow, navigation, .cycle(1))
-        bind(kVK_UpArrow, navigation, .dashboard)
+        bind(kVK_UpArrow, navigation, .stagesBar)
         bind(kVK_DownArrow, navigation, .retile)
         bind(kVK_ANSI_R, UInt32(controlKey | optionKey | cmdKey), .rescue)
+        bind(kVK_Tab, base, .cycle(1))
+        bind(kVK_Tab, base | UInt32(shiftKey), .cycle(-1))
+        bind(kVK_ANSI_N, base, .newStage)
+        bind(kVK_ANSI_X, base, .closeStage)
+        bind(kVK_ANSI_M, base, .mergeAll)
         let zones: [(Int, SnapZone)] = [(kVK_LeftArrow,.left),(kVK_RightArrow,.right),(kVK_UpArrow,.top),(kVK_DownArrow,.bottom),
             (kVK_ANSI_U,.topLeft),(kVK_ANSI_I,.topRight),(kVK_ANSI_J,.bottomLeft),(kVK_ANSI_K,.bottomRight),
             (kVK_ANSI_A,.leftThird),(kVK_ANSI_S,.centerThird),(kVK_ANSI_D,.rightThird),
