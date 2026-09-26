@@ -83,6 +83,18 @@ enum AX {
         return AXUIElementSetAttributeValue(element, kAXPositionAttribute as CFString, position) == .success
     }
 
+    /// Chrome, Firefox, and Electron animate every resize while this is on, which makes parking visibly slow.
+    /// Assistive tools rely on it, so turn it off only around our moves and restore it (M1 decision 6).
+    static func withoutEnhancedUI<T>(pid: pid_t, _ body: () -> T) -> T {
+        let app = AXUIElementCreateApplication(pid)
+        let key = "AXEnhancedUserInterface" as CFString
+        var value: CFTypeRef?
+        let wasOn = AXUIElementCopyAttributeValue(app, key, &value) == .success && (value as? Bool) == true
+        if wasOn { AXUIElementSetAttributeValue(app, key, kCFBooleanFalse) }
+        defer { if wasOn { AXUIElementSetAttributeValue(app, key, kCFBooleanTrue) } }
+        return body()
+    }
+
     static func setMinimized(_ element: AXUIElement, _ minimized: Bool) -> Bool {
         AXUIElementSetAttributeValue(element, kAXMinimizedAttribute as CFString, minimized ? kCFBooleanTrue : kCFBooleanFalse) == .success
     }

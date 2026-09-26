@@ -1,6 +1,6 @@
 # M1: Engine foundations
 
-Status: decisions settled (design review 2026-09-24), ready to build. Part of [betterstage-parity.md](betterstage-parity.md). Covers PRD STG-03, STG-06, DSP-02, DSP-03, DSP-06, DSP-07, WSP-01 to WSP-05, SET-01, SET-10 (as far as macOS allows).
+Status: implemented 2026-09-26. Decisions settled in design review 2026-09-24. Part of [betterstage-parity.md](betterstage-parity.md). Covers PRD STG-03, STG-06, DSP-02, DSP-03, DSP-06, DSP-07, WSP-01 to WSP-05, SET-01, SET-10 (as far as macOS allows).
 
 ## Decisions
 
@@ -36,6 +36,6 @@ Also settled: Rescue un-parks everything to journaled frames; undo snapshots and
 
 ## Test plan
 
-- [ ] Unit: fingerprint matching (serial 0, identical twins, port swap, resolution change), corner choice (single display, side-by-side, stacked, 3×3), proportional remap, checkpoint matching (window number, title change, duplicate titles, app relaunch), park-zone detection.
+- [x] Unit: fingerprint matching (serial 0, identical twins, port swap, resolution change), corner choice (single display, side-by-side, stacked, 3×3), proportional remap, checkpoint matching (window number, title change, duplicate titles, app relaunch), park-zone detection.
 - [ ] Integration (`scripts/ax_integration.sh`, opt-in, needs Accessibility for the terminal): TextEdit windows on two Stages; switch; assert parked/visible frames; quit Tatami; assert restored.
 - [ ] Manual on Safari, Chrome, Finder, Terminal, Xcode, VS Code, Slack, Preview: switch, Cmd+Tab follow, Rescue, force-quit then relaunch recovery, unplug/replug display, sleep/wake.

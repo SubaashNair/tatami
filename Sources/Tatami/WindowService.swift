@@ -293,7 +293,7 @@ struct RecoveryEntry: Codable {
             // Safe: each job writes only its own slot, and groups never share a slot.
             nonisolated(unsafe) let slots = buffer
             DispatchQueue.concurrentPerform(iterations: groups.count) { g in
-                for i in groups[g] { slots[i] = body(i) }
+                AX.withoutEnhancedUI(pid: pids[groups[g][0]]) { for i in groups[g] { slots[i] = body(i) } }
             }
         }
         return results.map { $0! }
@@ -361,7 +361,8 @@ struct RecoveryEntry: Codable {
         guard let index = windows.firstIndex(where: { $0.id == id }), trusted else { return false }
         let element = windows[index].element
         writeGeneration += 1
-        let (moved, actual) = ax.sync { (AX.setFrame(element, frame), AX.frame(of: element)) }
+        let pid = windows[index].pid
+        let (moved, actual) = ax.sync { AX.withoutEnhancedUI(pid: pid) { (AX.setFrame(element, frame), AX.frame(of: element)) } }
         if let actual { windows[index].frame = actual }
         return moved
     }

@@ -21,15 +21,19 @@ The package can also be opened directly in Xcode with `Package.swift`. The packa
 1. Open Tatami and choose **Connect Tatami**.
 2. Enable Tatami under System Settings → Privacy & Security → Accessibility. Turn off Apple's Stage Manager.
 3. Create or rename Stages. Use a window's menu to move it or set an app-routing rule.
-4. Choose **Start managing** when ready. Stage switching minimizes inactive windows, leaving them accessible through the macOS Dock.
-5. Close the dashboard to continue using the menu-bar app. Quit restores windows minimized by Tatami.
+4. Choose **Start managing** when ready. Stage switching moves inactive windows just off screen (1 pt stays in a display corner), so switching is instant. If you use AeroSpace, yabai, or Amethyst, quit it first: two managers fight over the same windows.
+5. Close the dashboard to continue using the menu-bar app. Quit restores every window Tatami hid.
 
 ## Implemented in 0.1
 
 - Native SwiftUI/AppKit dashboard and menu-bar controls.
 - Up to nine named Stages; create, rename, reorder, remove, switch, send windows, and undo.
 - Accessibility permission onboarding and standard-window discovery.
-- Per-window minimization for Stage visibility, recovery journal, pause/restore, and rescue.
+- Instant Stage switching by parking windows off screen, with a per-window minimize fallback; recovery journal, pause/restore, and rescue.
+- Event-driven window tracking on a dedicated Accessibility thread (no main-thread polling).
+- Focusing a window from another Stage (Cmd+Tab, Dock) switches to it; returning to a Stage focuses its last-used window.
+- Workspace continuity: Stage membership survives quits, crashes, and reboots. Launch at Login is on by default.
+- Hardware display identity; windows from a disconnected display move to the one under the pointer, with a Restore / Keep Current prompt on reconnect.
 - Sixteen snap zones, per-display grid arrangement, spacing preference, and geometry undo.
 - Carbon global shortcuts with conflict reporting; Standard and Classic presets.
 - Save, preview, rename, delete, and load arrangements of currently open windows.
@@ -69,7 +73,9 @@ Standard is the default because Option alone is macOS word navigation and charac
 
 This is the first implementation milestone, not full PRD parity. Tabbed Tiling, Action Wheel, AI Recipes, managed AI, display pinning, licensing, arbitrary shortcut recording, automatic layout continuity, and full app/document reopening are not implemented. Stage previews are app-icon schematics, not captured thumbnails. The only network requests are AI Organizer requests you start, sent to the provider you chose.
 
-Window management uses native minimization rather than off-screen parking. Windows minimized by the user are left minimized during normal Stage switching. Restoring one through the Dock moves it to the active Stage. If Accessibility is revoked, macOS prevents Tatami from restoring windows; they remain recoverable from the Dock. After an abnormal exit, Tatami attempts recovery when it next has Accessibility access.
+Hidden windows are parked in a bottom corner of their own display with 1 pt visible. When both bottom corners border another display, or an app refuses to move off screen, that window is minimized instead. Windows you minimize yourself stay minimized. Dragging a parked window back or restoring a minimized one from the Dock moves it to the active Stage.
+
+Real window frames are journaled before any window is hidden. Quit, `killall Tatami`, and the next launch after a crash all put windows back. If Accessibility is revoked while windows are parked, macOS stops Tatami from moving them until access is granted again, at which point they return automatically; meanwhile Window → Fill (macOS 15+) in an app's menu brings a window back.
 
 Saved arrangements match running apps by bundle ID, window title, and occurrence. Renamed/closed windows are reported as unmatched. They do not reopen documents, preserve native tab trees, or provide reliable cross-reboot window identity. Display changes refresh geometry; automatic original-display return is not yet implemented. Some apps impose minimum window sizes or reject Accessibility operations.
 

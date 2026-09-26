@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import ServiceManagement
+import os
 import TatamiCore
 
 @MainActor final class AppModel: ObservableObject {
@@ -190,13 +191,22 @@ import TatamiCore
         refresh()
     }
 
+    private static let log = Logger(subsystem: "app.tatami.mac", category: "engine")
+    private static let signposter = OSSignposter(logger: log)
+
     func switchStage(_ id: UUID) {
         guard state.stages.contains(where: { $0.id == id }) else { return }
         state.activeStageID = id; selectedWindowID = nil; search = ""
         if managing {
+            // Measured, not assumed (M1 decision 7): view in Console or Instruments › os_signpost.
+            let interval = Self.signposter.beginInterval("switchStage")
+            let start = ContinuousClock.now
             suppressFollowUntil = Date().addingTimeInterval(followSuppression)
             reportFailures(service.applyVisibility(state: state), action: "switch")
             focusAfterSwitch(to: id)
+            Self.signposter.endInterval("switchStage", interval)
+            let ms = (ContinuousClock.now - start) / .milliseconds(1)
+            Self.log.info("Stage switch took \(ms, format: .fixed(precision: 1)) ms for \(self.service.windows.count) windows")
         }
         publish(); persist()
     }

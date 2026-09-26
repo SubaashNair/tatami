@@ -11,13 +11,13 @@ Legend: ✅ done · 🟡 partial · ❌ missing
 | Feature | BetterStage | Tatami | PRD |
 |---|---|---|---|
 | Named Stages across all displays, 9 max | ✅ | ✅ | STG-01 |
-| Instant switch, no animation (off-screen parking) | ✅ <16 ms | ❌ minimizes to Dock | STG-03, DSP-06 |
+| Instant switch, no animation (off-screen parking) | ✅ <16 ms | ✅ measured with signposts | STG-03, DSP-06 |
 | Switch 1–9, prev/next, cycle Opt+Tab | ✅ | 🟡 no Tab cycle | STG-04 |
 | Option + scroll wheel to switch | ✅ | ❌ | new |
 | New / close Stage shortcuts (Opt+N / Opt+X) | ✅ | ❌ | INP-03 |
 | Drop window on + card creates Stage | ✅ | ❌ | new |
 | Merge All Stages (Opt+M, menu bar) | ✅ | ❌ | STG-08 |
-| Follow activated windows (auto-switch on focus) | ✅ default on | ❌ | STG-06 |
+| Follow activated windows (auto-switch on focus) | ✅ default on | ✅ default on | STG-06 |
 | Follow after sending / follow when routed | ✅ | 🟡 sending only | STG-05, RTE-02 |
 | Cmd+` limited to active Stage | ✅ | ❌ | STG-07 |
 | Classify existing windows on first run | ✅ | ❌ | ONB-06 |
@@ -87,12 +87,12 @@ Legend: ✅ done · 🟡 partial · ❌ missing
 
 | Feature | BetterStage | Tatami | PRD |
 |---|---|---|---|
-| Stable hardware display identity | ✅ | 🟡 CG UUID only | DSP-02 |
+| Stable hardware display identity | ✅ | ✅ | DSP-02 |
 | Pinned displays | ✅ | ❌ | DSP-04, DSP-05 |
-| Disconnect: windows move to remaining displays / panes | ✅ | 🟡 manual Rescue | WSP-04 |
-| Reconnect: Restore / Keep Current prompt | ✅ | ❌ | WSP-05 |
-| Local hide corners option | ✅ | ❌ | DSP-06 |
-| Automatic continuity checkpoint (quit, wake, display change) | ✅ | ❌ | WSP-01..03 |
+| Disconnect: windows move to remaining displays / panes | ✅ | ✅ (panes in M3) | WSP-04 |
+| Reconnect: Restore / Keep Current prompt | ✅ | ✅ | WSP-05 |
+| Local hide corners option | ✅ | ✅ default | DSP-06 |
+| Automatic continuity checkpoint (quit, wake, display change) | ✅ | ✅ | WSP-01..03 |
 | Rescue Windows | ✅ | ✅ | DSP-07 |
 
 ### Workspaces, routing, exceptions
@@ -132,7 +132,7 @@ Legend: ✅ done · 🟡 partial · ❌ missing
 | Diagnostic log (10 MB rolling, reveal) | ✅ | ❌ | SET-09 |
 | Reset Settings / Factory Reset | ✅ | ❌ | SET-06 |
 | Appearance System / Light / Dark | ✅ | ❌ light only | new |
-| Disable AXEnhancedUserInterface to stop resize animation | ✅ | ❌ | new |
+| Disable AXEnhancedUserInterface to stop resize animation | ✅ | ✅ (restored after each move) | new |
 | Updates channel, licensing, trials | ✅ | ❌ out of scope for now | ONB-08, SET-07, SET-08 |
 | Localisation (18 languages, beta) | 🧪 | ❌ | new |
 

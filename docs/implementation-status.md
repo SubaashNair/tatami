@@ -14,7 +14,7 @@ The PRD is the long-term product specification. This first milestone establishes
 ## Deliberate scope decisions
 
 1. All nine Stages are available without a fabricated payment flow. Licensing will come after the core product is reliable.
-2. Stage hiding uses native minimization, not window parking. Recovery remains accessible from macOS itself and the implementation can ship without claiming off-screen crash safety.
+2. ~~Stage hiding uses native minimization~~ Superseded by M1: windows are parked off screen with a journal, crash recovery, and a minimize fallback. See [m1-engine-plan.md](m1-engine-plan.md).
 3. Stage selection is a preview until the user explicitly starts management. Existing windows are initially assigned to the active Stage rather than automatically classified.
 4. Saved Workspace loading moves matching open windows. App relaunch, missing-document recreation, and full display mapping require a later identity/reconciliation layer.
 5. Shortcuts have two presets; arbitrary recording and gesture support are later milestones.
