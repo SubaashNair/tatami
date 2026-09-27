@@ -48,6 +48,9 @@ import TatamiCore
     var undoSnapshot: SavedWorkspace?
     var showDashboard: (() -> Void)?
     var showStagesBar: (() -> Void)?
+    @Published var sortPreview: SortPreview?
+    /// No settings file existed at launch: offer to sort windows once Accessibility is available (ONB-06).
+    var isFirstRun = false
     var onStageSwitched: ((_ index: Int, _ stage: Stage) -> Void)?
     var onDockPreferenceChanged: (() -> Void)?
     let scrollSwitcher = ScrollSwitcher()
@@ -62,7 +65,8 @@ import TatamiCore
         var loadError: String?
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            if FileManager.default.fileExists(atPath: stateURL.path) {
+            isFirstRun = !FileManager.default.fileExists(atPath: stateURL.path)
+            if !isFirstRun {
                 let data = try Data(contentsOf: stateURL)
                 initial = try JSONDecoder().decode(WorkspaceState.self, from: data)
                 try initial.validate()
@@ -87,7 +91,7 @@ import TatamiCore
             self?.windowsChanged()
             if notifications.contains(kAXFocusedWindowChangedNotification) || notifications.contains(kAXMainWindowChangedNotification) { self?.followFocus() }
         }
-        Task { await refreshNow(); restoreCheckpoint() }
+        Task { await refreshNow(); restoreCheckpoint(); offerFirstRunSort() }
         timer = Timer.scheduledTimer(withTimeInterval: safetyNetInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.refresh() }
         }
@@ -128,6 +132,7 @@ import TatamiCore
         }
         await service.scan(state: state)
         windowsChanged()
+        offerFirstRunSort()  // no-op unless this is the first run and windows are now visible
     }
 
     /// After any scan: new windows may need hiding (routing to inactive Stages), then the UI updates.
@@ -192,7 +197,7 @@ import TatamiCore
         managing.toggle()
         service.managing = managing
         if managing {
-            let conflicts = hotkeys.register(preset: state.shortcutPreset)
+            let conflicts = hotkeys.register(preset: state.shortcutPreset, scopeCommandBacktick: state.scopeCommandBacktick)
             scrollSwitcher.start(preset: state.shortcutPreset)
             if conflicts > 0 { error = "\(conflicts) shortcuts are already in use. Those shortcuts were not registered." }
             notice = "Stage management is on. Switch with \(state.shortcutPreset.stageModifiers)1–9."
@@ -436,7 +441,7 @@ import TatamiCore
 
     func updateShortcuts() {
         persist()
-        if managing { let failures = hotkeys.register(preset: state.shortcutPreset); scrollSwitcher.stop(); scrollSwitcher.start(preset: state.shortcutPreset); reportFailures(failures, action: "register shortcuts") }
+        if managing { let failures = hotkeys.register(preset: state.shortcutPreset, scopeCommandBacktick: state.scopeCommandBacktick); scrollSwitcher.stop(); scrollSwitcher.start(preset: state.shortcutPreset); reportFailures(failures, action: "register shortcuts") }
     }
 
     func shutdown() { timer?.invalidate(); hotkeys.unregister(); scrollSwitcher.stop(); _ = service.restoreOwnedWindows(); writeCheckpoint(); persist() }
@@ -452,6 +457,7 @@ import TatamiCore
         case .newStage: addStage(state.nextStageName())
         case .closeStage: deleteStage(state.activeStageID)
         case .mergeAll: mergeAll()
+        case .cycleAppWindows(let offset): cycleAppWindows(offset)
         case .retile: retile()
         case .rescue: rescue()
         case .organizer: showOrganizer?()

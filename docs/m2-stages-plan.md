@@ -1,6 +1,6 @@
 # M2: Stages polish
 
-Status: decisions settled (design review 2026-09-26), ready to build. Part of [betterstage-parity.md](betterstage-parity.md). Covers PRD BAR-01 to BAR-06, STG-04, STG-07, STG-08, ONB-02, ONB-06, and the Stages rows of the parity table.
+Status: implemented 2026-09-27. Decisions settled in design review 2026-09-26. Part of [betterstage-parity.md](betterstage-parity.md). Covers PRD BAR-01 to BAR-06, STG-04, STG-07, STG-08, ONB-02, ONB-06, and the Stages rows of the parity table.
 
 ## Decisions
 
@@ -34,6 +34,6 @@ Also settled: Cmd+` limited to the active Stage is off by default; "follow when 
 
 ## Test plan
 
-- [ ] Unit: merge result and undo snapshot, cycle wrap-around, category classification, scroll gesture accumulator.
+- [x] Unit: merge result and undo snapshot, cycle wrap-around, category classification, scroll gesture accumulator.
 - [ ] Integration (`scripts/ax_integration.sh`): new Stage, close Stage moves windows, merge, Tab cycling.
 - [ ] Manual: hot zone delay and notch option, bar keyboard navigation, inline rename, window drag onto a card and onto "+", card reorder, scroll switching with mouse and trackpad, menu-bar-only mode, sorting preview.

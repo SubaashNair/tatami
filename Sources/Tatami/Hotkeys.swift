@@ -3,7 +3,7 @@ import Carbon
 import TatamiCore
 
 enum HotkeyAction {
-    case stage(Int), send(Int), cycle(Int), snap(SnapZone), stagesBar, retile, rescue, organizer, newStage, closeStage, mergeAll
+    case stage(Int), send(Int), cycle(Int), snap(SnapZone), stagesBar, retile, rescue, organizer, newStage, closeStage, mergeAll, cycleAppWindows(Int)
 }
 
 @MainActor final class Hotkeys {
@@ -28,7 +28,7 @@ enum HotkeyAction {
 
     func unregister() { refs.forEach { UnregisterEventHotKey($0) }; refs.removeAll(); actions.removeAll() }
 
-    func register(preset: ShortcutPreset) -> Int {
+    func register(preset: ShortcutPreset, scopeCommandBacktick: Bool = false) -> Int {
         unregister()
         var failures = 0
         let classic = preset == .classic
@@ -54,6 +54,10 @@ enum HotkeyAction {
         bind(kVK_ANSI_N, base, .newStage)
         bind(kVK_ANSI_X, base, .closeStage)
         bind(kVK_ANSI_M, base, .mergeAll)
+        if scopeCommandBacktick {
+            bind(kVK_ANSI_Grave, UInt32(cmdKey), .cycleAppWindows(1))
+            bind(kVK_ANSI_Grave, UInt32(cmdKey | shiftKey), .cycleAppWindows(-1))
+        }
         let zones: [(Int, SnapZone)] = [(kVK_LeftArrow,.left),(kVK_RightArrow,.right),(kVK_UpArrow,.top),(kVK_DownArrow,.bottom),
             (kVK_ANSI_U,.topLeft),(kVK_ANSI_I,.topRight),(kVK_ANSI_J,.bottomLeft),(kVK_ANSI_K,.bottomRight),
             (kVK_ANSI_A,.leftThird),(kVK_ANSI_S,.centerThird),(kVK_ANSI_D,.rightThird),

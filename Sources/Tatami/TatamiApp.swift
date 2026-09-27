@@ -89,6 +89,7 @@ final class OrganizerPanel: NSPanel {
     @objc func showWindow() { window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true) }
     @objc private func toggleManagement() { model.toggleManagement() }
     @objc private func rescue() { model.rescue() }
+    @objc private func sortWindows() { model.prepareSort(); showWindow() }
 
     private func setupOrganizerPanel() {
         panel = OrganizerPanel(contentRect: NSRect(x: 0, y: 0, width: 580, height: 180), styleMask: [.titled, .fullSizeContentView, .nonactivatingPanel], backing: .buffered, defer: true)
@@ -160,6 +161,7 @@ final class OrganizerPanel: NSPanel {
         menu.addItem(.separator())
         add(menu, "Open Tatami", #selector(showWindow))
         add(menu, "Arrange with AI…", #selector(toggleOrganizer))
+        add(menu, "Sort Windows into Stages…", #selector(sortWindows))
         add(menu, model.managing ? "Pause & Restore Windows" : "Start Managing", #selector(toggleManagement))
         add(menu, "Rescue Windows", #selector(rescue))
         add(menu, "Preferences…", #selector(preferences))

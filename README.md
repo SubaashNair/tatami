@@ -41,6 +41,12 @@ The package can also be opened directly in Xcode with `Package.swift`. The packa
 - Local JSON persistence, validated settings backup/import, and launch-at-login preference.
 - AI Organizer with your own key (Anthropic, OpenAI, Gemini, DeepSeek, OpenRouter, custom OpenAI-compatible) or a local model (Ollama, LM Studio). Describe a desk; review the proposed plan; apply it as one undoable step.
 
+## Stages Bar
+
+Rest the pointer at the top centre of any screen (or press the Stages Bar shortcut) to see every Stage as a card. Each card is a scaled map of all your displays with windows at their real positions and the apps on each display. Click a card to switch, click its name to rename it, hover to close it (Undo is available), or use + for a new Stage. Drag cards to reorder them. Drag any window by its title bar to the top edge and drop it on a card to send it there, or on + to give it a new Stage. Opened from the keyboard, use ←/→ and Return, or 1–9.
+
+Tatami runs from the menu bar without a Dock icon (turn Show in Dock on in Preferences). Sort Windows into Stages… in the menu bar or dashboard groups chat apps, browsers, and everything else, as a preview you confirm.
+
 ## AI Organizer
 
 Open it with Control + Option + Z while managing, from the menu bar (Arrange with AI…), or from the dashboard sidebar. Choose a provider and save its key under Preferences → AI Organizer; keys are stored in your Keychain.
@@ -58,7 +64,11 @@ Global shortcuts register only while Stage management is running.
 | Switch Stage | Control + Option + 1–9 | Option + 1–9 |
 | Send focused window | Control + Option + Shift + 1–9 | Option + Shift + 1–9 |
 | Previous / next Stage | Control + Option + Command + Left / Right | Option + Left / Right |
-| Show dashboard | Control + Option + Command + Up | Option + Up |
+| Cycle Stages | Control + Option + Tab (Shift reverses) | Option + Tab |
+| Switch by scrolling | Control + Option + scroll | Option + scroll |
+| Stages Bar | Control + Option + Command + Up | Option + Up |
+| New / close Stage | Control + Option + N / X | Option + N / X |
+| Merge all Stages | Control + Option + M | Option + M |
 | Arrange active Stage | Control + Option + Command + Down | Option + Down |
 | Snap halves | Control + Option + arrows | same |
 | Snap quarters | Control + Option + U / I / J / K | same |

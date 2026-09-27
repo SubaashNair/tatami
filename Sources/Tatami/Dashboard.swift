@@ -45,6 +45,7 @@ struct Dashboard: View {
         .tint(Theme.accent)
         .frame(minWidth: 1000, minHeight: 700)
         .preferredColorScheme(.light)
+        .sheet(item: $model.sortPreview) { preview in SortPreviewView(model: model, preview: preview) }
         .sheet(isPresented: $newStage) {
             nameSheet(title: "A place for your next project", subtitle: "Give your Stage a short, memorable name.", button: "Create Stage") {
                 model.addStage(name); newStage = false
@@ -165,6 +166,7 @@ struct Dashboard: View {
             HStack(alignment: .center) {
                 heading("Everything in its place.", "One Stage for each way you work. Switch your whole desk together.")
                 Spacer()
+                Button { model.prepareSort() } label: { Label("Sort Windows…", systemImage: "wand.and.stars") }.controlSize(.large).help("Sort open windows into Stages by app type")
                 Button { name = ""; newStage = true } label: { Label("New Stage", systemImage: "plus") }.buttonStyle(.borderedProminent).controlSize(.large).disabled(model.state.stages.count >= 9)
             }
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: 16)], spacing: 16) {
@@ -372,6 +374,8 @@ struct Dashboard: View {
                 Toggle("Show the Stage name briefly after switching", isOn: Binding(get: { model.state.showSwitchIndicator }, set: { model.state.showSwitchIndicator = $0; model.persist() }))
                 Divider()
                 Toggle("Show Tatami in the Dock", isOn: Binding(get: { model.state.showInDock }, set: { model.state.showInDock = $0; model.persist(); model.onDockPreferenceChanged?() }))
+                Divider()
+                Toggle("Limit Cmd+` to windows on the current Stage", isOn: Binding(get: { model.state.scopeCommandBacktick }, set: { model.state.scopeCommandBacktick = $0; model.updateShortcuts() }))
                 Divider()
                 Toggle("Follow a window when sending it to another Stage", isOn: Binding(get: { model.state.followSentWindow }, set: { model.state.followSentWindow = $0; model.persist() }))
                 Divider()

@@ -72,6 +72,8 @@ public struct WorkspaceState: Codable {
     public var barHotZone = true
     public var barDelay: Double = 0.2
     public var barIgnoresNotch = false
+    /// Cmd+` cycles only the frontmost app's windows on the active Stage (STG-07). Off by default.
+    public var scopeCommandBacktick = false
     public var shortcutPreset: ShortcutPreset = .standard
     public var gap: Double = 12
     public var ai: AIConfig?
@@ -82,7 +84,7 @@ public struct WorkspaceState: Codable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, stages, activeStageID, saved, rules, excludedBundleIDs, followSentWindow, followActivatedWindows, showSwitchIndicator, showInDock, barHotZone, barDelay, barIgnoresNotch, shortcutPreset, gap, ai
+        case version, stages, activeStageID, saved, rules, excludedBundleIDs, followSentWindow, followActivatedWindows, showSwitchIndicator, showInDock, barHotZone, barDelay, barIgnoresNotch, scopeCommandBacktick, shortcutPreset, gap, ai
     }
 
     // Missing keys fall back to defaults so older files keep loading. Legacy `europeanShortcuts` is ignored: every file migrates to `.standard`.
@@ -102,6 +104,7 @@ public struct WorkspaceState: Codable {
         barHotZone = try c.decodeIfPresent(Bool.self, forKey: .barHotZone) ?? defaults.barHotZone
         barDelay = try c.decodeIfPresent(Double.self, forKey: .barDelay) ?? defaults.barDelay
         barIgnoresNotch = try c.decodeIfPresent(Bool.self, forKey: .barIgnoresNotch) ?? defaults.barIgnoresNotch
+        scopeCommandBacktick = try c.decodeIfPresent(Bool.self, forKey: .scopeCommandBacktick) ?? defaults.scopeCommandBacktick
         shortcutPreset = try c.decodeIfPresent(ShortcutPreset.self, forKey: .shortcutPreset) ?? defaults.shortcutPreset
         gap = try c.decodeIfPresent(Double.self, forKey: .gap) ?? defaults.gap
         ai = try c.decodeIfPresent(AIConfig.self, forKey: .ai)

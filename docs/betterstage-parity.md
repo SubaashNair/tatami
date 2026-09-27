@@ -12,28 +12,28 @@ Legend: ✅ done · 🟡 partial · ❌ missing
 |---|---|---|---|
 | Named Stages across all displays, 9 max | ✅ | ✅ | STG-01 |
 | Instant switch, no animation (off-screen parking) | ✅ <16 ms | ✅ measured with signposts | STG-03, DSP-06 |
-| Switch 1–9, prev/next, cycle Opt+Tab | ✅ | 🟡 no Tab cycle | STG-04 |
-| Option + scroll wheel to switch | ✅ | ❌ | new |
-| New / close Stage shortcuts (Opt+N / Opt+X) | ✅ | ❌ | INP-03 |
-| Drop window on + card creates Stage | ✅ | ❌ | new |
-| Merge All Stages (Opt+M, menu bar) | ✅ | ❌ | STG-08 |
+| Switch 1–9, prev/next, cycle Opt+Tab | ✅ | ✅ | STG-04 |
+| Option + scroll wheel to switch | ✅ | ✅ | new |
+| New / close Stage shortcuts (Opt+N / Opt+X) | ✅ | ✅ | INP-03 |
+| Drop window on + card creates Stage | ✅ | ✅ | new |
+| Merge All Stages (Opt+M, menu bar) | ✅ | ✅ | STG-08 |
 | Follow activated windows (auto-switch on focus) | ✅ default on | ✅ default on | STG-06 |
-| Follow after sending / follow when routed | ✅ | 🟡 sending only | STG-05, RTE-02 |
-| Cmd+` limited to active Stage | ✅ | ❌ | STG-07 |
-| Classify existing windows on first run | ✅ | ❌ | ONB-06 |
+| Follow after sending / follow when routed | ✅ | ✅ | STG-05, RTE-02 |
+| Cmd+` limited to active Stage | ✅ | ✅ | STG-07 |
+| Classify existing windows on first run | ✅ | ✅ (and on demand, or via AI) | ONB-06 |
 | Shared windows across Stages (beta, Option-drag) | 🧪 | ❌ | new |
 
 ### Stages Bar
 
 | Feature | BetterStage | Tatami | PRD |
 |---|---|---|---|
-| Overlay bar with Stage cards (Opt+Up) | ✅ | ❌ (dashboard only) | BAR-01 |
-| Top-centre hot edge, 0–2 s delay, notch option | ✅ | ❌ | BAR-02 |
-| Live window thumbnails | ✅ | ❌ (icon schematic) | BAR-01 |
-| Per-monitor window counts and mode labels | ✅ | ❌ | BAR-01 |
-| Drag cards to reorder; drag window title bar onto a card | ✅ | 🟡 dashboard drag only | BAR-03 |
-| Click name to rename, hover × to close | ✅ | ❌ | BAR-04 |
-| Switch indicator (1.5 s, click-through) | ✅ | ❌ | BAR-05 |
+| Overlay bar with Stage cards (Opt+Up) | ✅ | ✅ with keyboard navigation | BAR-01 |
+| Top-centre hot edge, 0–2 s delay, notch option | ✅ | ✅ | BAR-02 |
+| Live window thumbnails | ✅ | 🟡 schematic map, no Screen Recording needed | BAR-01 |
+| Per-monitor window counts and mode labels | ✅ | 🟡 per-monitor apps; modes arrive with M3 | BAR-01 |
+| Drag cards to reorder; drag window title bar onto a card | ✅ | ✅ | BAR-03 |
+| Click name to rename, hover × to close | ✅ | ✅ | BAR-04 |
+| Switch indicator (1.5 s, click-through) | ✅ | ✅ default on | BAR-05 |
 
 ### Window modes and tiling
 
@@ -125,7 +125,7 @@ Legend: ✅ done · 🟡 partial · ❌ missing
 
 | Feature | BetterStage | Tatami | PRD |
 |---|---|---|---|
-| Menu-bar only, no Dock icon | ✅ | ❌ regular app | ONB-02 |
+| Menu-bar only, no Dock icon | ✅ | ✅ | ONB-02 |
 | Configurable menu-bar items | ✅ | ❌ | SET-02 |
 | Menu bar: Merge, Pin Monitor, Rename Stage, restart | ✅ | 🟡 | SET-02 |
 | Stage Manager detection | ✅ | ❌ (text only) | ONB-05 |
