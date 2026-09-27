@@ -380,6 +380,12 @@ struct RecoveryEntry: Codable {
         return moved
     }
 
+    /// Live frame straight from the app, bypassing the scan cache (used to tell a window drag from a text drag).
+    func liveFrame(_ id: UUID) -> CGRect? {
+        guard let element = windows.first(where: { $0.id == id })?.element else { return nil }
+        return ax.sync { AX.frame(of: element) }
+    }
+
     func focusedID() -> UUID? {
         guard let app = NSWorkspace.shared.frontmostApplication else { return nil }
         let pid = app.processIdentifier

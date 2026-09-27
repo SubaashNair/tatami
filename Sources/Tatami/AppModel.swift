@@ -259,6 +259,22 @@ import TatamiCore
         state.stages.swapAt(index, index + direction); persist()
     }
 
+    /// Drag-to-reorder in the Stages Bar. Number shortcuts follow the new order.
+    func moveStage(_ id: UUID, before target: UUID) {
+        guard id != target, let from = state.stages.firstIndex(where: { $0.id == id }) else { return }
+        let stage = state.stages.remove(at: from)
+        let to = state.stages.firstIndex(where: { $0.id == target }) ?? state.stages.count
+        state.stages.insert(stage, at: from <= to ? to + 1 : to)
+        persist(); publish()
+    }
+
+    /// Dropping a window on the "+" card: create a Stage and send the window there without switching.
+    func sendToNewStage(_ windowID: UUID) {
+        guard let stage = state.addStage(name: state.nextStageName()) else { error = "Tatami supports up to nine Stages."; return }
+        persist()
+        send(windowID, to: stage.id)
+    }
+
     func deleteStage(_ id: UUID) {
         undoSnapshot = snapshot(name: "Before deleting Stage")
         guard let destination = state.removeStage(id) else { return }

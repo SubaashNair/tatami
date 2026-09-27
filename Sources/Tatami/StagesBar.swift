@@ -7,6 +7,22 @@ import TatamiCore
     @Published var keyboard = false
     @Published var renaming: UUID?
     @Published var renameText = ""
+    /// Card frames in the bar's own (flipped) coordinates, for hit-testing a window being dragged over them.
+    var cardFrames: [UUID: CGRect] = [:]
+    /// Card highlighted while a window is dragged over the bar.
+    @Published var dropTarget: UUID?
+    static let newStageTarget = UUID()
+}
+
+private struct CardFramesKey: PreferenceKey {
+    static var defaultValue: [UUID: CGRect] = [:]
+    static func reduce(value: inout [UUID: CGRect], nextValue: () -> [UUID: CGRect]) { value.merge(nextValue()) { $1 } }
+}
+
+private extension View {
+    func reportsFrame(_ id: UUID) -> some View {
+        background(GeometryReader { Color.clear.preference(key: CardFramesKey.self, value: [id: $0.frame(in: .global)]) })
+    }
 }
 
 /// Borderless panels cannot take key focus unless asked; the bar only wants it when opened from the keyboard.
@@ -26,6 +42,10 @@ final class BarPanel: NSPanel {
     private var dwellWork: DispatchWorkItem?
     private var leaveWork: DispatchWorkItem?
     private var openedByHover = false
+    /// A window being dragged by its title bar (M2 decision 11): which one, and where it started.
+    private var drag: (window: UUID, origin: CGRect)?
+    private var dragStart: NSPoint?
+    private static let dragThreshold: CGFloat = 6
     private static let leaveDelay: TimeInterval = 2
     private static let edgeTolerance: CGFloat = 2
     private static let topMargin: CGFloat = 8
@@ -87,7 +107,18 @@ final class BarPanel: NSPanel {
     // MARK: input
 
     private func installMonitors() {
-        let moved: (NSEvent) -> Void = { [weak self] _ in MainActor.assumeIsolated { self?.pointerMoved() } }
+        let moved: (NSEvent) -> Void = { [weak self] event in
+            MainActor.assumeIsolated {
+                if event.type == .leftMouseDragged { self?.pointerDragged() }
+                self?.pointerMoved()
+            }
+        }
+        if let m = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown, handler: { [weak self] _ in
+            MainActor.assumeIsolated { self?.dragStart = NSEvent.mouseLocation; self?.drag = nil }
+        }) { monitors.append(m) }
+        if let m = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseUp, handler: { [weak self] _ in
+            MainActor.assumeIsolated { self?.pointerReleased() }
+        }) { monitors.append(m) }
         if let m = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged], handler: moved) { monitors.append(m) }
         if let m = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved], handler: { moved($0); return $0 }) { monitors.append(m) }
         // Global monitors never see clicks in our own panel, so any click they report is outside it (BAR-06).
@@ -101,6 +132,7 @@ final class BarPanel: NSPanel {
 
     private func pointerMoved() {
         let point = NSEvent.mouseLocation
+        if drag != nil { return }  // a window drag owns the bar until release
         if isOpen {
             guard openedByHover else { return }
             if panel.frame.insetBy(dx: -Self.hoverSlack, dy: -Self.hoverSlack).contains(point) || inHotZone(point) {
@@ -123,6 +155,46 @@ final class BarPanel: NSPanel {
         }
         dwellWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + model.state.barDelay, execute: work)
+    }
+
+    // MARK: window drag onto a card
+
+    private func pointerDragged() {
+        let point = NSEvent.mouseLocation
+        if drag != nil {
+            bar.dropTarget = target(at: point)
+            return
+        }
+        guard model.managing, let start = dragStart, hypot(point.x - start.x, point.y - start.y) > Self.dragThreshold,
+              inTopEdge(point), let id = model.service.focusedID(),
+              let window = model.service.windows.first(where: { $0.id == id }) else { return }
+        // Only a real window move counts; dragging to select text also reaches the top edge.
+        guard let live = model.service.liveFrame(id), hypot(live.minX - window.frame.minX, live.minY - window.frame.minY) > Self.dragThreshold else { return }
+        drag = (id, window.frame)
+        open(keyboard: false)
+        openedByHover = false
+    }
+
+    private func pointerReleased() {
+        defer { dragStart = nil; drag = nil; bar.dropTarget = nil }
+        guard let drag, isOpen else { return }
+        let target = target(at: NSEvent.mouseLocation)
+        close()
+        guard let target else { return }
+        // The window was dropped at the top edge: put it back where the drag began, then let its new Stage park it.
+        model.service.move(drag.window, to: drag.origin)
+        if target == BarState.newStageTarget { model.sendToNewStage(drag.window) } else { model.send(drag.window, to: target) }
+    }
+
+    private func target(at screenPoint: NSPoint) -> UUID? {
+        let local = NSPoint(x: screenPoint.x - panel.frame.minX, y: panel.frame.maxY - screenPoint.y)  // flipped, as SwiftUI reports
+        return bar.cardFrames.first { $0.value.contains(local) }?.key
+    }
+
+    /// Any point along the top edge counts while dragging; the hot zone's centre-third rule is for hovering.
+    private func inTopEdge(_ point: NSPoint) -> Bool {
+        guard let screen = NSScreen.screens.first(where: { NSMouseInRect(point, $0.frame, false) }) else { return false }
+        return point.y >= screen.visibleFrame.maxY - Self.edgeTolerance
     }
 
     /// Top-centre third of the display under the pointer, optionally excluding the notch.
@@ -173,19 +245,39 @@ struct StagesBarView: View {
         HStack(spacing: 10) {
             ForEach(Array(model.state.stages.enumerated()), id: \.element.id) { index, stage in
                 StageCard(index: index, stage: stage, windows: windows(on: stage), displays: model.displays,
-                          active: stage.id == model.state.activeStageID, selected: bar.keyboard && bar.selected == index,
+                          active: stage.id == model.state.activeStageID,
+                          selected: bar.dropTarget == stage.id || (bar.keyboard && bar.selected == index),
                           canClose: model.state.stages.count > 1, bar: bar,
                           onSwitch: { model.switchStage(stage.id); close() },
                           onClose: { model.deleteStage(stage.id) },
                           onBeginRename: { bar.renameText = stage.name; bar.renaming = stage.id; requestKey() },
                           onRename: { model.renameStage(stage.id, name: $0); bar.renaming = nil })
+                .reportsFrame(stage.id)
+                .draggable(stage.id.uuidString)
+                .dropDestination(for: String.self) { items, _ in drop(items, on: stage.id) }
             }
-            if model.state.stages.count < 9 { newStageCard }
+            if model.state.stages.count < 9 {
+                newStageCard.reportsFrame(BarState.newStageTarget)
+                    .dropDestination(for: String.self) { items, _ in drop(items, on: BarState.newStageTarget) }
+            }
         }
+        .onPreferenceChange(CardFramesKey.self) { bar.cardFrames = $0 }
         .padding(12)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.primary.opacity(0.08)))
         .fixedSize()
+    }
+
+    /// Drops from SwiftUI drags: another card (reorder) or a window row from the dashboard (send).
+    private func drop(_ items: [String], on target: UUID) -> Bool {
+        guard let id = items.first.flatMap(UUID.init(uuidString:)) else { return false }
+        if model.state.stages.contains(where: { $0.id == id }) {
+            guard target != BarState.newStageTarget else { return false }
+            model.moveStage(id, before: target); return true
+        }
+        guard model.windows.contains(where: { $0.id == id }) else { return false }
+        if target == BarState.newStageTarget { model.sendToNewStage(id) } else { model.send(id, to: target) }
+        return true
     }
 
     private func windows(on stage: Stage) -> [LiveWindow] {
@@ -200,6 +292,7 @@ struct StagesBarView: View {
                     .overlay(Image(systemName: "plus").font(.system(size: 22, weight: .light)).foregroundStyle(.secondary))
                 Text("New Stage").font(.system(size: 12)).foregroundStyle(.secondary)
             }.padding(10)
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.accentColor, lineWidth: bar.dropTarget == BarState.newStageTarget ? 2 : 0))
         }.buttonStyle(.plain).help("New Stage")
     }
 }
