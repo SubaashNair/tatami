@@ -35,5 +35,5 @@ Also settled: Cmd+` limited to the active Stage is off by default; "follow when 
 ## Test plan
 
 - [x] Unit: merge result and undo snapshot, cycle wrap-around, category classification, scroll gesture accumulator.
-- [ ] Integration (`scripts/ax_integration.sh`): new Stage, close Stage moves windows, merge, Tab cycling.
+- [x] Integration (`scripts/ax_integration.sh`, 27 checks passing): new Stage, close Stage moves windows, merge, Tab cycling.
 - [ ] Manual: hot zone delay and notch option, bar keyboard navigation, inline rename, window drag onto a card and onto "+", card reorder, scroll switching with mouse and trackpad, menu-bar-only mode, sorting preview.
