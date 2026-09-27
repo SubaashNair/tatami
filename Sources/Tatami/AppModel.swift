@@ -198,7 +198,9 @@ import TatamiCore
         service.managing = managing
         if managing {
             let conflicts = hotkeys.register(preset: state.shortcutPreset, scopeCommandBacktick: state.scopeCommandBacktick)
-            scrollSwitcher.start(preset: state.shortcutPreset)
+            if !scrollSwitcher.start(preset: state.shortcutPreset) {
+                error = "Scroll switching is unavailable because macOS did not allow Tatami to watch scroll events. Shortcuts still work; try Pause and Start managing again."
+            }
             if conflicts > 0 { error = "\(conflicts) shortcuts are already in use. Those shortcuts were not registered." }
             notice = "Stage management is on. Switch with \(state.shortcutPreset.stageModifiers)1–9."
         } else {

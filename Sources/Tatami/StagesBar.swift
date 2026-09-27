@@ -92,7 +92,6 @@ final class BarPanel: NSPanel {
 
     private func takeKey() {
         panel.acceptsKey = true
-        openedByHover = false  // renaming: stay open until done
         panel.makeKey()
     }
 
@@ -134,7 +133,8 @@ final class BarPanel: NSPanel {
         let point = NSEvent.mouseLocation
         if drag != nil { return }  // a window drag owns the bar until release
         if isOpen {
-            guard openedByHover else { return }
+            // Renaming holds a hover-opened bar open; auto-close resumes once the rename ends.
+            guard openedByHover, bar.renaming == nil else { leaveWork?.cancel(); leaveWork = nil; return }
             if panel.frame.insetBy(dx: -Self.hoverSlack, dy: -Self.hoverSlack).contains(point) || inHotZone(point) {
                 leaveWork?.cancel(); leaveWork = nil
             } else if leaveWork == nil {
@@ -180,9 +180,10 @@ final class BarPanel: NSPanel {
         guard let drag, isOpen else { return }
         let target = target(at: NSEvent.mouseLocation)
         close()
-        guard let target else { return }
-        // The window was dropped at the top edge: put it back where the drag began, then let its new Stage park it.
+        // Always put the window back where the drag began: released on no card, it would otherwise stay
+        // at the top edge with its title bar under the menu bar.
         model.service.move(drag.window, to: drag.origin)
+        guard let target else { return }
         if target == BarState.newStageTarget { model.sendToNewStage(drag.window) } else { model.send(drag.window, to: target) }
     }
 

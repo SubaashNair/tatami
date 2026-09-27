@@ -13,16 +13,18 @@ import TatamiCore
     private var wheel = ScrollAccumulator(threshold: 0.1, cooldown: 0.12)
     private static let modifierMask: CGEventFlags = [.maskControl, .maskAlternate, .maskCommand, .maskShift]
 
-    func start(preset: ShortcutPreset) {
+    /// False when macOS refused the event tap, so the caller can say scroll switching is unavailable.
+    @discardableResult func start(preset: ShortcutPreset) -> Bool {
         required = preset == .classic ? [.maskAlternate] : [.maskControl, .maskAlternate]
-        guard tap == nil else { return }
+        guard tap == nil else { return true }
         let mask = CGEventMask(1 << CGEventType.scrollWheel.rawValue)
         guard let tap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap, options: .defaultTap, eventsOfInterest: mask,
-                                          callback: scrollTapCallback, userInfo: Unmanaged.passUnretained(self).toOpaque()) else { return }
+                                          callback: scrollTapCallback, userInfo: Unmanaged.passUnretained(self).toOpaque()) else { return false }
         let source = CFMachPortCreateRunLoopSource(nil, tap, 0)
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
         self.tap = tap; self.source = source
+        return true
     }
 
     func stop() {
