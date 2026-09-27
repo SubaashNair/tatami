@@ -68,6 +68,10 @@ public struct WorkspaceState: Codable {
     public var showSwitchIndicator = true
     /// Menu-bar-only by default (M2 decision 6).
     public var showInDock = false
+    /// Stages Bar hot zone at the top-centre of each display (M2 decision 3).
+    public var barHotZone = true
+    public var barDelay: Double = 0.2
+    public var barIgnoresNotch = false
     public var shortcutPreset: ShortcutPreset = .standard
     public var gap: Double = 12
     public var ai: AIConfig?
@@ -78,7 +82,7 @@ public struct WorkspaceState: Codable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, stages, activeStageID, saved, rules, excludedBundleIDs, followSentWindow, followActivatedWindows, showSwitchIndicator, showInDock, shortcutPreset, gap, ai
+        case version, stages, activeStageID, saved, rules, excludedBundleIDs, followSentWindow, followActivatedWindows, showSwitchIndicator, showInDock, barHotZone, barDelay, barIgnoresNotch, shortcutPreset, gap, ai
     }
 
     // Missing keys fall back to defaults so older files keep loading. Legacy `europeanShortcuts` is ignored: every file migrates to `.standard`.
@@ -95,6 +99,9 @@ public struct WorkspaceState: Codable {
         followActivatedWindows = try c.decodeIfPresent(Bool.self, forKey: .followActivatedWindows) ?? defaults.followActivatedWindows
         showSwitchIndicator = try c.decodeIfPresent(Bool.self, forKey: .showSwitchIndicator) ?? defaults.showSwitchIndicator
         showInDock = try c.decodeIfPresent(Bool.self, forKey: .showInDock) ?? defaults.showInDock
+        barHotZone = try c.decodeIfPresent(Bool.self, forKey: .barHotZone) ?? defaults.barHotZone
+        barDelay = try c.decodeIfPresent(Double.self, forKey: .barDelay) ?? defaults.barDelay
+        barIgnoresNotch = try c.decodeIfPresent(Bool.self, forKey: .barIgnoresNotch) ?? defaults.barIgnoresNotch
         shortcutPreset = try c.decodeIfPresent(ShortcutPreset.self, forKey: .shortcutPreset) ?? defaults.shortcutPreset
         gap = try c.decodeIfPresent(Double.self, forKey: .gap) ?? defaults.gap
         ai = try c.decodeIfPresent(AIConfig.self, forKey: .ai)
@@ -106,7 +113,7 @@ public struct WorkspaceState: Codable {
         guard version == 1 else { throw ValidationError.unsupportedVersion }
         guard !stages.isEmpty, stages.count <= 9, Set(stages.map(\.id)).count == stages.count,
               stages.allSatisfy({ !$0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && $0.name.count <= 60 }),
-              gap.isFinite, (0...40).contains(gap), saved.count <= 100,
+              gap.isFinite, (0...40).contains(gap), barDelay.isFinite, (0...2).contains(barDelay), saved.count <= 100,
               rules.count <= 500, ai?.isValid ?? true else { throw ValidationError.invalidState }
         guard stages.contains(where: { $0.id == activeStageID }) else { throw ValidationError.invalidState }
         for workspace in saved {

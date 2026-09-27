@@ -378,6 +378,13 @@ struct Dashboard: View {
                 Toggle("Classic shortcuts (Option + number, Option + arrows)", isOn: Binding(get: { model.state.shortcutPreset == .classic }, set: { model.state.shortcutPreset = $0 ? .classic : .standard; model.updateShortcuts() }))
                 Text("Shortcuts are active only while management is running. Standard uses Control + Option + 1–9 to switch, adds Shift to send windows, and Control + Option + Command + arrows to cycle, open the dashboard, and arrange. Classic uses Option alone, which blocks typing characters such as ¡ and ™ and replaces word navigation with Option + arrows.").font(.system(size: 11)).foregroundStyle(Theme.muted)
             }
+            settingsBox("STAGES BAR") {
+                Toggle("Open the Stages Bar when the pointer rests at the top centre of a screen", isOn: Binding(get: { model.state.barHotZone }, set: { model.state.barHotZone = $0; model.persist() }))
+                HStack { Text("Delay before opening"); Spacer(); Text(String(format: "%.1f s", model.state.barDelay)).foregroundStyle(Theme.muted).monospacedDigit() }
+                Slider(value: Binding(get: { model.state.barDelay }, set: { model.state.barDelay = $0; model.persist() }), in: 0...2, step: 0.1).disabled(!model.state.barHotZone)
+                Toggle("Ignore the notch area on built-in displays", isOn: Binding(get: { model.state.barIgnoresNotch }, set: { model.state.barIgnoresNotch = $0; model.persist() })).disabled(!model.state.barHotZone)
+                Text("Also opens with \(model.state.shortcutPreset.navigationModifiers)↑. From the keyboard, use ←/→ and Return, or 1–9. Click a Stage name to rename it.").font(.system(size: 11)).foregroundStyle(Theme.muted)
+            }
             settingsBox("WINDOW SPACING") {
                 HStack { Text("Space between windows"); Spacer(); Text("\(Int(model.state.gap)) pt").foregroundStyle(Theme.muted).monospacedDigit() }
                 Slider(value: Binding(get: { model.state.gap }, set: { model.state.gap = $0; model.persist() }), in: 0...40, step: 2)

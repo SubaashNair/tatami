@@ -27,6 +27,24 @@ final class OrganizerPanel: NSPanel {
     private var panel: OrganizerPanel!
     private var reconnectPanels: [NSPanel] = []
     private let indicator = SwitchIndicator()
+    private var stagesBar: StagesBarController!
+
+    /// Debug: render the Stages Bar to a PNG and quit. Our own view, so no Screen Recording is needed.
+    private func snapshotBar(to path: String) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [self] in
+            let bar = BarState(); bar.keyboard = true; bar.selected = 1
+            let view = NSHostingView(rootView: StagesBarView(model: model, bar: bar, close: {}, requestKey: {}).padding(20).background(Color(white: 0.55)))
+            view.frame.size = view.fittingSize
+            let window = NSWindow(contentRect: view.frame, styleMask: .borderless, backing: .buffered, defer: false)
+            window.contentView = view
+            view.layoutSubtreeIfNeeded()
+            if let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+                view.cacheDisplay(in: view.bounds, to: rep)
+                try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
+            }
+            NSApp.terminate(nil)
+        }
+    }
 
     /// Menu-bar-only unless the user asks for a Dock icon (M2 decision 6).
     private func applyDockPreference() {
@@ -48,7 +66,9 @@ final class OrganizerPanel: NSPanel {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.button?.image = NSImage(systemSymbolName: "square.split.2x2", accessibilityDescription: "Tatami")
         model.showDashboard = { [weak self] in self?.showWindow() }
-        model.showStagesBar = { [weak self] in self?.showWindow() }  // M2 step 3 replaces this with the Stages Bar
+        stagesBar = StagesBarController(model: model)
+        model.showStagesBar = { [weak self] in self?.stagesBar.toggle() }
+        if let path = ProcessInfo.processInfo.environment["TATAMI_SNAPSHOT_BAR"] { snapshotBar(to: path) }
         model.onStageSwitched = { [weak self] index, stage in self?.indicator.show(index: index, stage: stage) }
         model.onDockPreferenceChanged = { [weak self] in self?.applyDockPreference() }
         applyDockPreference()
