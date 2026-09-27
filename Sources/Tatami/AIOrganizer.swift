@@ -109,7 +109,7 @@ extension AppModel {
             }
         }
         // Unminimize before moving: AX cannot reliably resize minimized windows.
-        if managing { failures += service.applyVisibility(state: state) }
+        if managing { failures += applyVisibility() }
         for case .snap(let ref, let zone, let display) in plan.valid {
             guard let i = windowIndex(ref) else { skipped += 1; continue }
             let window = service.windows[i]

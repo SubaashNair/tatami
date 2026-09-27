@@ -36,7 +36,7 @@ extension AppModel {
             service.windows[index].stageID = stage.id
         }
         sortPreview = nil
-        if managing { reportFailures(service.applyVisibility(state: state), action: "sort windows") }
+        if managing { reportFailures(applyVisibility(), action: "sort windows") }
         publish(); persist()
         notice = "Sorted \(preview.windowIDs.count) windows into Stages. Undo is available."
     }

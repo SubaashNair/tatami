@@ -223,9 +223,12 @@ struct RecoveryEntry: Codable {
     private enum HideResult { case parked(CGRect), minimized, failed }
 
     /// Shows the target Stage first, then hides the rest, so the desk is never empty (M1 decision 12).
-    func applyVisibility(state: WorkspaceState) -> Int {
+    /// `extraHidden`: windows hidden inside the active Stage, i.e. TabStack background tabs and panes behind a zoom.
+    func applyVisibility(state: WorkspaceState, extraHidden: Set<UUID> = []) -> Int {
         guard trusted else { return windows.filter { $0.hidden != nil }.count }
-        func visible(_ window: LiveWindow) -> Bool { state.excludedBundleIDs.contains(window.bundleID) || window.stageID == state.activeStageID }
+        func visible(_ window: LiveWindow) -> Bool {
+            !extraHidden.contains(window.id) && (state.excludedBundleIDs.contains(window.bundleID) || window.stageID == state.activeStageID)
+        }
         let showing = windows.indices.filter { windows[$0].hidden != nil && visible(windows[$0]) }
         let hiding = windows.indices.filter { windows[$0].hidden == nil && !windows[$0].minimized && !visible(windows[$0]) }
         return show(showing) + hide(hiding)
@@ -398,6 +401,13 @@ struct RecoveryEntry: Codable {
             if let number, let own = window.windowNumber { return window.pid == pid && own == number }
             return CFEqual(window.element, element)
         }?.id
+    }
+
+    /// Brings windows forward within their apps without activating them.
+    func raise(_ ids: [UUID]) {
+        let elements = windows.filter { ids.contains($0.id) && $0.hidden == nil }.map(\.element)
+        guard !elements.isEmpty else { return }
+        ax.sync { elements.forEach { AXUIElementPerformAction($0, kAXRaiseAction as CFString) } }
     }
 
     func focus(_ id: UUID) {

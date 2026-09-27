@@ -3,7 +3,7 @@ import Carbon
 import TatamiCore
 
 enum HotkeyAction {
-    case stage(Int), send(Int), cycle(Int), snap(SnapZone), stagesBar, retile, rescue, organizer, newStage, closeStage, mergeAll, cycleAppWindows(Int)
+    case stage(Int), send(Int), cycle(Int), snap(SnapZone), stagesBar, retile, rescue, organizer, newStage, closeStage, mergeAll, cycleAppWindows(Int), cycleMode
 }
 
 @MainActor final class Hotkeys {
@@ -54,6 +54,7 @@ enum HotkeyAction {
         bind(kVK_ANSI_N, base, .newStage)
         bind(kVK_ANSI_X, base, .closeStage)
         bind(kVK_ANSI_M, base, .mergeAll)
+        bind(kVK_ANSI_B, base, .cycleMode)
         if scopeCommandBacktick {
             bind(kVK_ANSI_Grave, UInt32(cmdKey), .cycleAppWindows(1))
             bind(kVK_ANSI_Grave, UInt32(cmdKey | shiftKey), .cycleAppWindows(-1))

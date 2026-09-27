@@ -35,6 +35,19 @@ expect_frame() {  # expect_frame <title> <"x,y wxh"> <label>
     local actual; actual="$("$probe" TextEdit | awk -F'\t' -v t="$1" '$2 == t { print $3 }')"
     if [ "$actual" = "$2" ]; then echo "  ok   $3"; else echo "  FAIL $3: '$1' at '$actual', expected '$2'"; failures=$((failures + 1)); fi
 }
+tiles_ok() {  # every visible TextEdit window on screen, none overlapping another
+    "$probe" TextEdit | python3 -c '
+import sys
+rects = []
+for line in sys.stdin:
+    state, title, frame = line.rstrip("\n").split("\t")
+    if state != "visible": continue
+    pos, size = frame.split(" "); x, y = map(int, pos.split(",")); w, h = map(int, size.split("x"))
+    rects.append((x, y, x + w, y + h))
+bad = [(a, b) for i, a in enumerate(rects) for b in rects[i+1:] if min(a[2], b[2]) - max(a[0], b[0]) > 4 and min(a[3], b[3]) - max(a[1], b[1]) > 4]
+print("ok" if len(rects) >= 3 and not bad else "bad %d %s" % (len(rects), bad))'
+}
+expect_tiles() { local r; r="$(tiles_ok)"; if [ "$r" = "ok" ]; then echo "  ok   $1"; else echo "  FAIL $1: $r"; failures=$((failures + 1)); fi; }
 focus_doc() { osascript -e 'tell application "TextEdit" to activate' -e "tell application \"TextEdit\" to set index of window \"$1\" to 1"; sleep 1; }
 launch_tatami() {
     TATAMI_DATA_DIR="$data" TATAMI_AUTOSTART="$1" TATAMI_ONLY_BUNDLES=com.apple.TextEdit dist/Tatami.app/Contents/MacOS/Tatami >/dev/null 2>&1 &
@@ -47,9 +60,11 @@ osascript -e 'tell application "TextEdit" to activate' \
           -e 'tell application "TextEdit" to make new document' \
           -e 'tell application "TextEdit" to set bounds of front window to {80, 120, 780, 620}' \
           -e 'tell application "TextEdit" to make new document' \
-          -e 'tell application "TextEdit" to set bounds of front window to {820, 120, 1420, 620}'
+          -e 'tell application "TextEdit" to set bounds of front window to {820, 120, 1420, 620}' \
+          -e 'tell application "TextEdit" to make new document' \
+          -e 'tell application "TextEdit" to set bounds of front window to {300, 300, 900, 700}'
 sleep 1
-A="Untitled"; B="Untitled 2"
+A="Untitled"; B="Untitled 2"; C="Untitled 3"
 B_FRAME="$("$probe" TextEdit | awk -F'\t' -v t="$B" '$2 == t { print $3 }')"
 
 echo "1. Parking"
@@ -117,6 +132,13 @@ expect "$A" parked "a new empty Stage parks the others"
 key 7 "control down, option down"                 # X: close current Stage
 expect "$A" visible "closing it returns to a Stage with the windows"
 expect "$B" visible "all windows are back"
+
+echo "11. TabStack"
+focus_doc "$A"
+key 11 "control down, option down"                # B: TabStack on this display
+expect_tiles "three windows tile side by side with no overlap"
+key 11 "control down, option down"                # back to Freeform
+expect_frame "$A" "80,120 700x500" "Freeform restores the exact pre-TabStack frame"
 
 echo
 if [ "$failures" -eq 0 ]; then echo "All checks passed."; else echo "$failures check(s) failed."; exit 1; fi

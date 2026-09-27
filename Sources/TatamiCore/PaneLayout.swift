@@ -361,6 +361,28 @@ public struct PaneLayout: Codable, Equatable {
         }.min { $0.1 != $1.1 ? $0.1 < $1.1 : $0.2 > $1.2 }?.0
     }
 
+    // MARK: persistence
+
+    /// Rewrites window ids (e.g. after a relaunch); windows with no mapping are dropped, panes kept.
+    public func remapped(_ map: [WindowID: WindowID]) -> PaneLayout {
+        var copy = self
+        copy.root = root.mapPanes { pane in
+            var p = pane
+            p.tabs = pane.tabs.compactMap { map[$0] }
+            p.mru = pane.mru.compactMap { map[$0] }
+            p.selected = pane.selected.flatMap { map[$0] } ?? p.mru.first ?? p.tabs.first
+            return p
+        } ?? root
+        return copy
+    }
+
+    /// Removes empty panes (keeping at least one) and fixes focus.
+    public func pruned() -> PaneLayout {
+        var copy = self
+        for pane in root.panes where pane.tabs.isEmpty { copy.removePane(pane.id) }
+        return copy
+    }
+
     // MARK: new windows
 
     /// M3 decision 9. Routing and Launch Here are decided by the caller before this runs.

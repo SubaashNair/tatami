@@ -23,8 +23,9 @@ extension AppModel {
             lastFocused: lastFocused.compactMapValues { numbers[$0] ?? nil },
             windows: service.windows.map { window in
                 CheckpointWindow(windowNumber: window.windowNumber, pid: window.pid, bundleID: window.bundleID, title: window.title,
-                                 frame: Rect(window.realFrame), stageID: window.stageID, displayKey: service.display(for: window.realFrame)?.id)
-            })
+                                 frame: Rect(window.realFrame), stageID: window.stageID, displayKey: service.display(for: window.realFrame)?.id, id: window.id)
+            },
+            layouts: savedLayouts())
         do { try JSONEncoder().encode(checkpoint).write(to: checkpointURL, options: .atomic) }
         catch { self.error = "Could not save the workspace checkpoint: \(error.localizedDescription)" }
     }
@@ -35,10 +36,13 @@ extension AppModel {
         let stageIDs = Set(state.stages.map(\.id))
         let live = service.windows.map { LiveWindowKey(windowNumber: $0.windowNumber, pid: $0.pid, bundleID: $0.bundleID, title: $0.title) }
         var restored = 0
+        var idMap: [UUID: UUID] = [:]
         for (saved, index) in CheckpointWindow.match(saved: checkpoint.windows, live: live) where stageIDs.contains(checkpoint.windows[saved].stageID) {
             service.windows[index].stageID = checkpoint.windows[saved].stageID
+            if let old = checkpoint.windows[saved].id { idMap[old] = service.windows[index].id }
             restored += 1
         }
+        restoreLayouts(checkpoint.layouts ?? [], idMap: idMap)
         for (stage, number) in checkpoint.lastFocused where stageIDs.contains(stage) {
             if let window = service.windows.first(where: { $0.windowNumber == number }) { lastFocused[stage] = window.id }
         }

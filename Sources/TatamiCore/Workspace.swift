@@ -74,6 +74,12 @@ public struct WorkspaceState: Codable {
     public var barIgnoresNotch = false
     /// Cmd+` cycles only the frontmost app's windows on the active Stage (STG-07). Off by default.
     public var scopeCommandBacktick = false
+    /// Stage id → display keys using TabStack (M3 decision 11). Freeform elsewhere.
+    public var tabStack: [String: [String]] = [:]
+    public var newWindowPlacement: NewWindowPlacement = .automatic
+    public var keepEmptyPanes = false
+    /// Saved per-app Manage in Layout / Keep Floating choices (M3 decision 8), first match wins.
+    public var behaviorRules: [WindowBehaviorRule] = []
     public var shortcutPreset: ShortcutPreset = .standard
     public var gap: Double = 12
     public var ai: AIConfig?
@@ -84,7 +90,7 @@ public struct WorkspaceState: Codable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, stages, activeStageID, saved, rules, excludedBundleIDs, followSentWindow, followActivatedWindows, showSwitchIndicator, showInDock, barHotZone, barDelay, barIgnoresNotch, scopeCommandBacktick, shortcutPreset, gap, ai
+        case version, stages, activeStageID, saved, rules, excludedBundleIDs, followSentWindow, followActivatedWindows, showSwitchIndicator, showInDock, barHotZone, barDelay, barIgnoresNotch, scopeCommandBacktick, tabStack, newWindowPlacement, keepEmptyPanes, behaviorRules, shortcutPreset, gap, ai
     }
 
     // Missing keys fall back to defaults so older files keep loading. Legacy `europeanShortcuts` is ignored: every file migrates to `.standard`.
@@ -105,6 +111,10 @@ public struct WorkspaceState: Codable {
         barDelay = try c.decodeIfPresent(Double.self, forKey: .barDelay) ?? defaults.barDelay
         barIgnoresNotch = try c.decodeIfPresent(Bool.self, forKey: .barIgnoresNotch) ?? defaults.barIgnoresNotch
         scopeCommandBacktick = try c.decodeIfPresent(Bool.self, forKey: .scopeCommandBacktick) ?? defaults.scopeCommandBacktick
+        tabStack = try c.decodeIfPresent([String: [String]].self, forKey: .tabStack) ?? defaults.tabStack
+        newWindowPlacement = try c.decodeIfPresent(NewWindowPlacement.self, forKey: .newWindowPlacement) ?? defaults.newWindowPlacement
+        keepEmptyPanes = try c.decodeIfPresent(Bool.self, forKey: .keepEmptyPanes) ?? defaults.keepEmptyPanes
+        behaviorRules = try c.decodeIfPresent([WindowBehaviorRule].self, forKey: .behaviorRules) ?? defaults.behaviorRules
         shortcutPreset = try c.decodeIfPresent(ShortcutPreset.self, forKey: .shortcutPreset) ?? defaults.shortcutPreset
         gap = try c.decodeIfPresent(Double.self, forKey: .gap) ?? defaults.gap
         ai = try c.decodeIfPresent(AIConfig.self, forKey: .ai)
@@ -117,7 +127,7 @@ public struct WorkspaceState: Codable {
         guard !stages.isEmpty, stages.count <= 9, Set(stages.map(\.id)).count == stages.count,
               stages.allSatisfy({ !$0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && $0.name.count <= 60 }),
               gap.isFinite, (0...40).contains(gap), barDelay.isFinite, (0...2).contains(barDelay), saved.count <= 100,
-              rules.count <= 500, ai?.isValid ?? true else { throw ValidationError.invalidState }
+              rules.count <= 500, behaviorRules.count <= 500, tabStack.count <= 9, ai?.isValid ?? true else { throw ValidationError.invalidState }
         guard stages.contains(where: { $0.id == activeStageID }) else { throw ValidationError.invalidState }
         for workspace in saved {
             guard !workspace.stages.isEmpty, workspace.stages.count <= 9,
@@ -150,6 +160,35 @@ public struct WorkspaceState: Codable {
         stages.removeAll { $0.id == id }
         if activeStageID == id { activeStageID = stages[0].id }
         return activeStageID
+    }
+}
+
+public enum WindowBehavior: String, Codable { case automatic, managed, floating }
+
+public struct WindowBehaviorRule: Codable, Equatable, Identifiable {
+    public var id = UUID()
+    public var bundleID: String
+    public var titleContains: String
+    public var behavior: WindowBehavior
+    public init(bundleID: String, titleContains: String = "", behavior: WindowBehavior) {
+        self.bundleID = bundleID; self.titleContains = titleContains; self.behavior = behavior
+    }
+}
+
+extension WorkspaceState {
+    /// Apps whose windows float by default in TabStack (M3 decision 8).
+    public static let defaultFloatingBundles: Set<String> = [
+        "com.apple.systempreferences", "com.apple.calculator", "com.apple.ActivityMonitor", "com.apple.PIPAgent",
+        "com.apple.finder.Get-Info", "com.apple.archiveutility", "com.apple.ScreenSharing",
+    ]
+
+    /// Saved rules first, then the default float list; everything else is managed.
+    public func isFloating(bundleID: String, title: String) -> Bool {
+        if let rule = behaviorRules.first(where: { $0.bundleID == bundleID && ($0.titleContains.isEmpty || title.localizedCaseInsensitiveContains($0.titleContains)) }),
+           rule.behavior != .automatic {
+            return rule.behavior == .floating
+        }
+        return Self.defaultFloatingBundles.contains(bundleID) || (bundleID == "com.apple.finder" && title.hasSuffix(" Info"))
     }
 }
 

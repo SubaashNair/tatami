@@ -77,9 +77,11 @@ public struct CheckpointWindow: Codable, Equatable {
     public var frame: Rect
     public var stageID: UUID
     public var displayKey: String?
-    public init(windowNumber: UInt32?, pid: Int32, bundleID: String, title: String, frame: Rect, stageID: UUID, displayKey: String?) {
+    /// The window's runtime id when saved, so saved pane layouts can be re-attached after a relaunch.
+    public var id: UUID?
+    public init(windowNumber: UInt32?, pid: Int32, bundleID: String, title: String, frame: Rect, stageID: UUID, displayKey: String?, id: UUID? = nil) {
         self.windowNumber = windowNumber; self.pid = pid; self.bundleID = bundleID; self.title = title
-        self.frame = frame; self.stageID = stageID; self.displayKey = displayKey
+        self.frame = frame; self.stageID = stageID; self.displayKey = displayKey; self.id = id
     }
 
     /// saved index → live index. Window numbers are exact within one app process; after an app
@@ -117,7 +119,16 @@ public struct Checkpoint: Codable {
     /// Stage → window number of the last focused window on that Stage.
     public var lastFocused: [UUID: UInt32]
     public var windows: [CheckpointWindow]
-    public init(activeStageID: UUID, lastFocused: [UUID: UInt32], windows: [CheckpointWindow]) {
-        self.activeStageID = activeStageID; self.lastFocused = lastFocused; self.windows = windows
+    /// TabStack layouts (M3 decision 11). Optional so M1/M2 checkpoints still load.
+    public var layouts: [SavedLayout]?
+    public init(activeStageID: UUID, lastFocused: [UUID: UInt32], windows: [CheckpointWindow], layouts: [SavedLayout]? = nil) {
+        self.activeStageID = activeStageID; self.lastFocused = lastFocused; self.windows = windows; self.layouts = layouts
     }
+}
+
+public struct SavedLayout: Codable {
+    public var stageID: UUID
+    public var displayKey: String
+    public var layout: PaneLayout
+    public init(stageID: UUID, displayKey: String, layout: PaneLayout) { self.stageID = stageID; self.displayKey = displayKey; self.layout = layout }
 }

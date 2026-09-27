@@ -35,6 +35,17 @@ import TatamiCore
     /// Stage → window last focused there, restored when returning to the Stage (M1 decision 12).
     var lastFocused: [UUID: UUID] = [:]
     var checkpointWork: DispatchWorkItem?
+    // TabStack (M3)
+    var layouts: [LayoutKey: PaneLayout] = [:]
+    var histories: [LayoutKey: LayoutHistory] = [:]
+    /// Pre-TabStack frames, restored when a display returns to Freeform. ponytail: in memory only; after a relaunch windows stay tiled-size.
+    var freeformFrames: [UUID: CGRect] = [:]
+    var expectedFrames: [UUID: CGRect] = [:]
+    var minSizeWindows: Set<UUID> = []
+    var userEditingLayout = false
+    /// Per-window Keep Floating / Manage in Layout choices that were not saved as rules.
+    var behaviorOverrides: [UUID: WindowBehavior] = [:]
+    var onLayoutsApplied: (() -> Void)?
     /// Windows moved off a disconnected display: window → (display key, original frame), for Restore on reconnect.
     var displaced: [UUID: (display: String, frame: CGRect)] = [:]
     /// Shows the Restore / Keep Current panel (M1 decision 8).
@@ -138,8 +149,12 @@ import TatamiCore
     /// After any scan: new windows may need hiding (routing to inactive Stages), then the UI updates.
     func windowsChanged() {
         if managing {
-            let failures = service.applyVisibility(state: state)
-            if failures > 0 { notice = "\(failures) window(s) could not be managed. Their app may not support this action." }
+            let structural = syncLayouts()
+            let edited = checkLayoutEdits()
+            if structural || edited { applyLayouts() } else {
+                let failures = applyVisibility()
+                if failures > 0 { notice = "\(failures) window(s) could not be managed. Their app may not support this action." }
+            }
         }
         publish()
     }
@@ -222,7 +237,8 @@ import TatamiCore
             let interval = Self.signposter.beginInterval("switchStage")
             let start = ContinuousClock.now
             suppressFollowUntil = Date().addingTimeInterval(followSuppression)
-            reportFailures(service.applyVisibility(state: state), action: "switch")
+            reportFailures(applyVisibility(), action: "switch")
+            if layouts.keys.contains(where: { $0.stage == id }) { applyLayouts() }
             focusAfterSwitch(to: id)
             Self.signposter.endInterval("switchStage", interval)
             let ms = (ContinuousClock.now - start) / .milliseconds(1)
@@ -245,6 +261,7 @@ import TatamiCore
         guard managing, Date() >= suppressFollowUntil, let id = service.focusedID(),
               let window = service.windows.first(where: { $0.id == id }) else { return }
         lastFocused[window.stageID] = id
+        if noteLayoutFocus(id) { return }  // a tab on the active Stage: select it rather than switching
         guard window.stageID != state.activeStageID, !state.excludedBundleIDs.contains(window.bundleID),
               state.followActivatedWindows, state.stages.contains(where: { $0.id == window.stageID }) else { return }
         switchStage(window.stageID)
@@ -286,7 +303,7 @@ import TatamiCore
         undoSnapshot = snapshot(name: "Before deleting Stage")
         guard let destination = state.removeStage(id) else { return }
         for i in service.windows.indices where service.windows[i].stageID == id { service.windows[i].stageID = destination }
-        if managing { reportFailures(service.applyVisibility(state: state), action: "delete Stage") }
+        if managing { reportFailures(applyVisibility(), action: "delete Stage") }
         publish(); persist(); notice = "Stage closed. Its windows moved to \(state.activeStage.name). Undo is available."
     }
 
@@ -296,7 +313,7 @@ import TatamiCore
         undoSnapshot = snapshot(name: "Before merging Stages")
         let first = state.mergeAll()
         for i in service.windows.indices { service.windows[i].stageID = first }
-        if managing { reportFailures(service.applyVisibility(state: state), action: "merge Stages") }
+        if managing { reportFailures(applyVisibility(), action: "merge Stages") }
         publish(); persist(); notice = "All Stages merged into \(state.activeStage.name). Undo is available."
     }
 
@@ -308,7 +325,7 @@ import TatamiCore
         if managing {
             // The sent window keeps focus while parked; without this, follow-on-focus would chase it.
             suppressFollowUntil = Date().addingTimeInterval(followSuppression)
-            reportFailures(service.applyVisibility(state: state), action: "move window")
+            reportFailures(applyVisibility(), action: "move window")
             if service.windows[index].stageID != state.activeStageID { focusAfterSwitch(to: state.activeStageID) }
         }
         publish(); persist()
@@ -386,7 +403,7 @@ import TatamiCore
             let frame = saved.frame.cgRect
             if let display = service.display(for: frame), !service.move(service.windows[index].id, to: Geometry.visibleFrame(frame, in: display.area)) { failures += 1 }
         }
-        if managing { failures += service.applyVisibility(state: state) }
+        if managing { failures += applyVisibility() }
         publish(); persist()
         notice = "Loaded \(workspace.name). \(unmatched) closed or unmatched windows skipped."
         reportFailures(failures, action: "load workspace")
@@ -460,6 +477,7 @@ import TatamiCore
         case .closeStage: deleteStage(state.activeStageID)
         case .mergeAll: mergeAll()
         case .cycleAppWindows(let offset): cycleAppWindows(offset)
+        case .cycleMode: toggleWindowMode()
         case .retile: retile()
         case .rescue: rescue()
         case .organizer: showOrganizer?()

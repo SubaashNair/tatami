@@ -177,4 +177,14 @@ final class PaneLayoutTests: XCTestCase {
         let decoded = try JSONDecoder().decode(PaneLayout.self, from: JSONEncoder().encode(layout))
         XCTAssertEqual(decoded, layout)
     }
+
+    func testRemapKeepsStructureAndDropsUnmatchedWindows() {
+        let layout = PaneLayout.balanced(windows: [a, b, c], aspect: 1.2)
+        let x = UUID(), y = UUID()
+        let remapped = layout.remapped([a: x, c: y])
+        XCTAssertEqual(remapped.root.panes.count, 3)                 // structure kept, empty pane stays for now
+        XCTAssertEqual(Set(remapped.windows), [x, y])
+        XCTAssertEqual(remapped.pane(containing: x)?.selected, x)
+        XCTAssertEqual(remapped.pruned().root.panes.count, 2)        // pruning removes the emptied pane
+    }
 }
