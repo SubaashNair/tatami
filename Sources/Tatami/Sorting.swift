@@ -21,7 +21,8 @@ extension AppModel {
     /// Offered once, after the first scan that can see windows.
     func offerFirstRunSort() {
         guard isFirstRun, trusted, !service.windows.isEmpty,
-              ProcessInfo.processInfo.environment["TATAMI_ONLY_BUNDLES"] == nil else { return }  // integration tests
+              !["TATAMI_ONLY_BUNDLES", "TATAMI_SNAPSHOT_BAR", "TATAMI_SNAPSHOT_TABS"].contains(where: { ProcessInfo.processInfo.environment[$0] != nil })
+        else { return }  // integration tests and review snapshots
         isFirstRun = false
         prepareSort()
         showDashboard?()

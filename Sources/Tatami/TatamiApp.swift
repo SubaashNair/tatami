@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import TatamiCore
 
 @main struct TatamiApp {
     @MainActor static func main() {
@@ -28,6 +29,28 @@ final class OrganizerPanel: NSPanel {
     private var reconnectPanels: [NSPanel] = []
     private let indicator = SwitchIndicator()
     private var stagesBar: StagesBarController!
+    private var tabBars: TabBarController!
+
+    /// Debug: render a tab bar holding the first few real windows to a PNG and quit.
+    private func snapshotTabs(to path: String) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [self] in
+            let key = LayoutKey(stage: model.state.activeStageID, display: model.displays.first?.id ?? "")
+            var layout = PaneLayout(root: .pane(Pane()))
+            for window in model.windows.prefix(4) { layout.add(window.id, to: layout.root.paneIDs[0]) }
+            if let second = model.windows.dropFirst().first { layout.select(second.id); model.minSizeWindows.insert(second.id) }
+            model.layouts[key] = layout
+            let view = NSHostingView(rootView: TabBarView(model: model, key: key, paneID: layout.root.paneIDs[0]).frame(width: 760, height: 28).padding(12).background(Color(white: 0.55)))
+            view.frame.size = view.fittingSize
+            let window = NSWindow(contentRect: view.frame, styleMask: .borderless, backing: .buffered, defer: false)
+            window.contentView = view
+            view.layoutSubtreeIfNeeded()
+            if let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+                view.cacheDisplay(in: view.bounds, to: rep)
+                try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
+            }
+            NSApp.terminate(nil)
+        }
+    }
 
     /// Debug: render the Stages Bar to a PNG and quit. Our own view, so no Screen Recording is needed.
     private func snapshotBar(to path: String) {
@@ -67,8 +90,11 @@ final class OrganizerPanel: NSPanel {
         statusItem.button?.image = NSImage(systemSymbolName: "square.split.2x2", accessibilityDescription: "Tatami")
         model.showDashboard = { [weak self] in self?.showWindow() }
         stagesBar = StagesBarController(model: model)
+        tabBars = TabBarController(model: model)
+        model.onLayoutsApplied = { [weak self] in self?.tabBars.update() }
         model.showStagesBar = { [weak self] in self?.stagesBar.toggle() }
         if let path = ProcessInfo.processInfo.environment["TATAMI_SNAPSHOT_BAR"] { snapshotBar(to: path) }
+        if let path = ProcessInfo.processInfo.environment["TATAMI_SNAPSHOT_TABS"] { snapshotTabs(to: path) }
         model.onStageSwitched = { [weak self] index, stage in self?.indicator.show(index: index, stage: stage) }
         model.onDockPreferenceChanged = { [weak self] in self?.applyDockPreference() }
         applyDockPreference()

@@ -221,8 +221,9 @@ import TatamiCore
         } else {
             let failures = service.restoreOwnedWindows()
             hotkeys.unregister(); scrollSwitcher.stop()
-            notice = failures == 0 ? "Management paused. All Tatami-minimized windows were restored." : "Management paused. \(failures) windows could not be restored; use their Dock icons."
+            notice = failures == 0 ? "Management paused. Every window Tatami hid is back." : "Management paused. \(failures) windows could not be restored; use Rescue Windows or their Dock icons."
         }
+        applyLayouts()  // tiles on start (layouts may come from the checkpoint); only hides tab bars on pause
         refresh()
     }
 
@@ -238,7 +239,7 @@ import TatamiCore
             let start = ContinuousClock.now
             suppressFollowUntil = Date().addingTimeInterval(followSuppression)
             reportFailures(applyVisibility(), action: "switch")
-            if layouts.keys.contains(where: { $0.stage == id }) { applyLayouts() }
+            applyLayouts()  // also moves tab bars to the new Stage (or hides them)
             focusAfterSwitch(to: id)
             Self.signposter.endInterval("switchStage", interval)
             let ms = (ContinuousClock.now - start) / .milliseconds(1)

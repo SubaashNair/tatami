@@ -207,8 +207,14 @@ extension AppModel {
     func mutateLayout(_ change: (inout PaneLayout, DisplayInfo) -> Void) {
         guard managing, let display = targetDisplay() else { return }
         let key = LayoutKey(stage: state.activeStageID, display: display.id)
-        guard var layout = layouts[key] else { notice = "\(display.name) is in Freeform. \(state.shortcutPreset == .classic ? "⌥B" : "⌃⌥B") turns on TabStack."; return }
-        if let id = service.focusedID(), layout.pane(containing: id) != nil { layout.select(id) }
+        guard layouts[key] != nil else { notice = "\(display.name) is in Freeform. \(state.shortcutPreset == .classic ? "⌥B" : "⌃⌥B") turns on TabStack."; return }
+        mutate(key, followFocus: true, change)
+    }
+
+    /// Mutates one layout with undo, applies it, and focuses its focused pane.
+    func mutate(_ key: LayoutKey, followFocus: Bool = false, _ change: (inout PaneLayout, DisplayInfo) -> Void) {
+        guard managing, var layout = layouts[key], let display = service.displays.first(where: { $0.id == key.display }) else { return }
+        if followFocus, let id = service.focusedID(), layout.pane(containing: id) != nil { layout.select(id) }
         let before = layout
         change(&layout, display)
         guard layout != before else { return }
@@ -237,6 +243,50 @@ extension AppModel {
         if wasHidden { applyLayouts(); service.focus(id) }
         return true
     }
+
+    // MARK: tab bar actions
+
+    func selectTab(_ id: UUID) {
+        guard let key = layoutKey(containing: id) else { return }
+        mutate(key) { layout, _ in layout.select(id) }
+        service.focus(id)
+    }
+
+    func closeTabs(_ ids: [UUID]) { ids.forEach(service.close) }
+
+    func closeOtherTabs(_ id: UUID) {
+        guard let pane = layoutKey(containing: id).flatMap({ layouts[$0]?.pane(containing: id) }) else { return }
+        closeTabs(pane.tabs.filter { $0 != id })
+    }
+
+    func closeTabsToRight(_ id: UUID) {
+        guard let pane = layoutKey(containing: id).flatMap({ layouts[$0]?.pane(containing: id) }), let index = pane.tabs.firstIndex(of: id) else { return }
+        closeTabs(Array(pane.tabs.dropFirst(index + 1)))
+    }
+
+    /// Keep Floating / Manage in Layout (M3 decision 8), optionally saved as a rule for the app.
+    func setBehavior(_ id: UUID, _ behavior: WindowBehavior, saveRule: Bool) {
+        guard let window = service.windows.first(where: { $0.id == id }) else { return }
+        behaviorOverrides[id] = behavior
+        if saveRule {
+            state.behaviorRules.removeAll { $0.bundleID == window.bundleID && $0.titleContains.isEmpty }
+            state.behaviorRules.insert(WindowBehaviorRule(bundleID: window.bundleID, behavior: behavior), at: 0)
+            persist()
+        }
+        syncLayouts(); applyLayouts()
+        if behavior == .floating, let area = service.display(for: window.frame)?.area {
+            service.move(id, to: Geometry.visibleFrame(CGRect(x: area.midX - window.frame.width / 4, y: area.midY - window.frame.height / 4,
+                                                               width: window.frame.width / 2, height: window.frame.height / 2), in: area))
+        }
+        notice = behavior == .floating ? "\(window.appName) window floats\(saveRule ? "; new \(window.appName) windows will too" : "")." : "\(window.appName) window is managed in the layout."
+    }
+
+    func splitTab(_ id: UUID, axis: Axis) {
+        guard let key = layoutKey(containing: id) else { return }
+        mutate(key) { layout, _ in if let pane = layout.pane(containing: id), pane.tabs.count > 1 { layout.split(pane.id, axis: axis, moving: id) } }
+    }
+
+    func paneAction(_ key: LayoutKey, _ change: @escaping (inout PaneLayout, DisplayInfo) -> Void) { mutate(key, change) }
 
     // MARK: persistence (M3 decision 11)
 

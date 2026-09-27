@@ -403,6 +403,14 @@ struct RecoveryEntry: Codable {
         }?.id
     }
 
+    /// Presses the window's own close button, so apps still ask about unsaved work.
+    func close(_ id: UUID) {
+        guard let element = windows.first(where: { $0.id == id })?.element else { return }
+        ax.sync {
+            if let button: AXUIElement = AX.attribute(element, kAXCloseButtonAttribute) { AXUIElementPerformAction(button, kAXPressAction as CFString) }
+        }
+    }
+
     /// Brings windows forward within their apps without activating them.
     func raise(_ ids: [UUID]) {
         let elements = windows.filter { ids.contains($0.id) && $0.hidden == nil }.map(\.element)
