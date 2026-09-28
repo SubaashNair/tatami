@@ -41,6 +41,10 @@ The package can also be opened directly in Xcode with `Package.swift`. The packa
 - Local JSON persistence, validated settings backup/import, and launch-at-login preference.
 - AI Organizer with your own key (Anthropic, OpenAI, Gemini, DeepSeek, OpenRouter, custom OpenAI-compatible) or a local model (Ollama, LM Studio). Describe a desk; review the proposed plan; apply it as one undoable step.
 
+## TabStack
+
+Press Control + Option + B to tile the focused display on the current Stage. Each window gets a pane (up to four; more windows become tabs), and each pane has a tab bar: click a tab to show it, right-click for Close, Split, Keep Floating, or Move to Stage, and use the ⋯ menu for Split, Zoom, Even Out, Reflow, Undo, or Close Pane. Background tabs are parked like inactive Stages, so Cmd+Tab to one simply selects it. Drag a tiled window's edge to resize; only its neighbours change. New windows get their own pane until a display has four, then join the focused pane as tabs (see Preferences). System Settings, Calculator, and similar utility windows float by default. Press Control + Option + B again to return every window to its Freeform position. Layout undo keeps 20 steps per display.
+
 ## Stages Bar
 
 Rest the pointer at the top centre of any screen (or press the Stages Bar shortcut) to see every Stage as a card. Each card is a scaled map of all your displays with windows at their real positions and the apps on each display. Click a card to switch, click its name to rename it, hover to close it (Undo is available), or use + for a new Stage. Drag cards to reorder them. Drag any window by its title bar to the top edge and drop it on a card to send it there, or on + to give it a new Stage. Opened from the keyboard, use ←/→ and Return, or 1–9.
@@ -69,6 +73,13 @@ Global shortcuts register only while Stage management is running.
 | Stages Bar | Control + Option + Command + Up | Option + Up |
 | New / close Stage | Control + Option + N / X | Option + N / X |
 | Merge all Stages | Control + Option + M | Option + M |
+| Freeform ↔ TabStack (focused display) | Control + Option + B | Option + B |
+| Focus pane up / left / down / right | Control + Option + Command + I / J / K / L | Command + Option + I / J / K / L |
+| Move window to that pane | add Shift | add Shift |
+| Previous / next tab | Control + Option + [ / ] | same |
+| Split right / below | Control + Option + Command + \ / Shift + \ | Command + Option + \ / Shift + \ |
+| Grow / shrink pane | Control + Option + Command + = / − | Command + Option + = / − |
+| Zoom pane, Reflow as Grid, Layout undo, Raise Floats | Control + Option + Command + Return / G / Z / F | Command + Option + Return / G / Z / F |
 | Arrange active Stage | Control + Option + Command + Down | Option + Down |
 | Snap halves | Control + Option + arrows | same |
 | Snap quarters | Control + Option + U / I / J / K | same |
@@ -81,7 +92,7 @@ Standard is the default because Option alone is macOS word navigation and charac
 
 ## Current limits
 
-This is the first implementation milestone, not full PRD parity. Tabbed Tiling, Action Wheel, AI Recipes, managed AI, display pinning, licensing, arbitrary shortcut recording, automatic layout continuity, and full app/document reopening are not implemented. Stage previews are app-icon schematics, not captured thumbnails. The only network requests are AI Organizer requests you start, sent to the provider you chose.
+This is the first implementation milestone, not full PRD parity. TabStack drag-and-drop overlay and appearance settings, layout presets, Action Wheel, AI Recipes, managed AI, display pinning, licensing, arbitrary shortcut recording, automatic layout continuity, and full app/document reopening are not implemented. Stage previews are app-icon schematics, not captured thumbnails. The only network requests are AI Organizer requests you start, sent to the provider you chose.
 
 Hidden windows are parked in a bottom corner of their own display with 1 pt visible. When both bottom corners border another display, or an app refuses to move off screen, that window is minimized instead. Windows you minimize yourself stay minimized. Dragging a parked window back or restoring a minimized one from the Dock moves it to the active Stage.
 

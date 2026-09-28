@@ -3,7 +3,7 @@ import Carbon
 import TatamiCore
 
 enum HotkeyAction {
-    case stage(Int), send(Int), cycle(Int), snap(SnapZone), stagesBar, retile, rescue, organizer, newStage, closeStage, mergeAll, cycleAppWindows(Int), cycleMode
+    case stage(Int), send(Int), cycle(Int), snap(SnapZone), stagesBar, retile, rescue, organizer, newStage, closeStage, mergeAll, cycleAppWindows(Int), cycleMode, focusPane(Direction), moveToPane(Direction), tab(Int), zoomPane, splitPane(Axis), resizePane(Double), reflow, undoLayout, raiseFloats
 }
 
 @MainActor final class Hotkeys {
@@ -55,6 +55,22 @@ enum HotkeyAction {
         bind(kVK_ANSI_X, base, .closeStage)
         bind(kVK_ANSI_M, base, .mergeAll)
         bind(kVK_ANSI_B, base, .cycleMode)
+        // TabStack (M3 decision 5). ⌃⌥⌘\ splits right; with Shift, below (⌃⌥⌘− is shrink).
+        let pane = UInt32(cmdKey | optionKey | (classic ? 0 : controlKey))
+        for (code, direction) in [(kVK_ANSI_I, Direction.up), (kVK_ANSI_J, .left), (kVK_ANSI_K, .down), (kVK_ANSI_L, .right)] {
+            bind(code, pane, .focusPane(direction))
+            bind(code, pane | UInt32(shiftKey), .moveToPane(direction))
+        }
+        bind(kVK_ANSI_LeftBracket, UInt32(controlKey | optionKey), .tab(-1))
+        bind(kVK_ANSI_RightBracket, UInt32(controlKey | optionKey), .tab(1))
+        bind(kVK_Return, pane, .zoomPane)
+        bind(kVK_ANSI_Backslash, pane, .splitPane(.horizontal))
+        bind(kVK_ANSI_Backslash, pane | UInt32(shiftKey), .splitPane(.vertical))
+        bind(kVK_ANSI_Equal, pane, .resizePane(0.05))
+        bind(kVK_ANSI_Minus, pane, .resizePane(-0.05))
+        bind(kVK_ANSI_G, pane, .reflow)
+        bind(kVK_ANSI_Z, pane, .undoLayout)
+        bind(kVK_ANSI_F, pane, .raiseFloats)
         if scopeCommandBacktick {
             bind(kVK_ANSI_Grave, UInt32(cmdKey), .cycleAppWindows(1))
             bind(kVK_ANSI_Grave, UInt32(cmdKey | shiftKey), .cycleAppWindows(-1))

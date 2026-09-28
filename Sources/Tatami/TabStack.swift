@@ -244,6 +244,63 @@ extension AppModel {
         return true
     }
 
+    // MARK: keyboard navigation (TIL-06): panes of every TabStack display on the active Stage
+
+    private func allPanes() -> [(key: LayoutKey, pane: UUID, frame: CGRect)] {
+        layouts.filter { $0.key.stage == state.activeStageID }.flatMap { key, layout -> [(key: LayoutKey, pane: UUID, frame: CGRect)] in
+            guard let display = service.displays.first(where: { $0.id == key.display }) else { return [] }
+            return layout.frames(in: display.area, gap: state.gap, tabBar: Self.tabBarHeight).map { (key, $0.key, $0.value.pane) }
+        }
+    }
+
+    /// The pane holding the focused window, or the focused pane of the target display's layout.
+    private func currentPane() -> (key: LayoutKey, pane: UUID, window: UUID?)? {
+        if let id = service.focusedID(), let key = layoutKey(containing: id), key.stage == state.activeStageID, let pane = layouts[key]?.pane(containing: id) {
+            return (key, pane.id, id)
+        }
+        guard let display = targetDisplay() else { return nil }
+        let key = LayoutKey(stage: state.activeStageID, display: display.id)
+        guard let layout = layouts[key] else { return nil }
+        return (key, layout.focused, layout.root.pane(layout.focused)?.selected)
+    }
+
+    func focusPane(_ direction: Direction) {
+        guard let current = currentPane() else { return }
+        let panes = allPanes()
+        guard let from = panes.first(where: { $0.pane == current.pane })?.frame,
+              let target = PaneLayout.neighbour(of: from, toward: direction, among: panes.filter { $0.pane != current.pane }.map { ($0.pane, $0.frame) }),
+              let key = panes.first(where: { $0.pane == target })?.key else { return }
+        layouts[key]?.focused = target
+        if let window = layouts[key]?.root.pane(target)?.selected { service.focus(window) }
+        onLayoutsApplied?()
+    }
+
+    /// Moves the focused window to the neighbouring pane, across displays too; it keeps focus.
+    func moveToPane(_ direction: Direction) {
+        guard let current = currentPane(), let window = current.window else { return }
+        let panes = allPanes()
+        guard let from = panes.first(where: { $0.pane == current.pane })?.frame,
+              let target = PaneLayout.neighbour(of: from, toward: direction, among: panes.filter { $0.pane != current.pane }.map { ($0.pane, $0.frame) }),
+              let targetKey = panes.first(where: { $0.pane == target })?.key else { return }
+        if targetKey == current.key {
+            mutate(current.key) { layout, _ in layout.move(window, to: target, keepEmptyPanes: state.keepEmptyPanes) }
+        } else {
+            recordHistory(current.key); recordHistory(targetKey)
+            layouts[current.key]?.remove(window, keepEmptyPanes: state.keepEmptyPanes)
+            layouts[targetKey]?.add(window, to: target)
+            applyLayouts()
+        }
+        service.focus(window)
+    }
+
+    /// M3 decision 13: in TabStack, arrow snaps move a managed window to the neighbouring pane; other snaps do nothing.
+    func snapInLayout(_ zone: SnapZone) -> Bool {
+        guard let id = service.focusedID(), let key = layoutKey(containing: id), key.stage == state.activeStageID else { return false }
+        let directions: [SnapZone: Direction] = [.left: .left, .right: .right, .top: .up, .bottom: .down]
+        if let direction = directions[zone] { moveToPane(direction) }
+        return true
+    }
+
     // MARK: tab bar actions
 
     func selectTab(_ id: UUID) {

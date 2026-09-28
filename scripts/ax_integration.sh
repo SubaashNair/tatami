@@ -137,6 +137,15 @@ echo "11. TabStack"
 focus_doc "$A"
 key 11 "control down, option down"                # B: TabStack on this display
 expect_tiles "three windows tile side by side with no overlap"
+focus_doc "$A"
+key 37 "control down, option down, command down, shift down"   # move A into the pane to its right
+expect "$B" parked  "the window it joined becomes a background tab and is parked"
+expect "$A" visible "the moved window is the selected tab"
+key 30 "control down, option down"                             # ] next tab
+expect "$B" visible "Control+Option+] shows the other tab"
+expect "$A" parked  "and parks the one that was showing"
+key 6 "control down, option down, command down"                # Z: layout undo
+expect_tiles "layout undo restores three separate panes"
 key 11 "control down, option down"                # back to Freeform
 expect_frame "$A" "80,120 700x500" "Freeform restores the exact pre-TabStack frame"
 

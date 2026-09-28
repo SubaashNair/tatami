@@ -23,9 +23,12 @@ extension AppModel {
 
         if managing, !gone.isEmpty, let target = displayUnderPointer() ?? after.first {
             relocate(from: gone, to: target, checkpoint: checkpoint)
+            detachLayouts(of: gone, into: target)
         }
         for display in returned {
-            let count = displaced.values.filter { $0.display == display.id }.count
+            // TabStack windows are also in `displaced`; count each window once.
+            let count = max(displaced.values.filter { $0.display == display.id }.count,
+                            detachedLayouts.filter { $0.key.display == display.id }.values.reduce(0) { $0 + $1.windows.count })
             if count > 0 { onReconnectOffer?(ReconnectOffer(displayName: display.name, displayKey: display.id, count: count)) }
         }
         writeCheckpoint()
@@ -51,7 +54,32 @@ extension AppModel {
         if moved > 0 { notice = "\(moved) window(s) moved from the disconnected display to \(target.name)." }
     }
 
+    /// A TabStack display went away: its windows become tabs in the focused pane on `target` when that display
+    /// is also TabStack (otherwise they stay free-floating there), and its layout waits for Restore.
+    private func detachLayouts(of gone: [DisplayInfo], into target: DisplayInfo) {
+        let goneKeys = Set(gone.map(\.id))
+        for (key, layout) in layouts where goneKeys.contains(key.display) {
+            detachedLayouts[key] = layout
+            layouts[key] = nil
+            let destination = LayoutKey(stage: key.stage, display: target.id)
+            guard var receiving = layouts[destination] else { continue }
+            for window in layout.windows { receiving.add(window, to: receiving.focused) }
+            layouts[destination] = receiving
+        }
+        applyLayouts()
+    }
+
     func resolveReconnect(_ offer: ReconnectOffer, restore: Bool) {
+        let detached = detachedLayouts.filter { $0.key.display == offer.displayKey }
+        for key in detached.keys { detachedLayouts[key] = nil }
+        if restore {
+            for (key, layout) in detached {
+                for window in layout.windows { for other in Array(layouts.keys) { layouts[other]?.remove(window, keepEmptyPanes: state.keepEmptyPanes) } }
+                layouts[key] = layout
+            }
+            syncLayouts()
+            applyLayouts()
+        }
         let entries = displaced.filter { $0.value.display == offer.displayKey }
         for (id, entry) in entries {
             displaced[id] = nil

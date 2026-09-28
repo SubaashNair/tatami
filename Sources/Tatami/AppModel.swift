@@ -46,6 +46,8 @@ import TatamiCore
     /// Per-window Keep Floating / Manage in Layout choices that were not saved as rules.
     var behaviorOverrides: [UUID: WindowBehavior] = [:]
     var onLayoutsApplied: (() -> Void)?
+    /// Layouts of disconnected displays, rebuilt by Restore when the display returns (M3 decision 12).
+    var detachedLayouts: [LayoutKey: PaneLayout] = [:]
     /// Windows moved off a disconnected display: window → (display key, original frame), for Restore on reconnect.
     var displaced: [UUID: (display: String, frame: CGRect)] = [:]
     /// Shows the Restore / Keep Current panel (M1 decision 8).
@@ -472,14 +474,26 @@ import TatamiCore
         case .stage(let index): if state.stages.indices.contains(index) { switchStage(state.stages[index].id) }
         case .send(let index): if state.stages.indices.contains(index), let id = service.focusedID() { send(id, to: state.stages[index].id) }
         case .cycle(let offset): switchStage(state.stageID(offset: offset))
-        case .snap(let zone): snap(zone)
+        case .snap(let zone): if !snapInLayout(zone) { snap(zone) }
         case .stagesBar: showStagesBar?()
         case .newStage: addStage(state.nextStageName())
         case .closeStage: deleteStage(state.activeStageID)
         case .mergeAll: mergeAll()
         case .cycleAppWindows(let offset): cycleAppWindows(offset)
         case .cycleMode: toggleWindowMode()
-        case .retile: retile()
+        case .focusPane(let direction): focusPane(direction)
+        case .moveToPane(let direction): moveToPane(direction)
+        case .tab(let offset): mutateLayout { layout, _ in layout.cycleTab(offset) }
+        case .zoomPane: mutateLayout { layout, _ in layout.toggleZoom(layout.focused) }
+        case .splitPane(let axis): mutateLayout { layout, _ in
+            if let pane = layout.root.pane(layout.focused), let selected = pane.selected, pane.tabs.count > 1 { layout.split(pane.id, axis: axis, moving: selected) }
+            else { layout.split(layout.focused, axis: axis, moving: nil) }
+        }
+        case .resizePane(let fraction): mutateLayout { layout, _ in layout.resize(layout.focused, by: fraction) }
+        case .reflow: mutateLayout { layout, display in layout.reflow(aspect: display.area.width / max(display.area.height, 1)) }
+        case .undoLayout: undoLayout()
+        case .raiseFloats: raiseFloats(activate: true)
+        case .retile: if layouts[LayoutKey(stage: state.activeStageID, display: targetDisplay()?.id ?? "")] != nil { mutateLayout { layout, _ in layout.evenOut() } } else { retile() }
         case .rescue: rescue()
         case .organizer: showOrganizer?()
         }

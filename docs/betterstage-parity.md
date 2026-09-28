@@ -44,23 +44,23 @@ Legend: ✅ done · 🟡 partial · ❌ missing
 | Snap via edge drag | ⚠ docs disagree | ❌ | SNP-03 |
 | Retile, then Re-stack (cascade) on repeat | ✅ | 🟡 grid only | SNP-04 |
 | Screen padding per side | ✅ | ❌ (gap only) | SNP-05 |
-| TabStack pane tree per display per Stage | ✅ | ❌ | TIL-01 |
+| TabStack pane tree per display per Stage | ✅ | ✅ | TIL-01 |
 | Drag overlay: edge split, centre join, swap zone, divider insert | ✅ | ❌ | TIL-02, TIL-05 |
-| Tabs: switch (Ctrl+Opt+[ ]), reorder, move one, move stack, close variants | ✅ | ❌ | TIL-02, TIL-03 |
+| Tabs: switch (Ctrl+Opt+[ ]), reorder, move one, move stack, close variants | ✅ | 🟡 switch, move one, close variants; reorder and stack drag in M4 | TIL-02, TIL-03 |
 | Native-tab apps (Terminal, Ghostty) inside panes | ✅ | ❌ | TIL-10 |
-| Independent divider resizing, ghost-frame preview | ✅ | ❌ | TIL-04 |
-| Directional focus / move across panes and displays (Cmd+Opt+IJKL) | ✅ | ❌ | TIL-06 |
-| Zoom / restore pane | ✅ | ❌ | TIL-07 |
+| Independent divider resizing, ghost-frame preview | ✅ | 🟡 window-edge and keyboard resizing; handles and preview in M4 | TIL-04 |
+| Directional focus / move across panes and displays (Cmd+Opt+IJKL) | ✅ | ✅ | TIL-06 |
+| Zoom / restore pane | ✅ | ✅ | TIL-07 |
 | Launch App Here, Quit / Relaunch from tab | ✅ | ❌ | TIL-08, TIL-09 |
 | Drop file on background tab | ✅ | ❌ | TIL-11 |
-| New-window placement: Automatic / Active / Adjacent / Own pane | ✅ | ❌ | TIL-12 |
-| Window behaviour: Automatic / Manage / Keep Floating, saved rules | ✅ | ❌ | TIL-13 |
-| Even Out, Reflow as Grid (Cmd+Opt+G) | ✅ | ❌ | TIL-14 |
-| Layout undo | ❌ none | ❌ | TIL-14 |
-| Raise Floats | ✅ | ❌ | TIL-15 |
+| New-window placement: Automatic / Active / Adjacent / Own pane | ✅ | ✅ | TIL-12 |
+| Window behaviour: Automatic / Manage / Keep Floating, saved rules | ✅ | ✅ | TIL-13 |
+| Even Out, Reflow as Grid (Cmd+Opt+G) | ✅ | ✅ | TIL-14 |
+| Layout undo | ❌ none | ✅ 20 steps | TIL-14 |
+| Raise Floats | ✅ | ✅ (and automatic after layout changes) | TIL-15 |
 | Appearance: Comfortable / Compact / Custom, gaps, padding, tab styling | ✅ | ❌ | TIL-16 |
 | Layout presets (5 built-in) + custom preset editor, default layout | ✅ | ❌ | LAY-01..04 |
-| Cycle mode (Opt+B) per monitor | ✅ | ❌ | INP-03 |
+| Cycle mode (Opt+B) per monitor | ✅ | ✅ | INP-03 |
 
 ### Snap Wheel and Custom Actions
 
