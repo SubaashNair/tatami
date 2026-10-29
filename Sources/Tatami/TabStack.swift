@@ -48,9 +48,10 @@ extension AppModel {
 
     // MARK: mode switching (M3 decision 4)
 
-    func toggleWindowMode() {
+    /// `chosen` is the display whose pane menu was used; shortcuts leave it nil and act on the focused display.
+    func toggleWindowMode(on chosen: DisplayInfo? = nil) {
         guard managing else { notice = "Start managing to use TabStack."; return }
-        guard let display = targetDisplay() else { return }
+        guard let display = chosen ?? targetDisplay() else { return }
         let key = LayoutKey(stage: state.activeStageID, display: display.id)
         if isTabStack(stage: key.stage, display: key.display) { leaveTabStack(key, display: display) } else { enterTabStack(key, display: display) }
     }
@@ -226,7 +227,11 @@ extension AppModel {
 
     func undoLayout() {
         guard let display = targetDisplay() else { return }
-        let key = LayoutKey(stage: state.activeStageID, display: display.id)
+        undoLayout(key: LayoutKey(stage: state.activeStageID, display: display.id))
+    }
+
+    /// Undo for one display's layout, as chosen from that display's pane menu.
+    func undoLayout(key: LayoutKey) {
         guard let previous = histories[key]?.undo() else { notice = "Nothing to undo in this layout."; return }
         layouts[key] = previous
         syncLayouts()  // windows may have closed since that step
@@ -288,6 +293,7 @@ extension AppModel {
             recordHistory(current.key); recordHistory(targetKey)
             layouts[current.key]?.remove(window, keepEmptyPanes: state.keepEmptyPanes)
             layouts[targetKey]?.add(window, to: target)
+            freeformFrames[window] = nil  // it joined this layout later, so leaving TabStack leaves it where it is
             applyLayouts()
         }
         service.focus(window)

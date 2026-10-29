@@ -72,6 +72,13 @@ enum AX {
         return value as? T
     }
 
+    /// Like `attribute`, but also says whether the app failed to answer in time (as opposed to the attribute not existing).
+    static func attributeOrTimeout<T>(_ element: AXUIElement, _ name: String) -> (value: T?, timedOut: Bool) {
+        var value: CFTypeRef?
+        let status = AXUIElementCopyAttributeValue(element, name as CFString, &value)
+        return (status == .success ? value as? T : nil, status == .cannotComplete)
+    }
+
     static func frame(of element: AXUIElement) -> CGRect? {
         guard let position: AXValue = attribute(element, kAXPositionAttribute),
               let size: AXValue = attribute(element, kAXSizeAttribute) else { return nil }
@@ -144,20 +151,30 @@ struct ScannedWindow {
     let minimized: Bool
 }
 
+struct ScanResult {
+    var windows: [ScannedWindow] = []
+    /// Apps that did not answer in time. Their windows are unknown, which is different from having none.
+    var failed: Set<pid_t> = []
+}
+
 enum AXScanner {
     /// Standard windows of the given apps. AX thread only.
-    static func scan(_ apps: [AppInfo]) -> [ScannedWindow] {
-        apps.flatMap { app -> [ScannedWindow] in
+    static func scan(_ apps: [AppInfo]) -> ScanResult {
+        var result = ScanResult()
+        for app in apps {
             let application = AXUIElementCreateApplication(app.pid)
-            guard let elements: [AXUIElement] = AX.attribute(application, kAXWindowsAttribute) else { return [] }
-            return elements.compactMap { element in
-                let role: String? = AX.attribute(element, kAXSubroleAttribute)
-                guard role == kAXStandardWindowSubrole as String, let frame = AX.frame(of: element), frame.width > 80, frame.height > 60 else { return nil }
-                return ScannedWindow(element: element, pid: app.pid, bundleID: app.bundleID, appName: app.name,
-                                     windowNumber: AX.windowNumber(element), title: AX.attribute(element, kAXTitleAttribute) ?? "Untitled window",
-                                     frame: frame, minimized: AX.attribute(element, kAXMinimizedAttribute) ?? false)
+            let listed: (value: [AXUIElement]?, timedOut: Bool) = AX.attributeOrTimeout(application, kAXWindowsAttribute)
+            if listed.timedOut { result.failed.insert(app.pid) }
+            for element in listed.value ?? [] {
+                let subrole: (value: String?, timedOut: Bool) = AX.attributeOrTimeout(element, kAXSubroleAttribute)
+                guard !subrole.timedOut, let frame = AX.frame(of: element) else { result.failed.insert(app.pid); continue }
+                guard subrole.value == kAXStandardWindowSubrole as String, frame.width > 80, frame.height > 60 else { continue }
+                result.windows.append(ScannedWindow(element: element, pid: app.pid, bundleID: app.bundleID, appName: app.name,
+                                                    windowNumber: AX.windowNumber(element), title: AX.attribute(element, kAXTitleAttribute) ?? "Untitled window",
+                                                    frame: frame, minimized: AX.attribute(element, kAXMinimizedAttribute) ?? false))
             }
         }
+        return result
     }
 }
 

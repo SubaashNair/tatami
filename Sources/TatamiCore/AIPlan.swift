@@ -70,6 +70,22 @@ public struct AIPlan: Decodable {
         public var stage: String?
         public var zone: String?
         public var display: Int?
+
+        private enum CodingKeys: String, CodingKey { case type, name, from, to, window, stage, zone, display }
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            // Each field is read on its own. A wrong type loses that field, so validation drops the action with a reason,
+            // instead of one mistyped value rejecting the whole plan. Numbers sent as text ("2") are accepted.
+            type = try? c.decodeIfPresent(String.self, forKey: .type)
+            name = try? c.decodeIfPresent(String.self, forKey: .name)
+            from = try? c.decodeIfPresent(String.self, forKey: .from)
+            to = try? c.decodeIfPresent(String.self, forKey: .to)
+            window = try? c.decodeIfPresent(String.self, forKey: .window)
+            stage = try? c.decodeIfPresent(String.self, forKey: .stage)
+            zone = try? c.decodeIfPresent(String.self, forKey: .zone)
+            display = (try? c.decodeIfPresent(Int.self, forKey: .display)) ?? (try? c.decodeIfPresent(String.self, forKey: .display)).flatMap { Int($0) }
+        }
+
         var label: String {
             [type ?? "unknown", window, stage, name, from.map { "\($0) → \(to ?? "?")" }, zone, display.map { "display \($0)" }]
                 .compactMap { $0 }.joined(separator: " ")

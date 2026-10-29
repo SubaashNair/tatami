@@ -50,6 +50,8 @@ struct RecoveryEntry: Codable {
     let ax = AXThread()
     private var observers: AXObservers!
     private let journalURL: URL
+    /// Journal entries from the previous session that could not be restored yet.
+    private var unrecovered: [RecoveryEntry] = []
     /// Supplies routing rules and the active Stage for windows discovered by events.
     var stateProvider: () -> WorkspaceState = { WorkspaceState() }
     /// Called on the main thread after an event-driven rescan merged new window data.
@@ -119,28 +121,29 @@ struct RecoveryEntry: Codable {
 
     // MARK: scanning (off the main thread)
 
-    func scan(state: WorkspaceState) async {
+    func scan() async {
         guard trusted else { return }
         let apps = regularApps()
         let observers = observers!, generation = writeGeneration
         let scanned = await ax.run {
             observers.sync(pids: Set(apps.map(\.pid)))
-            let windows = AXScanner.scan(apps)
-            observers.watch(windows)
-            return windows
+            let result = AXScanner.scan(apps)
+            observers.watch(result.windows)
+            return result
         }
-        merge(scanned, only: nil, state: state, stale: generation != writeGeneration)
+        // Read the settings now, after the await: a Stage switch during the scan must not be overwritten by an old copy.
+        merge(scanned, only: nil, state: stateProvider(), stale: generation != writeGeneration)
     }
 
-    private func rescan(pids: Set<pid_t>, state: WorkspaceState) async {
+    private func rescan(pids: Set<pid_t>) async {
         let apps = regularApps().filter { pids.contains($0.pid) }
         let observers = observers!, generation = writeGeneration
         let scanned = await ax.run {
-            let windows = AXScanner.scan(apps)
-            observers.watch(windows)
-            return windows
+            let result = AXScanner.scan(apps)
+            observers.watch(result.windows)
+            return result
         }
-        merge(scanned, only: pids, state: state, stale: generation != writeGeneration)
+        merge(scanned, only: pids, state: stateProvider(), stale: generation != writeGeneration)
     }
 
     private func handleEvent(pid: pid_t, notification: String) {
@@ -158,7 +161,7 @@ struct RecoveryEntry: Codable {
         let pids = pendingPids, full = needsFullScan, notifications = pendingNotifications
         pendingPids = []; pendingNotifications = []; needsFullScan = false; flushScheduled = false
         Task {
-            if full { await scan(state: stateProvider()) } else { await rescan(pids: pids, state: stateProvider()) }
+            if full { await scan() } else { await rescan(pids: pids) }
             onWindowsChanged?(notifications)
         }
     }
@@ -170,12 +173,12 @@ struct RecoveryEntry: Codable {
 
     /// Merges on the main thread against current state, so changes made while a scan was running survive.
     /// A stale scan (a write happened meanwhile) only adds and removes windows; its frames are out of date.
-    private func merge(_ scanned: [ScannedWindow], only pids: Set<pid_t>?, state: WorkspaceState, stale: Bool) {
+    private func merge(_ scan: ScanResult, only pids: Set<pid_t>?, state: WorkspaceState, stale: Bool) {
         var merged = pids.map { pids in windows.filter { !pids.contains($0.pid) } } ?? []
         var reveal: [UUID] = [], rescue: [(UUID, CGRect)] = [], repark: [UUID] = []
         let displaysSettling = Date().timeIntervalSince(displaysChangedAt) < displayChangeGrace
         let screens = displays.map(\.fullFrame)
-        for found in scanned {
+        for found in scan.windows {
             if var existing = windows.first(where: { isSame(found, $0) }) {
                 existing.title = found.title
                 existing.windowNumber = found.windowNumber ?? existing.windowNumber
@@ -204,6 +207,9 @@ struct RecoveryEntry: Codable {
                 merged.append(window)
             }
         }
+        // An app that did not answer in time has unknown windows, not none: keep what we knew, with its Stage and hidden state.
+        let kept = Set(ScanMerge.keptAfterFailure(known: windows.map { (id: $0.id, pid: $0.pid) }, merged: Set(merged.map(\.id)), failed: scan.failed))
+        merged.append(contentsOf: windows.filter { kept.contains($0.id) })
         windows = merged
         if pids == nil { initialScanDone = true }
         if !reveal.isEmpty { _ = show(windows.indices.filter { reveal.contains(windows[$0].id) }) }
@@ -315,8 +321,14 @@ struct RecoveryEntry: Codable {
     func restoreOwnedWindows() -> Int { show(windows.indices.filter { windows[$0].hidden != nil }) }
 
     func recoverPreviousSession() -> Int {
-        guard trusted, let data = try? Data(contentsOf: journalURL),
-              let entries = try? JSONDecoder().decode([RecoveryEntry].self, from: data) else { return 0 }
+        guard trusted, let data = try? Data(contentsOf: journalURL) else { return 0 }
+        guard let entries = try? JSONDecoder().decode([RecoveryEntry].self, from: data) else {
+            // Never let the next journal write erase a journal that could not be read: keep it for inspection.
+            let aside = journalURL.appendingPathExtension("corrupt")
+            try? FileManager.default.removeItem(at: aside)
+            try? FileManager.default.moveItem(at: journalURL, to: aside)
+            return 0
+        }
         // Clamp on the main thread, where display geometry lives; the saved display may be gone.
         let targets = entries.map { entry -> CGRect in
             let frame = entry.frame.cgRect
@@ -339,6 +351,7 @@ struct RecoveryEntry: Codable {
                 return entry.parked == true ? !AX.setFrame(match, target) : !AX.setMinimized(match, false)
             }.map(\.0)
         }
+        unrecovered = pending
         if let data = try? JSONEncoder().encode(pending) { try? data.write(to: journalURL, options: .atomic) }
         return pending.count
     }
@@ -351,7 +364,9 @@ struct RecoveryEntry: Codable {
             return RecoveryEntry(pid: window.pid, bundleID: window.bundleID, title: window.title, frame: Rect(hidden.realFrame),
                                  windowNumber: window.windowNumber, parked: isParked)
         }
-        try JSONEncoder().encode(entries).write(to: journalURL, options: .atomic)
+        // Entries recovery could not restore stay on record until their app quits, so the next hide cannot erase them.
+        unrecovered.removeAll { NSRunningApplication(processIdentifier: $0.pid) == nil }
+        try JSONEncoder().encode(entries + unrecovered).write(to: journalURL, options: .atomic)
     }
 
     // MARK: writes

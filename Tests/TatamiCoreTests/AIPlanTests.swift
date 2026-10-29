@@ -57,6 +57,15 @@ final class AIPlanTests: XCTestCase {
         XCTAssertTrue(result.dropped[1].reason.contains("was not created"))
     }
 
+    func testOneMistypedFieldDoesNotSinkThePlan() throws {
+        // Models sometimes send a number where text is expected, or a number as text.
+        let plan = try AIPlan.parse(#"{"summary":"s","actions":[{"type":"assign","window":"w1","stage":123},{"type":"snap","window":"w2","zone":"left","display":"2"}]}"#)
+        XCTAssertEqual(plan.actions.count, 2)
+        let result = plan.validate(against: context)
+        XCTAssertEqual(result.valid, [.snap(window: "w2", zone: .left, display: 2)])
+        XCTAssertEqual(result.dropped.count, 1)  // the assign with a non-text Stage, reported with a reason
+    }
+
     func testRejectsUnknownRefsZonesDisplaysAndTypes() throws {
         let plan = try AIPlan.parse(#"""
         {"summary":"","actions":[

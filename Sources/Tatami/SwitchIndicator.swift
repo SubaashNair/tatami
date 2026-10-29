@@ -36,7 +36,8 @@ import TatamiCore
             NSAnimationContext.runAnimationGroup { context in
                 context.duration = 0.2
                 self?.panel.animator().alphaValue = 0
-            } completionHandler: { self?.panel.orderOut(nil) }
+            // A newer indicator resets the alpha to 1; only hide the panel if this fade-out really finished.
+            } completionHandler: { if self?.panel.alphaValue == 0 { self?.panel.orderOut(nil) } }
         }
         hideWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.visibleFor, execute: work)

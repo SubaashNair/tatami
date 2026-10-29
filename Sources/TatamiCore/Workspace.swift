@@ -124,6 +124,9 @@ public struct WorkspaceState: Codable {
 
     public mutating func validate() throws {
         guard version == 1 else { throw ValidationError.unsupportedVersion }
+        // Deleting or merging a Stage never removes its TabStack entry; stale ones must not push saving over the limit.
+        let live = Set(stages.map { $0.id.uuidString })
+        tabStack = tabStack.filter { live.contains($0.key) && !$0.value.isEmpty }
         guard !stages.isEmpty, stages.count <= 9, Set(stages.map(\.id)).count == stages.count,
               stages.allSatisfy({ !$0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && $0.name.count <= 60 }),
               gap.isFinite, (0...40).contains(gap), barDelay.isFinite, (0...2).contains(barDelay), saved.count <= 100,

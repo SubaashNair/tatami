@@ -59,7 +59,10 @@ enum AIClient {
         case .anthropic:
             body = ["model": model, "max_tokens": maxTokens, "system": system, "messages": [["role": "user", "content": user]]]
         case .openAI:
-            body = ["model": model, "max_tokens": maxTokens, "messages": [["role": "system", "content": system], ["role": "user", "content": user]]]
+            // OpenAI's current models reject max_tokens; other OpenAI-compatible servers still expect it.
+            var fields: [String: Any] = ["model": model, "messages": [["role": "system", "content": system], ["role": "user", "content": user]]]
+            fields[preset.id == "openai" ? "max_completion_tokens" : "max_tokens"] = maxTokens
+            body = fields
         }
         let path = preset.format == .anthropic ? "messages" : "chat/completions"
         let json = try await send(preset: preset, config: config, key: key, path: path, body: body)
@@ -143,13 +146,17 @@ enum KeychainStore {
 
     /// Empty value deletes the item.
     static func save(_ value: String, account: String) throws {
-        SecItemDelete(query(account) as CFDictionary)
         let value = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !value.isEmpty else { return }
-        var q = query(account)
-        q[kSecValueData as String] = Data(value.utf8)
-        q[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-        let status = SecItemAdd(q as CFDictionary, nil)
+        guard !value.isEmpty else { SecItemDelete(query(account) as CFDictionary); return }
+        // Update in place so a failed save keeps the old key; add only when there is none yet.
+        let data = Data(value.utf8)
+        var status = SecItemUpdate(query(account) as CFDictionary, [kSecValueData as String: data] as CFDictionary)
+        if status == errSecItemNotFound {
+            var q = query(account)
+            q[kSecValueData as String] = data
+            q[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+            status = SecItemAdd(q as CFDictionary, nil)
+        }
         guard status == errSecSuccess else { throw NSError(domain: NSOSStatusErrorDomain, code: Int(status), userInfo: [NSLocalizedDescriptionKey: "Could not save the key to the Keychain (\(status))."]) }
     }
 }
