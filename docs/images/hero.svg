@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" role="img" aria-labelledby="t d">
+  <title id="t">Tatami</title>
+  <desc id="d">Banner: Tatami, keyboard first window management for macOS, over a pattern of tatami mats.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1e2b24"/>
+      <stop offset="1" stop-color="#2f4a3a"/>
+    </linearGradient>
+    <pattern id="mats" width="240" height="120" patternUnits="userSpaceOnUse">
+      <rect x="2" y="2" width="116" height="56" rx="4" fill="none" stroke="#7fae8f" stroke-opacity=".30" stroke-width="2"/>
+      <rect x="122" y="2" width="116" height="56" rx="4" fill="none" stroke="#7fae8f" stroke-opacity=".30" stroke-width="2"/>
+      <rect x="62" y="62" width="116" height="56" rx="4" fill="none" stroke="#7fae8f" stroke-opacity=".30" stroke-width="2"/>
+      <rect x="-58" y="62" width="116" height="56" rx="4" fill="none" stroke="#7fae8f" stroke-opacity=".30" stroke-width="2"/>
+      <rect x="182" y="62" width="116" height="56" rx="4" fill="none" stroke="#7fae8f" stroke-opacity=".30" stroke-width="2"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="320" rx="22" fill="url(#bg)"/>
+  <rect width="1200" height="320" rx="22" fill="url(#mats)"/>
+  <g font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif">
+    <text x="72" y="160" font-size="92" font-weight="700" fill="#f4efe2">Tatami</text>
+    <text x="76" y="212" font-size="30" fill="#cfe3d6">Keyboard first window management for macOS</text>
+    <text x="76" y="262" font-size="22" fill="#9fc3ad">Stages  ·  Tiles  ·  one key for everything</text>
+  </g>
+  <g transform="translate(900 70)" fill="none" stroke="#f4efe2" stroke-width="3" stroke-linejoin="round">
+    <rect x="0" y="0" width="230" height="150" rx="12" stroke-opacity=".9"/>
+    <rect x="12" y="12" width="98" height="60" rx="6" fill="#3b5a47" fill-opacity=".55"/>
+    <rect x="120" y="12" width="98" height="60" rx="6" fill="#d9a441" fill-opacity=".55"/>
+    <rect x="12" y="82" width="206" height="56" rx="6" fill="#3b5a47" fill-opacity=".35"/>
+  </g>
+</svg>

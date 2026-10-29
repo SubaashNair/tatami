@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 540" role="img" aria-labelledby="t d">
+  <title id="t">Tiles mode: four panes with tab bars and pane numbers</title>
+  <desc id="d">Illustration of one display in Tiles mode. Four panes each have a tab bar with a number badge from 1 to 4, tabs, and a menu button. A key list on the right shows how to move focus, rotate a split and float a window.</desc>
+  <rect width="1000" height="540" rx="18" fill="#f4efe2"/>
+  <g font-family="-apple-system, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif">
+    <!-- the display -->
+    <rect x="24" y="24" width="640" height="436" rx="16" fill="#0f1512" stroke="#3b4d42" stroke-width="3"/>
+    <!-- pane 1 -->
+    <rect x="38" y="38" width="298" height="202" rx="9" fill="#1a231e" stroke="#2d3d34" stroke-width="2"/>
+    <rect x="38" y="38" width="298" height="30" rx="9" fill="#24312a"/>
+    <circle cx="56" cy="53" r="10" fill="#d9a441"/><text x="56" y="58" font-size="13" font-weight="700" text-anchor="middle" fill="#1b1b1b">1</text>
+    <rect x="74" y="43" width="96" height="20" rx="6" fill="#3b5a47"/><text x="122" y="58" font-size="12" text-anchor="middle" fill="#f4efe2">Editor</text>
+    <text x="214" y="58" font-size="12" text-anchor="middle" fill="#8fa598">Notes</text>
+    <g fill="#8fa598"><circle cx="302" cy="53" r="2.5"/><circle cx="311" cy="53" r="2.5"/><circle cx="320" cy="53" r="2.5"/></g>
+    <text x="187" y="160" font-size="26" text-anchor="middle" fill="#5d7366">Editor</text>
+    <!-- pane 2 -->
+    <rect x="350" y="38" width="300" height="202" rx="9" fill="#1a231e" stroke="#d9a441" stroke-width="3"/>
+    <rect x="350" y="38" width="300" height="30" rx="9" fill="#24312a"/>
+    <circle cx="368" cy="53" r="10" fill="#d9a441"/><text x="368" y="58" font-size="13" font-weight="700" text-anchor="middle" fill="#1b1b1b">2</text>
+    <rect x="386" y="43" width="96" height="20" rx="6" fill="#3b5a47"/><text x="434" y="58" font-size="12" text-anchor="middle" fill="#f4efe2">Terminal</text>
+    <text x="528" y="58" font-size="12" text-anchor="middle" fill="#8fa598">Logs</text>
+    <g fill="#8fa598"><circle cx="616" cy="53" r="2.5"/><circle cx="625" cy="53" r="2.5"/><circle cx="634" cy="53" r="2.5"/></g>
+    <text x="500" y="160" font-size="26" text-anchor="middle" fill="#5d7366">Terminal</text>
+    <!-- pane 3 -->
+    <rect x="38" y="254" width="298" height="192" rx="9" fill="#1a231e" stroke="#2d3d34" stroke-width="2"/>
+    <rect x="38" y="254" width="298" height="30" rx="9" fill="#24312a"/>
+    <circle cx="56" cy="269" r="10" fill="#d9a441"/><text x="56" y="274" font-size="13" font-weight="700" text-anchor="middle" fill="#1b1b1b">3</text>
+    <rect x="74" y="259" width="96" height="20" rx="6" fill="#3b5a47"/><text x="122" y="274" font-size="12" text-anchor="middle" fill="#f4efe2">Docs</text>
+    <text x="214" y="274" font-size="12" text-anchor="middle" fill="#8fa598">Browser</text>
+    <g fill="#8fa598"><circle cx="302" cy="269" r="2.5"/><circle cx="311" cy="269" r="2.5"/><circle cx="320" cy="269" r="2.5"/></g>
+    <text x="187" y="372" font-size="26" text-anchor="middle" fill="#5d7366">Docs</text>
+    <!-- pane 4 -->
+    <rect x="350" y="254" width="300" height="192" rx="9" fill="#1a231e" stroke="#2d3d34" stroke-width="2"/>
+    <rect x="350" y="254" width="300" height="30" rx="9" fill="#24312a"/>
+    <circle cx="368" cy="269" r="10" fill="#d9a441"/><text x="368" y="274" font-size="13" font-weight="700" text-anchor="middle" fill="#1b1b1b">4</text>
+    <rect x="386" y="259" width="96" height="20" rx="6" fill="#3b5a47"/><text x="434" y="274" font-size="12" text-anchor="middle" fill="#f4efe2">Chat</text>
+    <text x="528" y="274" font-size="12" text-anchor="middle" fill="#8fa598">Mail</text>
+    <g fill="#8fa598"><circle cx="616" cy="269" r="2.5"/><circle cx="625" cy="269" r="2.5"/><circle cx="634" cy="269" r="2.5"/></g>
+    <text x="500" y="372" font-size="26" text-anchor="middle" fill="#5d7366">Chat</text>
+    <text x="24" y="492" font-size="17" fill="#3a463f">Illustration: each window gets a pane, and extra windows become tabs.</text>
+    <text x="24" y="516" font-size="17" fill="#3a463f">The gold outline marks the focused pane.</text>
+
+    <!-- key list -->
+    <g transform="translate(700 52)">
+      <text x="0" y="0" font-size="20" font-weight="700" fill="#1e2b24">Read it with the keys</text>
+      <g font-size="16" fill="#1e2b24">
+        <text x="0" y="48" font-weight="700">1 to 4</text><text x="0" y="70" fill="#4d5c53">pane numbers on every tab bar</text>
+        <text x="0" y="112" font-weight="700">⌃⌥⌘ 1 to 9</text><text x="0" y="134" fill="#4d5c53">go to that pane</text>
+        <text x="0" y="176" font-weight="700">⌃⌥⌘ I J K L</text><text x="0" y="198" fill="#4d5c53">move focus up, left, down, right</text>
+        <text x="0" y="240" font-weight="700">⌃⌥⌘ ⇧ 1 to 9</text><text x="0" y="262" fill="#4d5c53">send the window to that pane</text>
+        <text x="0" y="304" font-weight="700">⌃⌥⌘ /</text><text x="0" y="326" fill="#4d5c53">rotate the split</text>
+        <text x="0" y="368" font-weight="700">⌃⌥⌘ T</text><text x="0" y="390" fill="#4d5c53">float or tile the window</text>
+      </g>
+    </g>
+  </g>
+</svg>

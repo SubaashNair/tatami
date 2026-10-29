@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 320" role="img" aria-labelledby="t d">
+  <title id="t">Sending a window to another display</title>
+  <desc id="d">Illustration of two displays. A Browser pane on the left display moves to the right display, where it joins the Terminal pane as a second tab.</desc>
+  <rect width="1000" height="320" rx="18" fill="#f4efe2"/>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#b8841f"/>
+    </marker>
+  </defs>
+  <g font-family="-apple-system, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif">
+    <!-- left display -->
+    <rect x="36" y="36" width="400" height="200" rx="14" fill="#0f1512" stroke="#3b4d42" stroke-width="3"/>
+    <rect x="48" y="48" width="184" height="176" rx="8" fill="#1a231e" stroke="#2d3d34" stroke-width="2"/>
+    <rect x="48" y="48" width="184" height="26" rx="8" fill="#24312a"/><rect x="58" y="52" width="70" height="18" rx="5" fill="#3b5a47"/><text x="93" y="65" font-size="11" text-anchor="middle" fill="#f4efe2">Editor</text>
+    <text x="140" y="150" font-size="22" text-anchor="middle" fill="#5d7366">Editor</text>
+    <rect x="244" y="48" width="180" height="176" rx="8" fill="#1a231e" stroke="#d9a441" stroke-width="3"/>
+    <rect x="244" y="48" width="180" height="26" rx="8" fill="#24312a"/><rect x="254" y="52" width="70" height="18" rx="5" fill="#3b5a47"/><text x="289" y="65" font-size="11" text-anchor="middle" fill="#f4efe2">Browser</text>
+    <text x="334" y="150" font-size="22" text-anchor="middle" fill="#5d7366">Browser</text>
+    <!-- right display -->
+    <rect x="564" y="36" width="400" height="200" rx="14" fill="#0f1512" stroke="#3b4d42" stroke-width="3"/>
+    <rect x="576" y="48" width="376" height="176" rx="8" fill="#1a231e" stroke="#2d3d34" stroke-width="2"/>
+    <rect x="576" y="48" width="376" height="26" rx="8" fill="#24312a"/>
+    <rect x="586" y="52" width="86" height="18" rx="5" fill="#3b5a47"/><text x="629" y="65" font-size="11" text-anchor="middle" fill="#f4efe2">Terminal</text>
+    <rect x="680" y="52" width="86" height="18" rx="5" fill="none" stroke="#d9a441" stroke-width="2" stroke-dasharray="4 3"/><text x="723" y="65" font-size="11" text-anchor="middle" fill="#d9a441">Browser</text>
+    <text x="764" y="150" font-size="22" text-anchor="middle" fill="#5d7366">Terminal</text>
+    <!-- the move -->
+    <path d="M430 140 C 520 160, 660 150, 723 80" fill="none" stroke="#b8841f" stroke-width="4" stroke-dasharray="9 7" marker-end="url(#arrow)"/>
+    <text x="500" y="262" font-size="20" font-weight="700" text-anchor="middle" fill="#1e2b24">⌃⌥⌘⇧ ]</text>
+    <text x="500" y="292" font-size="16" text-anchor="middle" fill="#4d5c53">Illustration: the focused window joins the next display's focused pane as a tab. ⌃⌥⌘⇧ [ goes the other way.</text>
+  </g>
+</svg>
