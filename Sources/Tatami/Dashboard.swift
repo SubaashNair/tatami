@@ -381,6 +381,13 @@ struct Dashboard: View {
                 Divider()
                 Toggle("Tile new windows automatically (turn off to keep windows where you put them)", isOn: Binding(get: { model.state.tilesByDefault }, set: { model.setTilesByDefault($0) }))
                 Divider()
+                Toggle("Allow command-line control (the tatami command, same user only)", isOn: Binding(get: { model.state.cliEnabled }, set: { model.setCLIEnabled($0) }))
+                HStack {
+                    Text("Install the tatami command into ~/.local/bin, so keys in other tools can drive Tatami.").font(.system(size: 11)).foregroundStyle(Theme.muted)
+                    Spacer()
+                    Button("Install Command…") { model.installCommandLineTool() }
+                }
+                Divider()
                 Toggle("Switch Stage when you focus a window from another Stage (Cmd+Tab, Dock)", isOn: Binding(get: { model.state.followActivatedWindows }, set: { model.state.followActivatedWindows = $0; model.persist() }))
                 Divider()
                 Toggle("Show the Stage name briefly after switching", isOn: Binding(get: { model.state.showSwitchIndicator }, set: { model.state.showSwitchIndicator = $0; model.persist() }))
@@ -416,7 +423,7 @@ struct Dashboard: View {
                 HStack { VStack(alignment: .leading, spacing: 6) { Text("Bring your windows back"); Text("Restores windows minimized by Tatami and pauses Stage management.").font(.system(size: 11)).foregroundStyle(Theme.muted) }; Spacer(); Button("Rescue Windows") { model.rescue() } }
                 Text("Emergency shortcut while managing: Control + Option + Command + R. macOS Stage Manager should be turned off while using Tatami.").font(.system(size: 11)).foregroundStyle(Theme.muted)
             }
-            Text("TATAMI \(appVersion) · LOCAL FIRST\nKeyboard first window management: Stages that span every display, Tiles that arrange new windows on their own, snapping, routing, and saved arrangements. It also includes the AI Organizer with your own key or a local model. Display pinning, AI Recipes, and a command-line control are planned next.").font(.system(size: 11)).foregroundStyle(Theme.muted).lineSpacing(5)
+            Text("TATAMI \(appVersion) · LOCAL FIRST\nKeyboard first window management: Stages that span every display, Tiles that arrange new windows on their own, snapping, routing, and saved arrangements. It also includes the AI Organizer with your own key or a local model, and a tatami command for the terminal. Display pinning and AI Recipes are planned next.").font(.system(size: 11)).foregroundStyle(Theme.muted).lineSpacing(5)
         }.toggleStyle(.switch).controlSize(.small)
     }
 

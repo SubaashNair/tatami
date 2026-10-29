@@ -8,12 +8,16 @@ binary_dir="$(swift build -c "$configuration" --show-bin-path)"
 staging="$(mktemp -d)"
 trap 'rm -rf "$staging"' EXIT
 app="$staging/Tatami.app"
-mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources" "$app/Contents/Helpers"
 cp "$binary_dir/Tatami" "$app/Contents/MacOS/Tatami"
+# The `tatami` command lives in Helpers, not MacOS: file names ignore case on macOS, so tatami would replace Tatami.
+cp "$binary_dir/tatami-cli" "$app/Contents/Helpers/tatami"
 cp Resources/Info.plist "$app/Contents/Info.plist"
 xattr -cr "$app"
 # Set TATAMI_SIGN_IDENTITY (e.g. "Apple Development: ...") for a stable identity so Keychain access survives rebuilds.
-codesign --force --deep --sign "${TATAMI_SIGN_IDENTITY:--}" "$app"
+identity="${TATAMI_SIGN_IDENTITY:--}"
+codesign --force --sign "$identity" "$app/Contents/Helpers/tatami"  # nested code is signed first, then the app
+codesign --force --deep --sign "$identity" "$app"
 rm -rf dist/Tatami.app
 mkdir -p dist
 ditto "$app" dist/Tatami.app

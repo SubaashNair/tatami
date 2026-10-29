@@ -80,6 +80,8 @@ public struct WorkspaceState: Codable {
     public var tilesByDefault = true
     /// Stage id → display keys the user set to Freeform (a choice, kept even if the default changes).
     public var freeformDisplays: [String: [String]] = [:]
+    /// The `tatami` command may talk to the app over a private local socket (same user only).
+    public var cliEnabled = true
     public var newWindowPlacement: NewWindowPlacement = .automatic
     public var keepEmptyPanes = false
     /// Saved per-app Manage in Layout / Keep Floating choices (M3 decision 8), first match wins.
@@ -94,7 +96,7 @@ public struct WorkspaceState: Codable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, stages, activeStageID, saved, rules, excludedBundleIDs, followSentWindow, followActivatedWindows, showSwitchIndicator, showInDock, barHotZone, barDelay, barIgnoresNotch, scopeCommandBacktick, tiledDisplays, tilesByDefault, freeformDisplays, newWindowPlacement, keepEmptyPanes, behaviorRules, shortcutPreset, gap, ai
+        case version, stages, activeStageID, saved, rules, excludedBundleIDs, followSentWindow, followActivatedWindows, showSwitchIndicator, showInDock, barHotZone, barDelay, barIgnoresNotch, scopeCommandBacktick, tiledDisplays, tilesByDefault, freeformDisplays, cliEnabled, newWindowPlacement, keepEmptyPanes, behaviorRules, shortcutPreset, gap, ai
     }
 
     /// Keys written by earlier builds, read for migration only.
@@ -124,6 +126,7 @@ public struct WorkspaceState: Codable {
             ?? legacy.decodeIfPresent([String: [String]].self, forKey: .tabStack) ?? defaults.tiledDisplays
         tilesByDefault = try c.decodeIfPresent(Bool.self, forKey: .tilesByDefault) ?? defaults.tilesByDefault
         freeformDisplays = try c.decodeIfPresent([String: [String]].self, forKey: .freeformDisplays) ?? defaults.freeformDisplays
+        cliEnabled = try c.decodeIfPresent(Bool.self, forKey: .cliEnabled) ?? defaults.cliEnabled
         newWindowPlacement = try c.decodeIfPresent(NewWindowPlacement.self, forKey: .newWindowPlacement) ?? defaults.newWindowPlacement
         keepEmptyPanes = try c.decodeIfPresent(Bool.self, forKey: .keepEmptyPanes) ?? defaults.keepEmptyPanes
         behaviorRules = try c.decodeIfPresent([WindowBehaviorRule].self, forKey: .behaviorRules) ?? defaults.behaviorRules

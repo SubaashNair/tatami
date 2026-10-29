@@ -256,6 +256,10 @@ Open it with `⌃⌥Z`, from the menu bar (**Arrange with AI…**), or from the 
 
 </details>
 
+## Command line
+
+`tatami stage 2`, `tatami focus left`, `tatami list windows --json` and more run the same actions as the shortcuts, from a terminal or script, over a private same-user socket. See [docs/command-line.md](docs/command-line.md) for the commands, exit codes and security notes.
+
 ## Safety and privacy
 
 - **Real window positions are journaled before any window is hidden.** Quit, `killall Tatami`, a crash, or the next launch after one all put windows back.
@@ -281,6 +285,7 @@ Open it with `⌃⌥Z`, from the menu bar (**Arrange with AI…**), or from the 
 ```text
 Sources/
   Tatami/         the app: window service, Accessibility thread, shortcuts, Tiles, Stages Bar, dashboard, AI Organizer
+  TatamiCLI/      the tatami command (ships inside the app)
   TatamiCore/     pure logic: Stages, pane layouts, focus by position, display order, routing, settings
 Tests/
   TatamiCoreTests unit tests for the core, no screen or permissions needed

@@ -172,6 +172,7 @@ final class OrganizerPanel: NSPanel {
     @objc private func selectStage(_ sender: NSMenuItem) { if let id = sender.representedObject as? UUID { model.switchStage(id) } }
     @objc private func preferences() { model.selection = "settings"; showWindow() }
     @objc private func floatOrTile() { model.toggleFloating() }
+    @objc private func installCommandLine() { model.installCommandLineTool() }
 
     private func updateStatusMenu() {
         statusItem.button?.title = " \(model.state.activeStage.name)"
@@ -191,6 +192,7 @@ final class OrganizerPanel: NSPanel {
         add(menu, "Sort Windows into Stages…", #selector(sortWindows))
         add(menu, model.managing ? "Pause & Restore Windows" : "Start Managing", #selector(toggleManagement))
         add(menu, "Float or Tile Focused Window", #selector(floatOrTile))
+        add(menu, "Install Command Line Tool…", #selector(installCommandLine))
         add(menu, "Rescue Windows", #selector(rescue))
         add(menu, "Preferences…", #selector(preferences))
         menu.addItem(.separator())

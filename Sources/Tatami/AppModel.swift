@@ -44,6 +44,8 @@ import TatamiCore
     var minSizeWindows: Set<UUID> = []
     /// True while making room for windows that cannot shrink, so the layout pass that follows does not start another.
     var fittingOversized = false
+    /// The local socket behind the `tatami` command, while command-line control is on.
+    var cliServer: CLIServer?
     /// A delayed re-check is queued, so a window that is merely slow to resize is not mistaken for one with a minimum size.
     var oversizedCheckPending = false
     /// Sizes below which a window cannot go, learned when it overflowed its pane; other fits must not squeeze it further.
@@ -106,6 +108,7 @@ import TatamiCore
         if trusted { _ = service.recoverPreviousSession() }
         service.stateProvider = { [weak self] in self?.state ?? WorkspaceState() }
         applyLaunchAtLoginDefault()
+        startCLIServer()
         service.onWindowsChanged = { [weak self] notifications in
             self?.windowsChanged()
             if notifications.contains(kAXFocusedWindowChangedNotification) || notifications.contains(kAXMainWindowChangedNotification) { self?.followFocus() }
@@ -478,7 +481,7 @@ import TatamiCore
         if managing { let failures = hotkeys.register(preset: state.shortcutPreset, scopeCommandBacktick: state.scopeCommandBacktick); scrollSwitcher.stop(); scrollSwitcher.start(preset: state.shortcutPreset); reportFailures(failures, action: "register shortcuts") }
     }
 
-    func shutdown() { timer?.invalidate(); hotkeys.unregister(); scrollSwitcher.stop(); _ = service.restoreOwnedWindows(); writeCheckpoint(); persist() }
+    func shutdown() { timer?.invalidate(); stopCLIServer(); hotkeys.unregister(); scrollSwitcher.stop(); _ = service.restoreOwnedWindows(); writeCheckpoint(); persist() }
     func reportFailures(_ count: Int, action: String) { if count > 0 { error = "Could not \(action) for \(count) item(s). Some applications may not support the requested action." } }
 
     private func handle(_ action: HotkeyAction) {
