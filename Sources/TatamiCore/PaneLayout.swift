@@ -242,6 +242,8 @@ public struct PaneLayout: Codable, Equatable {
         guard let pane = pane(containing: window) else { return }
         updatePane(pane.id) { $0.remove(window) }
         if !keepEmptyPanes, root.pane(pane.id)?.tabs.isEmpty == true, root.panes.count > 1 { removePane(pane.id) }
+        // A zoomed pane that emptied would leave the display blank: every other pane is hidden behind it.
+        if let zoomed, root.pane(zoomed)?.tabs.isEmpty != false { self.zoomed = nil }
     }
 
     /// Removes a pane; its windows move to the focused (or first remaining) pane.

@@ -112,7 +112,8 @@ import TatamiCore
             Task { @MainActor in self?.displaysChanged() }
         }
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in self?.service.updateDisplays(); self?.refresh() }
+            // displaysChanged() diffs the old and new display lists itself; updating them first would hide a change from it.
+            Task { @MainActor in self?.displaysChanged(); self?.refresh() }
         }
         let workspace = NSWorkspace.shared.notificationCenter
         appObservers = [NSWorkspace.didLaunchApplicationNotification, NSWorkspace.didTerminateApplicationNotification].map { name in
@@ -137,13 +138,14 @@ import TatamiCore
         trusted = service.trusted
         if wasTrusted && !trusted {
             managing = false; service.managing = false; hotkeys.unregister(); scrollSwitcher.stop()
+            onLayoutsApplied?()  // hides the tab bars
             error = "Accessibility access was removed, so Tatami cannot move windows. Grant access again and parked windows return automatically. Until then, minimized windows are in the Dock, and Window → Fill in an app's menu brings a window back on screen."
         }
         if !wasTrusted && trusted {
             _ = service.recoverPreviousSession()
             notice = "Accessibility is connected. You can start managing your desk."
         }
-        await service.scan(state: state)
+        await service.scan()
         windowsChanged()
         offerFirstRunSort()  // no-op unless this is the first run and windows are now visible
     }
@@ -303,8 +305,9 @@ import TatamiCore
     }
 
     func deleteStage(_ id: UUID) {
-        undoSnapshot = snapshot(name: "Before deleting Stage")
-        guard let destination = state.removeStage(id) else { return }
+        let before = snapshot(name: "Before deleting Stage")
+        guard let destination = state.removeStage(id) else { return }  // a refused delete must not replace the current undo
+        undoSnapshot = before
         for i in service.windows.indices where service.windows[i].stageID == id { service.windows[i].stageID = destination }
         if managing { reportFailures(applyVisibility(), action: "delete Stage") }
         publish(); persist(); notice = "Stage closed. Its windows moved to \(state.activeStage.name). Undo is available."
@@ -323,12 +326,14 @@ import TatamiCore
     func send(_ windowID: UUID, to stageID: UUID) {
         guard state.stages.contains(where: { $0.id == stageID }), let index = service.windows.firstIndex(where: { $0.id == windowID }) else { return }
         undoSnapshot = snapshot(name: "Before moving window")
+        let previousStage = state.activeStageID
         service.windows[index].stageID = stageID
         if state.followSentWindow { state.activeStageID = stageID }
         if managing {
             // The sent window keeps focus while parked; without this, follow-on-focus would chase it.
             suppressFollowUntil = Date().addingTimeInterval(followSuppression)
             reportFailures(applyVisibility(), action: "move window")
+            if state.activeStageID != previousStage { applyLayouts() }  // tab bars and frames follow the new Stage
             if service.windows[index].stageID != state.activeStageID { focusAfterSwitch(to: state.activeStageID) }
         }
         publish(); persist()
@@ -366,6 +371,7 @@ import TatamiCore
                 if adjusted != window.frame { _ = service.move(window.id, to: adjusted) }
             }
         }
+        onLayoutsApplied?()  // hides the tab bars now that managing is off
         publish()
         notice = failures == 0 ? "Windows restored. Stage management is paused." : "Some apps did not respond. Their minimized windows are still available in the Dock."
     }
@@ -493,6 +499,7 @@ import TatamiCore
         case .reflow: mutateLayout { layout, display in layout.reflow(aspect: display.area.width / max(display.area.height, 1)) }
         case .undoLayout: undoLayout()
         case .raiseFloats: raiseFloats(activate: true)
+        case .sendToDisplay(let offset): sendFocusedWindowToDisplay(offset: offset)
         case .retile: if layouts[LayoutKey(stage: state.activeStageID, display: targetDisplay()?.id ?? "")] != nil { mutateLayout { layout, _ in layout.evenOut() } } else { retile() }
         case .rescue: rescue()
         case .organizer: showOrganizer?()

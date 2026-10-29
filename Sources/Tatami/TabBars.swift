@@ -85,6 +85,9 @@ struct TabBarView: View {
         Menu("Move to Stage") {
             ForEach(model.state.stages) { stage in Button(stage.name) { model.send(window.id, to: stage.id) }.disabled(stage.id == key.stage) }
         }
+        Menu("Move to Display") {
+            ForEach(model.orderedDisplays) { display in Button(display.name) { model.sendWindow(window.id, to: display) }.disabled(display.id == key.display) }
+        }.disabled(model.displays.count < 2)
     }
 
     private var paneMenu: some View {
@@ -95,10 +98,16 @@ struct TabBarView: View {
             Divider()
             Button("Even Out Panes") { model.paneAction(key) { layout, _ in layout.evenOut() } }
             Button("Reflow as Grid") { model.paneAction(key) { layout, display in layout.reflow(aspect: display.area.width / max(display.area.height, 1)) } }
-            Button("Undo Layout Change") { model.undoLayout() }
+            Button("Undo Layout Change") { model.undoLayout(key: key) }
+            Menu("Move Selected Tab to Display") {
+                ForEach(model.orderedDisplays) { display in
+                    Button(display.name) { if let id = model.layouts[key]?.root.pane(paneID)?.selected { model.sendWindow(id, to: display) } }
+                        .disabled(display.id == key.display)
+                }
+            }.disabled(model.displays.count < 2)
             Divider()
             Button("Close Pane") { model.paneAction(key) { layout, _ in layout.removePane(paneID) } }.disabled((model.layouts[key]?.root.panes.count ?? 1) < 2)
-            Button("Switch Display to Freeform") { model.toggleWindowMode() }
+            Button("Switch Display to Freeform") { model.toggleWindowMode(on: model.displays.first { $0.id == key.display }) }
         } label: { Image(systemName: "ellipsis").font(.system(size: 11, weight: .semibold)) }
             .menuStyle(.borderlessButton).menuIndicator(.hidden).frame(width: 24).help("Pane actions")
     }

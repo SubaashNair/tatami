@@ -44,9 +44,11 @@ extension AppModel {
         let request = aiPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !request.isEmpty else { return }
         let preset = aiPreset, config = aiConfig
-        if !preset.isLocal(config) && !config.disclosed.contains(preset.id) {
+        // Consent is for a destination: a custom endpoint is a different destination whenever its host changes.
+        let consent = preset.id == "custom" ? "custom:\(URL(string: config.customBaseURL)?.host ?? config.customBaseURL)" : preset.id
+        if !preset.isLocal(config) && !config.disclosed.contains(consent) {
             guard acknowledgeDisclosure else { aiState = .needsDisclosure; return }
-            updateAI { $0.disclosed.append(preset.id) }
+            updateAI { if $0.disclosed.count >= 20 { $0.disclosed.removeFirst() }; $0.disclosed.append(consent) }
         }
         guard let model = aiModel else { aiState = .failed(AIError.missingModel.localizedDescription); return }
         let (context, refs) = planContext()  // events keep the window list current
@@ -113,8 +115,11 @@ extension AppModel {
         for case .snap(let ref, let zone, let display) in plan.valid {
             guard let i = windowIndex(ref) else { skipped += 1; continue }
             let window = service.windows[i]
-            let target = display.flatMap { service.displays.indices.contains($0 - 1) ? service.displays[$0 - 1] : nil } ?? service.display(for: window.frame)
-            guard let target, service.move(window.id, to: zone.frame(in: target.area, gap: state.gap)) else { failures += 1; continue }
+            // A window assigned to another Stage is parked: judge its display by its real frame, and record the snap
+            // with place() so it appears there when that Stage is shown, instead of pulling it onto this desk.
+            let current = window.hidden == nil ? window.frame : window.realFrame
+            let target = display.flatMap { service.displays.indices.contains($0 - 1) ? service.displays[$0 - 1] : nil } ?? service.display(for: current)
+            guard let target, service.place(window.id, at: zone.frame(in: target.area, gap: state.gap)) else { failures += 1; continue }
         }
 
         aiState = .idle

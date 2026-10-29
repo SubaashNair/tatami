@@ -78,6 +78,7 @@ Global shortcuts register only while Stage management is running.
 | Move window to that pane | add Shift | add Shift |
 | Previous / next tab | Control + Option + [ / ] | same |
 | Split right / below | Control + Option + Command + \ / Shift + \ | Command + Option + \ / Shift + \ |
+| Send window to previous / next display | Control + Option + Command + Shift + [ / ] | Command + Option + Shift + [ / ] |
 | Grow / shrink pane | Control + Option + Command + = / − | Command + Option + = / − |
 | Zoom pane, Reflow as Grid, Layout undo, Raise Floats | Control + Option + Command + Return / G / Z / F | Command + Option + Return / G / Z / F |
 | Arrange active Stage | Control + Option + Command + Down | Option + Down |

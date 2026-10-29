@@ -94,6 +94,7 @@ Legend: ✅ done · 🟡 partial · ❌ missing
 | Local hide corners option | ✅ | ✅ default | DSP-06 |
 | Automatic continuity checkpoint (quit, wake, display change) | ✅ | ✅ | WSP-01..03 |
 | Rescue Windows | ✅ | ✅ | DSP-07 |
+| Send window to another display: tab and pane menus, next / previous shortcut | not in their docs | ✅ tab joins the target's focused pane, or keeps its relative frame in Freeform; drag-and-drop between displays comes with M4 | TIL-06 (extends) |
 
 ### Workspaces, routing, exceptions
 

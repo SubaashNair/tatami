@@ -57,6 +57,14 @@ public enum ParkPlanner {
     }
 }
 
+public enum ScanMerge {
+    /// A scan that times out on an app learns nothing about its windows, which is different from the app having none.
+    /// Returns the known windows of failed apps that the scan did not already report, so they keep their Stage and hidden state.
+    public static func keptAfterFailure<ID: Hashable>(known: [(id: ID, pid: Int32)], merged: Set<ID>, failed: Set<Int32>) -> [ID] {
+        known.filter { failed.contains($0.pid) && !merged.contains($0.id) }.map(\.id)
+    }
+}
+
 public enum DisplayRemap {
     /// Keeps the window's relative position and size (a left-half window stays on the left half), clamped on-screen.
     public static func remap(_ frame: CGRect, from source: CGRect, to destination: CGRect) -> CGRect {
