@@ -36,11 +36,24 @@ final class AXThread: Thread {
     func sync<T>(_ block: () -> T) -> T {
         if Thread.current === self { return block() }
         return withoutActuallyEscaping(block) { block in
-            var result: T?
-            let done = DispatchSemaphore(value: 0)
-            perform { result = block(); done.signal() }
-            done.wait()
-            return result!
+            // The run loop may keep its copy of the performed block alive after it ran, so that block must not
+            // capture `block` (that traps "non-escaping closure has escaped"). The job drops it before signalling.
+            let job = SyncJob(block)
+            perform { job.run() }
+            job.done.wait()
+            return job.result!
+        }
+    }
+
+    private final class SyncJob<T> {
+        private var work: (() -> T)?
+        private(set) var result: T?
+        let done = DispatchSemaphore(value: 0)
+        init(_ work: @escaping () -> T) { self.work = work }
+        func run() {
+            result = work?()
+            work = nil
+            done.signal()
         }
     }
 
