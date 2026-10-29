@@ -176,7 +176,7 @@ struct Dashboard: View {
             }
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 5) {
-                    HStack(spacing: 9) { Text(model.state.activeStage.name).font(.system(size: 21, weight: .medium)); pill("FREEFORM") }
+                    HStack(spacing: 9) { Text(model.state.activeStage.name).font(.system(size: 21, weight: .medium)); pill(modeLabel) }
                     Text("\(model.activeWindows.count) windows · Native movement, a little more order.").font(.system(size: 11)).foregroundStyle(Theme.muted)
                 }
                 Spacer()
@@ -363,6 +363,16 @@ struct Dashboard: View {
         }
     }
 
+    /// Read from the app bundle, so the About text and the footer never fall behind the real version.
+    private var appVersion: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev" }
+
+    /// What the active Stage's displays are doing: Tiles by default, Freeform where chosen.
+    private var modeLabel: String {
+        let stage = model.state.activeStageID
+        let tiled = model.displays.filter { model.isTiled(stage: stage, display: $0.id) }.count
+        return tiled == 0 ? "FREEFORM" : tiled == model.displays.count ? "TILES" : "MIXED"
+    }
+
     private var settings: some View {
         VStack(alignment: .leading, spacing: 24) {
             heading("Make yourself at home.", "Small adjustments for a desk that feels like yours.")
@@ -382,7 +392,7 @@ struct Dashboard: View {
                 Toggle("Follow a window when sending it to another Stage", isOn: Binding(get: { model.state.followSentWindow }, set: { model.state.followSentWindow = $0; model.persist() }))
                 Divider()
                 Toggle("Classic shortcuts (Option + number, Option + arrows)", isOn: Binding(get: { model.state.shortcutPreset == .classic }, set: { model.state.shortcutPreset = $0 ? .classic : .standard; model.updateShortcuts() }))
-                Text("Shortcuts are active only while management is running. Standard uses Control + Option + 1–9 to switch, adds Shift to send windows, and Control + Option + Command + arrows to cycle, open the dashboard, and arrange. Classic uses Option alone, which blocks typing characters such as ¡ and ™ and replaces word navigation with Option + arrows.").font(.system(size: 11)).foregroundStyle(Theme.muted)
+                Text("Shortcuts are active only while management is running. Standard uses Control + Option + 1 to 9 to switch Stages and adds Shift to send windows. Control + Option + Command with I, J, K, L moves focus, with 1 to 9 goes to a pane, with / rotates a split, and with T floats or tiles a window. Control + Option + B switches a display between Tiles and Freeform. Classic uses Option alone for Stages, which blocks typing characters such as ¡ and ™ and replaces word navigation with Option + arrows.").font(.system(size: 11)).foregroundStyle(Theme.muted)
             }
             settingsBox("STAGES BAR") {
                 Toggle("Open the Stages Bar when the pointer rests at the top centre of a screen", isOn: Binding(get: { model.state.barHotZone }, set: { model.state.barHotZone = $0; model.persist() }))
@@ -406,7 +416,7 @@ struct Dashboard: View {
                 HStack { VStack(alignment: .leading, spacing: 6) { Text("Bring your windows back"); Text("Restores windows minimized by Tatami and pauses Stage management.").font(.system(size: 11)).foregroundStyle(Theme.muted) }; Spacer(); Button("Rescue Windows") { model.rescue() } }
                 Text("Emergency shortcut while managing: Control + Option + Command + R. macOS Stage Manager should be turned off while using Tatami.").font(.system(size: 11)).foregroundStyle(Theme.muted)
             }
-            Text("TATAMI 0.1 · LOCAL FIRST\nThis foundation release includes Freeform Stages, snapping, routing, and saved arrangements. It also includes the AI Organizer with your own key or a local model. Tabbed Tiling, display pinning, and Action Wheel are planned next.").font(.system(size: 11)).foregroundStyle(Theme.muted).lineSpacing(5)
+            Text("TATAMI \(appVersion) · LOCAL FIRST\nKeyboard first window management: Stages that span every display, Tiles that arrange new windows on their own, snapping, routing, and saved arrangements. It also includes the AI Organizer with your own key or a local model. Display pinning, AI Recipes, and a command-line control are planned next.").font(.system(size: 11)).foregroundStyle(Theme.muted).lineSpacing(5)
         }.toggleStyle(.switch).controlSize(.small)
     }
 
@@ -430,7 +440,7 @@ struct Dashboard: View {
             Text(model.notice ?? "A calmer desk. A clearer mind.").lineLimit(2)
             Spacer()
             if model.notice != nil { Button { model.notice = nil } label: { Image(systemName: "xmark") }.buttonStyle(.plain).help("Dismiss status") }
-            Text("v0.1").font(.system(size: 10, design: .monospaced))
+            Text("v\(appVersion)").font(.system(size: 10, design: .monospaced))
         }.font(.system(size: 10)).foregroundStyle(Theme.muted).padding(.horizontal, 32).frame(height: 42).background(.white.opacity(0.5))
     }
     private func nameSheet(title: String, subtitle: String, button: String, action: @escaping () -> Void) -> some View {
