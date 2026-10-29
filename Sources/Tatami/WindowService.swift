@@ -229,7 +229,7 @@ struct RecoveryEntry: Codable {
     private enum HideResult { case parked(CGRect), minimized, failed }
 
     /// Shows the target Stage first, then hides the rest, so the desk is never empty (M1 decision 12).
-    /// `extraHidden`: windows hidden inside the active Stage, i.e. TabStack background tabs and panes behind a zoom.
+    /// `extraHidden`: windows hidden inside the active Stage, i.e. Tiles background tabs and panes behind a zoom.
     func applyVisibility(state: WorkspaceState, extraHidden: Set<UUID> = []) -> Int {
         guard trusted else { return windows.filter { $0.hidden != nil }.count }
         func visible(_ window: LiveWindow) -> Bool {

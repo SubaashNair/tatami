@@ -55,7 +55,7 @@ enum HotkeyAction {
         bind(kVK_ANSI_X, base, .closeStage)
         bind(kVK_ANSI_M, base, .mergeAll)
         bind(kVK_ANSI_B, base, .cycleMode)
-        // TabStack (M3 decision 5). ⌃⌥⌘\ splits right; with Shift, below (⌃⌥⌘− is shrink).
+        // Tiles (M3 decision 5). ⌃⌥⌘\ splits right; with Shift, below (⌃⌥⌘− is shrink).
         let pane = UInt32(cmdKey | optionKey | (classic ? 0 : controlKey))
         for (code, direction) in [(kVK_ANSI_I, Direction.up), (kVK_ANSI_J, .left), (kVK_ANSI_K, .down), (kVK_ANSI_L, .right)] {
             bind(code, pane, .focusPane(direction))

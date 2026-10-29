@@ -35,10 +35,10 @@ import TatamiCore
     /// Stage → window last focused there, restored when returning to the Stage (M1 decision 12).
     var lastFocused: [UUID: UUID] = [:]
     var checkpointWork: DispatchWorkItem?
-    // TabStack (M3)
+    // Tiles (M3)
     var layouts: [LayoutKey: PaneLayout] = [:]
     var histories: [LayoutKey: LayoutHistory] = [:]
-    /// Pre-TabStack frames, restored when a display returns to Freeform. ponytail: in memory only; after a relaunch windows stay tiled-size.
+    /// Pre-Tiles frames, restored when a display returns to Freeform. ponytail: in memory only; after a relaunch windows stay tiled-size.
     var freeformFrames: [UUID: CGRect] = [:]
     var expectedFrames: [UUID: CGRect] = [:]
     var minSizeWindows: Set<UUID> = []

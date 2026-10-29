@@ -6,13 +6,13 @@ struct LayoutKey: Hashable {
     let display: String
 }
 
-/// TabStack runtime (M3): per-Stage, per-display pane layouts applied to real windows.
+/// Tiles runtime (M3): per-Stage, per-display pane layouts applied to real windows.
 extension AppModel {
     static let tabBarHeight: Double = 28
     private static let frameTolerance: CGFloat = 2
     private static let editRecheckDelay: TimeInterval = 0.15
 
-    func isTabStack(stage: UUID, display: String) -> Bool { state.tabStack[stage.uuidString]?.contains(display) == true }
+    func isTiled(stage: UUID, display: String) -> Bool { state.tiledDisplays[stage.uuidString]?.contains(display) == true }
 
     func isFloating(_ window: LiveWindow) -> Bool {
         if let override = behaviorOverrides[window.id], override != .automatic { return override == .floating }
@@ -50,33 +50,33 @@ extension AppModel {
 
     /// `chosen` is the display whose pane menu was used; shortcuts leave it nil and act on the focused display.
     func toggleWindowMode(on chosen: DisplayInfo? = nil) {
-        guard managing else { notice = "Start managing to use TabStack."; return }
+        guard managing else { notice = "Start managing to use Tiles."; return }
         guard let display = chosen ?? targetDisplay() else { return }
         let key = LayoutKey(stage: state.activeStageID, display: display.id)
-        if isTabStack(stage: key.stage, display: key.display) { leaveTabStack(key, display: display) } else { enterTabStack(key, display: display) }
+        if isTiled(stage: key.stage, display: key.display) { leaveTiles(key, display: display) } else { enterTiles(key, display: display) }
     }
 
-    private func enterTabStack(_ key: LayoutKey, display: DisplayInfo) {
+    private func enterTiles(_ key: LayoutKey, display: DisplayInfo) {
         let focused = service.focusedID()
         let members = service.windows
             .filter { $0.stageID == key.stage && $0.hidden == nil && isLayoutCandidate($0) && service.display(for: $0.frame)?.id == display.id }
             .sorted { a, _ in a.id == focused }
         for window in members { freeformFrames[window.id] = window.frame }
         layouts[key] = PaneLayout.balanced(windows: members.map(\.id), aspect: display.area.width / max(display.area.height, 1))
-        state.tabStack[key.stage.uuidString, default: []].append(key.display)
+        state.tiledDisplays[key.stage.uuidString, default: []].append(key.display)
         persist()
         applyLayouts()
-        notice = "TabStack is on for \(display.name). \(state.shortcutPreset == .classic ? "⌥B" : "⌃⌥B") switches back to Freeform."
+        notice = "Tiles is on for \(display.name). \(state.shortcutPreset == .classic ? "⌥B" : "⌃⌥B") switches back to Freeform."
     }
 
-    private func leaveTabStack(_ key: LayoutKey, display: DisplayInfo) {
+    private func leaveTiles(_ key: LayoutKey, display: DisplayInfo) {
         let members = layouts.removeValue(forKey: key)?.windows ?? []
         histories[key] = nil
-        state.tabStack[key.stage.uuidString]?.removeAll { $0 == key.display }
-        if state.tabStack[key.stage.uuidString]?.isEmpty == true { state.tabStack[key.stage.uuidString] = nil }
+        state.tiledDisplays[key.stage.uuidString]?.removeAll { $0 == key.display }
+        if state.tiledDisplays[key.stage.uuidString]?.isEmpty == true { state.tiledDisplays[key.stage.uuidString] = nil }
         persist()
         reportFailures(applyVisibility(), action: "show background tabs")
-        // Back to where each window was before TabStack; windows that joined later stay where they are.
+        // Back to where each window was before Tiles; windows that joined later stay where they are.
         for id in members { if let frame = freeformFrames.removeValue(forKey: id) { service.move(id, to: frame) } }
         onLayoutsApplied?()
         publish()
@@ -90,7 +90,7 @@ extension AppModel {
         let byID = Dictionary(uniqueKeysWithValues: service.windows.map { ($0.id, $0) })
         var changed = false
         for key in Array(layouts.keys) {
-            guard state.stages.contains(where: { $0.id == key.stage }), isTabStack(stage: key.stage, display: key.display) else {
+            guard state.stages.contains(where: { $0.id == key.stage }), isTiled(stage: key.stage, display: key.display) else {
                 layouts[key] = nil; changed = true; continue
             }
             var layout = layouts[key]!
@@ -103,7 +103,7 @@ extension AppModel {
         }
         let placed = Set(layouts.values.flatMap(\.windows))
         for window in service.windows where !placed.contains(window.id) && window.hidden == nil && isLayoutCandidate(window) {
-            guard let display = service.display(for: window.frame), isTabStack(stage: window.stageID, display: display.id) else { continue }
+            guard let display = service.display(for: window.frame), isTiled(stage: window.stageID, display: display.id) else { continue }
             let key = LayoutKey(stage: window.stageID, display: display.id)
             var layout = layouts[key] ?? PaneLayout(root: .pane(Pane()))
             layout.place(window.id, policy: state.newWindowPlacement, in: display.area)
@@ -173,7 +173,7 @@ extension AppModel {
                 minSizeWindows.insert(id)
             } else { minSizeWindows.remove(id) }
         }
-        reportFailures(failures, action: "arrange TabStack")
+        reportFailures(failures, action: "arrange Tiles")
         raiseFloats(activate: false)
         onLayoutsApplied?()
         publish()
@@ -184,12 +184,12 @@ extension AppModel {
             && abs(a.width - b.width) <= frameTolerance && abs(a.height - b.height) <= frameTolerance
     }
 
-    /// Floating windows on TabStack displays come back above the tiles (M3 decision 15).
+    /// Floating windows on Tiles displays come back above the tiles (M3 decision 15).
     /// Raising alone keeps focus where it is; the Raise Floats shortcut also activates their apps.
     func raiseFloats(activate: Bool) {
         let floats = service.windows.filter { window in
             window.stageID == state.activeStageID && window.hidden == nil && isFloating(window) &&
-                service.display(for: window.frame).map { isTabStack(stage: state.activeStageID, display: $0.id) } == true
+                service.display(for: window.frame).map { isTiled(stage: state.activeStageID, display: $0.id) } == true
         }
         guard !floats.isEmpty else { return }
         service.raise(floats.map(\.id))
@@ -208,7 +208,7 @@ extension AppModel {
     func mutateLayout(_ change: (inout PaneLayout, DisplayInfo) -> Void) {
         guard managing, let display = targetDisplay() else { return }
         let key = LayoutKey(stage: state.activeStageID, display: display.id)
-        guard layouts[key] != nil else { notice = "\(display.name) is in Freeform. \(state.shortcutPreset == .classic ? "⌥B" : "⌃⌥B") turns on TabStack."; return }
+        guard layouts[key] != nil else { notice = "\(display.name) is in Freeform. \(state.shortcutPreset == .classic ? "⌥B" : "⌃⌥B") turns on Tiles."; return }
         mutate(key, followFocus: true, change)
     }
 
@@ -253,7 +253,7 @@ extension AppModel {
         return true
     }
 
-    // MARK: keyboard navigation (TIL-06): panes of every TabStack display on the active Stage
+    // MARK: keyboard navigation (TIL-06): panes of every Tiles display on the active Stage
 
     private func allPanes() -> [(key: LayoutKey, pane: UUID, frame: CGRect)] {
         layouts.filter { $0.key.stage == state.activeStageID }.flatMap { key, layout -> [(key: LayoutKey, pane: UUID, frame: CGRect)] in
@@ -299,14 +299,14 @@ extension AppModel {
             recordHistory(current.key); recordHistory(targetKey)
             layouts[current.key]?.remove(window, keepEmptyPanes: state.keepEmptyPanes)
             layouts[targetKey]?.add(window, to: target)
-            freeformFrames[window] = nil  // it joined this layout later, so leaving TabStack leaves it where it is
+            freeformFrames[window] = nil  // it joined this layout later, so leaving Tiles leaves it where it is
             applyLayouts()
         }
         service.focus(window)
         return true
     }
 
-    /// M3 decision 13: in TabStack, arrow snaps move a managed window to the neighbouring pane; other snaps do nothing.
+    /// M3 decision 13: in Tiles, arrow snaps move a managed window to the neighbouring pane; other snaps do nothing.
     func snapInLayout(_ zone: SnapZone) -> Bool {
         guard let id = service.focusedID(), let key = layoutKey(containing: id), key.stage == state.activeStageID else { return false }
         let directions: [SnapZone: Direction] = [.left: .left, .right: .right, .top: .up, .bottom: .down]
@@ -365,7 +365,7 @@ extension AppModel {
     }
 
     func restoreLayouts(_ saved: [SavedLayout], idMap: [UUID: UUID]) {
-        for entry in saved where isTabStack(stage: entry.stageID, display: entry.displayKey) {
+        for entry in saved where isTiled(stage: entry.stageID, display: entry.displayKey) {
             layouts[LayoutKey(stage: entry.stageID, display: entry.displayKey)] = entry.layout.remapped(idMap).pruned()
         }
     }

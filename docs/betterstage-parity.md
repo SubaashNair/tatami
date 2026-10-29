@@ -62,6 +62,8 @@ Legend: ✅ done · 🟡 partial · ❌ missing
 | Layout presets (5 built-in) + custom preset editor, default layout | ✅ | ❌ | LAY-01..04 |
 | Cycle mode (Opt+B) per monitor | ✅ | ✅ | INP-03 |
 
+> **Naming:** Tatami calls BetterStage's TabStack mode **Tiles** (2026-10-29), so this table's TabStack rows are the Tiles mode. The Snap Wheel is dropped: Tatami is keyboard first (like AeroSpace), so a pointer-centred radial menu is redundant. The rows below are kept only as a record.
+
 ### Snap Wheel and Custom Actions
 
 | Feature | BetterStage | Tatami | PRD |
@@ -159,7 +161,7 @@ Ordered by dependency. Each milestone gets a design grilling, tests first in `Ta
 | M3 | **TabStack core** | BetterStage 2's headline | Pane tree model, split/join/swap/insert, tabs, divider resize, directional focus/move, zoom, even out, reflow, layout undo, new-window placement, window behaviour rules, float exceptions, raise floats |
 | M4 | **TabStack polish** | Makes it feel native | Drag overlay, appearance settings, presets and editor, native-tab apps, launch here, quit/relaunch, file drop on tab, per-monitor mode cycling |
 | M5 | **Input** | Needed by wheel and power users | Full shortcut recorder with conflicts, mouse bindings, per-workspace shortcuts |
-| M6 | **Snap Wheel and Custom Actions** | Mouse-first parity | Radial wheel, triggers (middle-click, modifier hold, combos), slots, styles, custom actions with trust model |
+| M6 | **Custom Actions** (Snap Wheel dropped as redundant for a keyboard-first app) | Keyboard-first | Custom actions with trust model, bound to keys |
 | M7 | **Displays and workspaces** | Multi-monitor users | Pinned displays, routing to displays, current-Stage capture, open missing apps, clean load, display mapping |
 | M8 | **AI parity** | Builds on M3 | Recipes, @mentions and chat, provider list expansion, temperature, AI picks Window Mode |
 | M9 | **Shell** | Finish | Configurable menu bar, diagnostics log, resets, dark mode, localisation |

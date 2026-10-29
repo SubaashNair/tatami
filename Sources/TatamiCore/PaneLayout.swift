@@ -1,7 +1,7 @@
 import Foundation
 import CoreGraphics
 
-// TabStack layout engine (M3). Pure value types: every mutation is a cheap copy, which also makes undo trivial.
+// Tiles layout engine (M3). Pure value types: every mutation is a cheap copy, which also makes undo trivial.
 // Frames use AX coordinates (y grows downward).
 
 public typealias WindowID = UUID
@@ -196,7 +196,7 @@ public struct PaneLayout: Codable, Equatable {
         return rows.count == 1 ? rows[0] : .split(.vertical, rows.map { Child(node: $0, weight: 1) })
     }
 
-    /// Entering TabStack (M3 decision 4): one pane per window up to four; extras join the largest pane as tabs.
+    /// Entering Tiles (M3 decision 4): one pane per window up to four; extras join the largest pane as tabs.
     public static func balanced(windows: [WindowID], aspect: Double) -> PaneLayout {
         guard !windows.isEmpty else { return PaneLayout(root: .pane(Pane())) }
         let own = windows.prefix(maxAutoPanes).map { Pane(tabs: [$0]) }

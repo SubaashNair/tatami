@@ -36,12 +36,12 @@ Tip: focusing a window from another Stage (Cmd + Tab, Dock click) switches to th
 
 ### Moving between windows with the keyboard
 
-Tatami is keyboard first: everything below works without the mouse, in freeform and in TabStack.
+Tatami is keyboard first: everything below works without the mouse, in freeform and in Tiles.
 
 | You want | Keys |
 |---|---|
 | Focus the window above / left / below / right | `⌃⌥⌘` + I / J / K / L |
-| Swap places with the freeform window that way (or move to the next pane in TabStack) | `⌃⌥⌘⇧` + I / J / K / L |
+| Swap places with the freeform window that way (or move to the next pane in Tiles) | `⌃⌥⌘⇧` + I / J / K / L |
 | Focus the previous / next window, across all displays | `⌃⌥⌘[` / `⌃⌥⌘]` |
 
 Focus stops at the edge of your screens. Windows are ordered left to right across displays, then top to bottom. Classic uses `⌘⌥` in place of `⌃⌥⌘`.
@@ -68,7 +68,7 @@ Set a routing rule (a window's menu, then app routing) so Slack always lands in 
 | Two thirds | `⌃⌥` + Q / R / W |
 | Center / maximize | `⌃⌥C` / `⌃⌥Return` |
 
-**TabStack** (tiling with tab bars), per display per Stage:
+**Tiles** (tiling with tab bars), per display per Stage:
 
 1. Press `⌃⌥B` to tile the focused display. Each window gets a pane (up to four); extras become tabs.
 2. Move around: focus a pane with `⌃⌥⌘` + I / J / K / L, move the window there by adding `⇧`.
@@ -96,7 +96,7 @@ Do these in order and note anything odd. Use throwaway windows, not unsaved docu
 - [ ] Open the Stages Bar. Rename a Stage, drag a window onto a card.
 - [ ] Close a Stage and click Undo.
 - [ ] Snap a window to a half and a quarter, then undo the arrangement.
-- [ ] Press `⌃⌥B` for TabStack, move focus with `⌃⌥⌘` + I / J / K / L, switch tabs, then `⌃⌥B` to return.
+- [ ] Press `⌃⌥B` for Tiles, move focus with `⌃⌥⌘` + I / J / K / L, switch tabs, then `⌃⌥B` to return.
 - [ ] Press `⌃⌥⌘R`. Everything should reappear. Start managing again.
 - [ ] Quit Tatami with windows hidden. All windows should come back.
 - [ ] With two displays: unplug one and check the Restore / Keep Current prompt on reconnect.

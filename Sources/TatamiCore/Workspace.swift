@@ -74,8 +74,8 @@ public struct WorkspaceState: Codable {
     public var barIgnoresNotch = false
     /// Cmd+` cycles only the frontmost app's windows on the active Stage (STG-07). Off by default.
     public var scopeCommandBacktick = false
-    /// Stage id → display keys using TabStack (M3 decision 11). Freeform elsewhere.
-    public var tabStack: [String: [String]] = [:]
+    /// Stage id → display keys using Tiles (M3 decision 11). Freeform elsewhere.
+    public var tiledDisplays: [String: [String]] = [:]
     public var newWindowPlacement: NewWindowPlacement = .automatic
     public var keepEmptyPanes = false
     /// Saved per-app Manage in Layout / Keep Floating choices (M3 decision 8), first match wins.
@@ -90,8 +90,11 @@ public struct WorkspaceState: Codable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, stages, activeStageID, saved, rules, excludedBundleIDs, followSentWindow, followActivatedWindows, showSwitchIndicator, showInDock, barHotZone, barDelay, barIgnoresNotch, scopeCommandBacktick, tabStack, newWindowPlacement, keepEmptyPanes, behaviorRules, shortcutPreset, gap, ai
+        case version, stages, activeStageID, saved, rules, excludedBundleIDs, followSentWindow, followActivatedWindows, showSwitchIndicator, showInDock, barHotZone, barDelay, barIgnoresNotch, scopeCommandBacktick, tiledDisplays, newWindowPlacement, keepEmptyPanes, behaviorRules, shortcutPreset, gap, ai
     }
+
+    /// Keys written by earlier builds, read for migration only.
+    private enum LegacyKeys: String, CodingKey { case tabStack }
 
     // Missing keys fall back to defaults so older files keep loading. Legacy `europeanShortcuts` is ignored: every file migrates to `.standard`.
     public init(from decoder: Decoder) throws {
@@ -111,7 +114,10 @@ public struct WorkspaceState: Codable {
         barDelay = try c.decodeIfPresent(Double.self, forKey: .barDelay) ?? defaults.barDelay
         barIgnoresNotch = try c.decodeIfPresent(Bool.self, forKey: .barIgnoresNotch) ?? defaults.barIgnoresNotch
         scopeCommandBacktick = try c.decodeIfPresent(Bool.self, forKey: .scopeCommandBacktick) ?? defaults.scopeCommandBacktick
-        tabStack = try c.decodeIfPresent([String: [String]].self, forKey: .tabStack) ?? defaults.tabStack
+        // Files saved before TabStack became Tiles used the key "tabStack".
+        let legacy = try decoder.container(keyedBy: LegacyKeys.self)
+        tiledDisplays = try c.decodeIfPresent([String: [String]].self, forKey: .tiledDisplays)
+            ?? legacy.decodeIfPresent([String: [String]].self, forKey: .tabStack) ?? defaults.tiledDisplays
         newWindowPlacement = try c.decodeIfPresent(NewWindowPlacement.self, forKey: .newWindowPlacement) ?? defaults.newWindowPlacement
         keepEmptyPanes = try c.decodeIfPresent(Bool.self, forKey: .keepEmptyPanes) ?? defaults.keepEmptyPanes
         behaviorRules = try c.decodeIfPresent([WindowBehaviorRule].self, forKey: .behaviorRules) ?? defaults.behaviorRules
@@ -124,13 +130,13 @@ public struct WorkspaceState: Codable {
 
     public mutating func validate() throws {
         guard version == 1 else { throw ValidationError.unsupportedVersion }
-        // Deleting or merging a Stage never removes its TabStack entry; stale ones must not push saving over the limit.
+        // Deleting or merging a Stage never removes its Tiles entry; stale ones must not push saving over the limit.
         let live = Set(stages.map { $0.id.uuidString })
-        tabStack = tabStack.filter { live.contains($0.key) && !$0.value.isEmpty }
+        tiledDisplays = tiledDisplays.filter { live.contains($0.key) && !$0.value.isEmpty }
         guard !stages.isEmpty, stages.count <= 9, Set(stages.map(\.id)).count == stages.count,
               stages.allSatisfy({ !$0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && $0.name.count <= 60 }),
               gap.isFinite, (0...40).contains(gap), barDelay.isFinite, (0...2).contains(barDelay), saved.count <= 100,
-              rules.count <= 500, behaviorRules.count <= 500, tabStack.count <= 9, ai?.isValid ?? true else { throw ValidationError.invalidState }
+              rules.count <= 500, behaviorRules.count <= 500, tiledDisplays.count <= 9, ai?.isValid ?? true else { throw ValidationError.invalidState }
         guard stages.contains(where: { $0.id == activeStageID }) else { throw ValidationError.invalidState }
         for workspace in saved {
             guard !workspace.stages.isEmpty, workspace.stages.count <= 9,
@@ -179,7 +185,7 @@ public struct WindowBehaviorRule: Codable, Equatable, Identifiable {
 }
 
 extension WorkspaceState {
-    /// Apps whose windows float by default in TabStack (M3 decision 8).
+    /// Apps whose windows float by default in Tiles (M3 decision 8).
     public static let defaultFloatingBundles: Set<String> = [
         "com.apple.systempreferences", "com.apple.calculator", "com.apple.ActivityMonitor", "com.apple.PIPAgent",
         "com.apple.finder.Get-Info", "com.apple.archiveutility", "com.apple.ScreenSharing",
@@ -222,7 +228,7 @@ public enum ShortcutPreset: String, Codable, CaseIterable {
     case standard, classic
     public var stageModifiers: String { self == .standard ? "⌃⌥" : "⌥" }
     public var navigationModifiers: String { self == .standard ? "⌃⌥⌘" : "⌥" }
-    /// TabStack pane commands. Classic keeps BetterStage's ⌘⌥; Standard avoids ⌘⌥I/J (browser developer tools).
+    /// Tiles pane commands. Classic keeps BetterStage's ⌘⌥; Standard avoids ⌘⌥I/J (browser developer tools).
     public var paneModifiers: String { self == .standard ? "⌃⌥⌘" : "⌘⌥" }
 }
 
