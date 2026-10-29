@@ -490,6 +490,9 @@ import TatamiCore
         case .focusPane(let direction): focusDirectional(direction)
         case .moveToPane(let direction): moveDirectional(direction)
         case .cycleWindows(let offset): cycleWindows(offset: offset)
+        case .focusPaneNumber(let number): focusPane(number: number)
+        case .movePaneNumber(let number): moveToPane(number: number)
+        case .rotateSplit: rotateSplit()
         case .tab(let offset): mutateLayout { layout, _ in layout.cycleTab(offset) }
         case .zoomPane: mutateLayout { layout, _ in layout.toggleZoom(layout.focused) }
         case .splitPane(let axis): mutateLayout { layout, _ in

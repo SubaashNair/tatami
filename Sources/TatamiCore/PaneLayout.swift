@@ -74,6 +74,24 @@ public indirect enum LayoutNode: Codable, Equatable {
         }
     }
 
+    /// The tree with the split that directly holds pane `id` turned the other way (row to column, column to row).
+    /// Nil when that pane has no parent split. The result is not yet normalized.
+    func rotatingSplit(holding id: UUID) -> LayoutNode? {
+        guard case .split(let axis, let children) = self else { return nil }
+        let holdsIt = children.contains { child in
+            if case .pane(let pane) = child.node { return pane.id == id }
+            return false
+        }
+        if holdsIt { return .split(axis == .horizontal ? .vertical : .horizontal, children) }
+        for (index, child) in children.enumerated() {
+            guard let rotated = child.node.rotatingSplit(holding: id) else { continue }
+            var copy = children
+            copy[index] = Child(node: rotated, weight: child.weight)
+            return .split(axis, copy)
+        }
+        return nil
+    }
+
     /// No empty or single-child splits; a child split on the parent's axis is flattened into it, keeping its share.
     func normalized() -> LayoutNode? {
         switch self {
@@ -279,6 +297,16 @@ public struct PaneLayout: Codable, Equatable {
         root = root.replacing(pane, with: .split(axis, [Child(node: .pane(current), weight: 1), Child(node: .pane(fresh), weight: 1)])).normalized() ?? root
         focused = fresh.id
         return fresh.id
+    }
+
+    /// Each pane's rectangle in `area`, ignoring any zoom, so panes can be numbered by position.
+    public func paneRects(in area: CGRect) -> [UUID: CGRect] { root.rects(in: area) }
+
+    /// Rotates the split holding `pane`: side by side becomes stacked and back, with every window and share kept.
+    /// A lone pane has nothing to rotate.
+    public mutating func rotateSplit(of pane: UUID) {
+        guard let rotated = root.rotatingSplit(holding: pane), let normalized = rotated.normalized() else { return }
+        root = normalized
     }
 
     public mutating func toggleZoom(_ pane: UUID) { zoomed = zoomed == pane ? nil : pane }

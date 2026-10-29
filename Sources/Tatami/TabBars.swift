@@ -53,6 +53,11 @@ struct TabBarView: View {
 
     var body: some View {
         HStack(spacing: 2) {
+            // The pane's number, for the number keys (focus it, or move the window there with Shift).
+            if let number = model.paneNumber(paneID) {
+                Text("\(number)").font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundStyle(.secondary).frame(width: 14)
+                    .help("Pane \(number): \(model.state.shortcutPreset == .classic ? "⌘⌥" : "⌃⌥⌘")\(number) goes here, add Shift to move the window here")
+            }
             if let pane, !pane.tabs.isEmpty {
                 ForEach(pane.tabs, id: \.self) { id in
                     if let window = model.windows.first(where: { $0.id == id }) {
@@ -94,6 +99,7 @@ struct TabBarView: View {
         Menu {
             Button("Split Side by Side") { model.paneAction(key) { layout, _ in layout.split(paneID, axis: .horizontal, moving: nil) } }
             Button("Split Top and Bottom") { model.paneAction(key) { layout, _ in layout.split(paneID, axis: .vertical, moving: nil) } }
+            Button("Rotate Split (Side by Side / Stacked)") { model.paneAction(key) { layout, _ in layout.rotateSplit(of: paneID) } }
             Button(model.layouts[key]?.zoomed == paneID ? "Restore Panes" : "Zoom Pane") { model.paneAction(key) { layout, _ in layout.toggleZoom(paneID) } }
             Divider()
             Button("Even Out Panes") { model.paneAction(key) { layout, _ in layout.evenOut() } }

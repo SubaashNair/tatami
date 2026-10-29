@@ -46,6 +46,16 @@ Tatami is keyboard first: everything below works without the mouse, in freeform 
 
 Focus stops at the edge of your screens. Windows are ordered left to right across displays, then top to bottom. Classic uses `⌘⌥` in place of `⌃⌥⌘`.
 
+**Going straight to a pane, and turning a split.** Each tab bar shows its pane's number (1, 2, 3…, in reading order across displays).
+
+| You want | Keys |
+|---|---|
+| Focus pane 1 to 9 | `⌃⌥⌘1` to `⌃⌥⌘9` |
+| Move the focused window into pane 1 to 9 | `⌃⌥⌘⇧1` to `⌃⌥⌘⇧9` |
+| Turn the focused pane's split the other way (side by side to stacked, and back) | `⌃⌥⌘/` |
+
+Rotate keeps every window and every pane size; it only changes the direction. If the pane's neighbours form a nested split, rotating can merge them into one row or column, and rotating again does not split them back (`⌃⌥⌘Z` does). Numbers read row by row, so a left pane with two stacked panes on its right is numbered 1, 2, 3 from the top row down.
+
 ## 3. Three productivity setups
 
 **Deep work.** Put your editor, terminal, and docs in one Stage. Put Slack and Mail in another. Work in Stage 1 with notifications out of sight, and check Stage 2 on your own schedule with `⌃⌥2`.

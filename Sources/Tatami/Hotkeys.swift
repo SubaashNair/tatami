@@ -3,7 +3,7 @@ import Carbon
 import TatamiCore
 
 enum HotkeyAction {
-    case stage(Int), send(Int), cycle(Int), snap(SnapZone), stagesBar, retile, rescue, organizer, newStage, closeStage, mergeAll, cycleAppWindows(Int), cycleMode, focusPane(Direction), moveToPane(Direction), tab(Int), zoomPane, splitPane(Axis), resizePane(Double), reflow, undoLayout, raiseFloats, sendToDisplay(Int), cycleWindows(Int)
+    case stage(Int), send(Int), cycle(Int), snap(SnapZone), stagesBar, retile, rescue, organizer, newStage, closeStage, mergeAll, cycleAppWindows(Int), cycleMode, focusPane(Direction), moveToPane(Direction), tab(Int), zoomPane, splitPane(Axis), resizePane(Double), reflow, undoLayout, raiseFloats, sendToDisplay(Int), cycleWindows(Int), focusPaneNumber(Int), movePaneNumber(Int), rotateSplit
 }
 
 @MainActor final class Hotkeys {
@@ -71,6 +71,9 @@ enum HotkeyAction {
         bind(kVK_ANSI_G, pane, .reflow)
         bind(kVK_ANSI_Z, pane, .undoLayout)
         bind(kVK_ANSI_F, pane, .raiseFloats)
+        // Panes are numbered 1, 2, 3… in reading order (shown on each tab bar): go to one, or send the window there.
+        for (i, code) in numbers.enumerated() { bind(code, pane, .focusPaneNumber(i + 1)); bind(code, pane | UInt32(shiftKey), .movePaneNumber(i + 1)) }
+        bind(kVK_ANSI_Slash, pane, .rotateSplit)
         bind(kVK_ANSI_LeftBracket, pane, .cycleWindows(-1))
         bind(kVK_ANSI_RightBracket, pane, .cycleWindows(1))
         bind(kVK_ANSI_LeftBracket, pane | UInt32(shiftKey), .sendToDisplay(-1))

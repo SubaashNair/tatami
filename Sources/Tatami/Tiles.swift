@@ -313,18 +313,65 @@ extension AppModel {
         guard let from = panes.first(where: { $0.pane == current.pane })?.frame,
               let target = PaneLayout.neighbour(of: from, toward: direction, among: panes.filter { $0.pane != current.pane }.map { ($0.pane, $0.frame) }),
               let targetKey = panes.first(where: { $0.pane == target })?.key else { return false }
-        if targetKey == current.key {
-            mutate(current.key) { layout, _ in layout.move(window, to: target, keepEmptyPanes: state.keepEmptyPanes) }
+        moveWindow(window, from: current.key, to: target, in: targetKey)
+        return true
+    }
+
+    /// Moves a window into another pane, on this display or another one; it keeps focus.
+    private func moveWindow(_ window: UUID, from sourceKey: LayoutKey, to target: UUID, in targetKey: LayoutKey) {
+        if targetKey == sourceKey {
+            mutate(sourceKey) { layout, _ in layout.move(window, to: target, keepEmptyPanes: state.keepEmptyPanes) }
         } else {
-            recordHistory(current.key); recordHistory(targetKey)
-            layouts[current.key]?.remove(window, keepEmptyPanes: state.keepEmptyPanes)
+            recordHistory(sourceKey); recordHistory(targetKey)
+            layouts[sourceKey]?.remove(window, keepEmptyPanes: state.keepEmptyPanes)
             layouts[targetKey]?.add(window, to: target)
             freeformFrames[window] = nil  // it joined this layout later, so leaving Tiles leaves it where it is
             applyLayouts()
         }
         service.focus(window)
-        return true
     }
+
+    // MARK: panes by number
+
+    /// Panes of the active Stage in reading order across every tiled display, ignoring any zoom, so numbers stay put.
+    private func numberedPanes() -> [(key: LayoutKey, pane: UUID)] {
+        let panes = layouts.filter { $0.key.stage == state.activeStageID }.flatMap { key, layout -> [(key: LayoutKey, pane: UUID, frame: CGRect)] in
+            guard let display = service.displays.first(where: { $0.id == key.display }) else { return [] }
+            return layout.paneRects(in: display.area).map { (key: key, pane: $0.key, frame: $0.value) }
+        }
+        let order = WindowFocus.readingOrder(panes.map { (id: $0.pane, frame: $0.frame) }, displays: service.displays.map(\.fullFrame))
+        return order.compactMap { id in panes.first { $0.pane == id }.map { (key: $0.key, pane: id) } }
+    }
+
+    /// 1, 2, 3… for the tab-bar badge and the number keys; nil for a pane that is not on the active Stage.
+    func paneNumber(_ pane: UUID) -> Int? { numberedPanes().firstIndex { $0.pane == pane }.map { $0 + 1 } }
+
+    func focusPane(number: Int) {
+        let panes = numberedPanes()
+        guard panes.indices.contains(number - 1) else { notice = "There is no pane \(number)."; return }
+        let target = panes[number - 1]
+        // A zoomed layout hides every other pane, so going to one means leaving the zoom.
+        if let zoomed = layouts[target.key]?.zoomed, zoomed != target.pane { layouts[target.key]?.zoomed = nil; applyLayouts() }
+        layouts[target.key]?.focused = target.pane
+        if let window = layouts[target.key]?.root.pane(target.pane)?.selected { service.focus(window) } else { notice = "Pane \(number) is empty." }
+        onLayoutsApplied?()
+    }
+
+    func moveToPane(number: Int) {
+        let panes = numberedPanes()
+        guard panes.indices.contains(number - 1) else { notice = "There is no pane \(number)."; return }
+        // currentPane() falls back to a display's focused pane when the focused window is not tiled (floating, excluded,
+        // freeform); moving that pane's window instead would surprise, so require a focused tiled window.
+        if let focused = service.focusedID(), layoutKey(containing: focused) == nil { notice = "Focus a tiled window first."; return }
+        guard let current = currentPane(), let window = current.window else { notice = "Focus a tiled window first."; return }
+        let target = panes[number - 1]
+        guard target.pane != current.pane else { return }
+        if let zoomed = layouts[target.key]?.zoomed, zoomed != target.pane { layouts[target.key]?.zoomed = nil }  // the arriving tab must show
+        moveWindow(window, from: current.key, to: target.pane, in: target.key)
+    }
+
+    /// Turns the focused pane's split the other way: side by side becomes stacked and back.
+    func rotateSplit() { mutateLayout { layout, _ in layout.rotateSplit(of: layout.focused) } }
 
     /// M3 decision 13: in Tiles, arrow snaps move a managed window to the neighbouring pane; other snaps do nothing.
     func snapInLayout(_ zone: SnapZone) -> Bool {

@@ -79,6 +79,9 @@ Global shortcuts register only while Stage management is running.
 | Focus the previous / next window, across all displays | Control + Option + Command + [ / ] | Command + Option + [ / ] |
 | Previous / next tab | Control + Option + [ / ] | same |
 | Split right / below | Control + Option + Command + \ / Shift + \ | Command + Option + \ / Shift + \ |
+| Rotate the split (side by side to stacked, and back) | Control + Option + Command + / | Command + Option + / |
+| Focus pane 1 to 9 (numbers shown on each tab bar, in reading order) | Control + Option + Command + 1–9 | Command + Option + 1–9 |
+| Move the window to pane 1 to 9 | add Shift | add Shift |
 | Send window to previous / next display | Control + Option + Command + Shift + [ / ] | Command + Option + Shift + [ / ] |
 | Grow / shrink pane | Control + Option + Command + = / − | Command + Option + = / − |
 | Zoom pane, Reflow as Grid, Layout undo, Raise Floats | Control + Option + Command + Return / G / Z / F | Command + Option + Return / G / Z / F |
