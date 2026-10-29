@@ -124,6 +124,7 @@ Do these in order and note anything odd. Use throwaway windows, not unsaved docu
 | Windows jump or fight | Another window manager or Stage Manager is still running |
 | A window peeks out at a corner | Parked windows keep 1 pt visible. This is expected |
 | An app window won't move off screen | Tatami minimizes it instead. This is expected |
+| An app is too big for its pane (Photo Booth, apps with a minimum size) | Tatami first widens or heightens that pane at its neighbours' expense. If there is no room it floats the window and says so; `⌃⌥⌘T` tiles it again, `⌃⌥⌘Z` undoes a widened pane |
 | Accessibility was revoked | Re-enable it; parked windows return on their own |
 
 Data lives in `~/Library/Application Support/Tatami/`. For anything that breaks, note the app, what you pressed, and what happened.

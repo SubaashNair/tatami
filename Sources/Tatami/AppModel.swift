@@ -42,6 +42,12 @@ import TatamiCore
     var freeformFrames: [UUID: CGRect] = [:]
     var expectedFrames: [UUID: CGRect] = [:]
     var minSizeWindows: Set<UUID> = []
+    /// True while making room for windows that cannot shrink, so the layout pass that follows does not start another.
+    var fittingOversized = false
+    /// A delayed re-check is queued, so a window that is merely slow to resize is not mistaken for one with a minimum size.
+    var oversizedCheckPending = false
+    /// Sizes below which a window cannot go, learned when it overflowed its pane; other fits must not squeeze it further.
+    var knownMinSizes: [UUID: CGSize] = [:]
     var userEditingLayout = false
     /// Per-window Keep Floating / Manage in Layout choices that were not saved as rules.
     var behaviorOverrides: [UUID: WindowBehavior] = [:]

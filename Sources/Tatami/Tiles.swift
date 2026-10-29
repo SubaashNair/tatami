@@ -128,6 +128,8 @@ extension AppModel {
         }
         freeformFrames = freeformFrames.filter { byID[$0.key] != nil }  // closed windows leave no entry behind
         behaviorOverrides = behaviorOverrides.filter { byID[$0.key] != nil }
+        minSizeWindows = minSizeWindows.filter { byID[$0] != nil }
+        knownMinSizes = knownMinSizes.filter { byID[$0.key] != nil }
         return changed
     }
 
@@ -181,6 +183,7 @@ extension AppModel {
         let hidden = tabHiddenWindows()
         for (id, frame) in targets where hidden.contains(id) { service.setRealFrame(id, frame) }
         var failures = applyVisibility()
+        var oversized: [UUID: CGSize] = [:]
         for (id, frame) in targets where !hidden.contains(id) {
             guard let window = service.windows.first(where: { $0.id == id }), window.hidden == nil else { continue }
             expectedFrames[id] = frame
@@ -189,12 +192,80 @@ extension AppModel {
             if let actual = service.windows.first(where: { $0.id == id })?.frame,
                actual.width > frame.width + Self.frameTolerance || actual.height > frame.height + Self.frameTolerance {
                 minSizeWindows.insert(id)
+                oversized[id] = actual.size
             } else { minSizeWindows.remove(id) }
         }
         reportFailures(failures, action: "arrange Tiles")
+        if !oversized.isEmpty, !fittingOversized { scheduleOversizedCheck() }
         raiseFloats(activate: false)
         onLayoutsApplied?()
         publish()
+    }
+
+    private static let oversizedDelay: TimeInterval = 0.4
+    /// Overflowing by less than this is left alone (a tab bar and gap off by a few points): not worth floating a window for.
+    private static let overflowLeeway: CGFloat = 24
+
+    /// A window can report its old size for a moment after being resized, so nothing is decided on the first look:
+    /// the check runs shortly after, on fresh sizes, and waits out any mouse drag.
+    private func scheduleOversizedCheck() {
+        guard !oversizedCheckPending else { return }
+        oversizedCheckPending = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.oversizedDelay) { [weak self] in
+            MainActor.assumeIsolated { self?.checkOversized() }
+        }
+    }
+
+    private func checkOversized() {
+        oversizedCheckPending = false
+        guard managing else { return }
+        if NSEvent.pressedMouseButtons != 0 { scheduleOversizedCheck(); return }  // never fight the user's own resizing
+        var oversized: [UUID: CGSize] = [:]
+        for id in minSizeWindows {
+            guard let expected = expectedFrames[id], let live = service.liveFrame(id) else { continue }
+            if live.width > expected.width + Self.frameTolerance || live.height > expected.height + Self.frameTolerance { oversized[id] = live.size }
+        }
+        if !oversized.isEmpty { _ = makeRoom(for: oversized) }
+    }
+
+    /// Windows that cannot shrink to their pane (Photo Booth, apps with a minimum size) would spill over the neighbouring pane.
+    /// Grow their pane first; if no room can be made, float them. Runs once per layout pass, so it cannot loop.
+    /// Returns true when it changed something and re-applied the layouts.
+    private func makeRoom(for oversized: [UUID: CGSize]) -> Bool {
+        fittingOversized = true
+        defer { fittingOversized = false }
+        for (id, size) in oversized { knownMinSizes[id] = size }
+        var changed = false
+        var floated: [(window: LiveWindow, size: CGSize)] = []
+        // Biggest demand first, so the order does not depend on dictionary order.
+        for (id, size) in oversized.sorted(by: { $0.value.width + $0.value.height > $1.value.width + $1.value.height }) {
+            guard let key = layoutKey(containing: id), key.stage == state.activeStageID, var layout = layouts[key],
+                  let pane = layout.pane(containing: id), let display = service.displays.first(where: { $0.id == key.display }) else { continue }
+            let minimums = Dictionary(uniqueKeysWithValues: layout.root.panes.compactMap { other -> (UUID, CGSize)? in
+                guard other.id != pane.id, let selected = other.selected, let known = knownMinSizes[selected] else { return nil }
+                return (other.id, known)
+            })
+            let before = layout
+            if layout.fit(pane.id, toWindowSize: size, in: display.area, gap: state.gap, tabBar: Self.tabBarHeight, keeping: minimums) {
+                if layout != before { recordHistory(key); layouts[key] = layout; changed = true }
+            } else if let window = service.windows.first(where: { $0.id == id }) {
+                if let expected = expectedFrames[id], size.width <= expected.width + Self.overflowLeeway, size.height <= expected.height + Self.overflowLeeway { continue }
+                behaviorOverrides[id] = .floating
+                floated.append((window, size))
+                changed = true
+            }
+        }
+        guard changed else { return false }
+        syncLayouts()
+        applyLayouts()
+        // Keep the window at its own size: the app would refuse half of it anyway.
+        for (index, entry) in floated.enumerated() { centreAsFloat(entry.window, cascade: index, size: entry.size) }
+        if let first = floated.first {
+            notice = "\(first.window.appName) cannot shrink to a pane, so it floats. \(state.shortcutPreset == .classic ? "⌘⌥T" : "⌃⌥⌘T") tiles it again."
+        }
+        publish()
+        onLayoutsApplied?()
+        return true
     }
 
     private static func close(_ a: CGRect, _ b: CGRect) -> Bool {
@@ -418,11 +489,13 @@ extension AppModel {
 
     /// A window leaving the tiles lands in the middle of its display at half its tiled size, so it is easy to see.
     /// `cascade` steps several windows apart so they do not sit exactly on top of each other.
-    private func centreAsFloat(_ window: LiveWindow, cascade: Int = 0) {
+    /// `size` keeps a window at a size it cannot go below; without it the window is halved.
+    private func centreAsFloat(_ window: LiveWindow, cascade: Int = 0, size: CGSize? = nil) {
         guard let area = service.display(for: window.frame)?.area else { return }
         let step = CGFloat(cascade) * 28
-        service.move(window.id, to: Geometry.visibleFrame(CGRect(x: area.midX - window.frame.width / 4 + step, y: area.midY - window.frame.height / 4 + step,
-                                                                 width: window.frame.width / 2, height: window.frame.height / 2), in: area))
+        let target = size ?? CGSize(width: window.frame.width / 2, height: window.frame.height / 2)
+        let width = min(target.width, area.width), height = min(target.height, area.height)
+        service.move(window.id, to: Geometry.visibleFrame(CGRect(x: area.midX - width / 2 + step, y: area.midY - height / 2 + step, width: width, height: height), in: area))
     }
 
     /// Float and tile only mean something for a window on a tiled display while Tatami is managing; elsewhere the keys
