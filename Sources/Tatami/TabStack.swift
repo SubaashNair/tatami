@@ -273,24 +273,26 @@ extension AppModel {
         return (key, layout.focused, layout.root.pane(layout.focused)?.selected)
     }
 
-    func focusPane(_ direction: Direction) {
-        guard let current = currentPane() else { return }
+    /// False when no pane lies that way, so the caller can fall back to windows by position.
+    @discardableResult func focusPane(_ direction: Direction) -> Bool {
+        guard let current = currentPane() else { return false }
         let panes = allPanes()
         guard let from = panes.first(where: { $0.pane == current.pane })?.frame,
               let target = PaneLayout.neighbour(of: from, toward: direction, among: panes.filter { $0.pane != current.pane }.map { ($0.pane, $0.frame) }),
-              let key = panes.first(where: { $0.pane == target })?.key else { return }
+              let key = panes.first(where: { $0.pane == target })?.key else { return false }
         layouts[key]?.focused = target
         if let window = layouts[key]?.root.pane(target)?.selected { service.focus(window) }
         onLayoutsApplied?()
+        return true
     }
 
     /// Moves the focused window to the neighbouring pane, across displays too; it keeps focus.
-    func moveToPane(_ direction: Direction) {
-        guard let current = currentPane(), let window = current.window else { return }
+    @discardableResult func moveToPane(_ direction: Direction) -> Bool {
+        guard let current = currentPane(), let window = current.window else { return false }
         let panes = allPanes()
         guard let from = panes.first(where: { $0.pane == current.pane })?.frame,
               let target = PaneLayout.neighbour(of: from, toward: direction, among: panes.filter { $0.pane != current.pane }.map { ($0.pane, $0.frame) }),
-              let targetKey = panes.first(where: { $0.pane == target })?.key else { return }
+              let targetKey = panes.first(where: { $0.pane == target })?.key else { return false }
         if targetKey == current.key {
             mutate(current.key) { layout, _ in layout.move(window, to: target, keepEmptyPanes: state.keepEmptyPanes) }
         } else {
@@ -301,6 +303,7 @@ extension AppModel {
             applyLayouts()
         }
         service.focus(window)
+        return true
     }
 
     /// M3 decision 13: in TabStack, arrow snaps move a managed window to the neighbouring pane; other snaps do nothing.

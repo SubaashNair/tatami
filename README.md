@@ -74,8 +74,9 @@ Global shortcuts register only while Stage management is running.
 | New / close Stage | Control + Option + N / X | Option + N / X |
 | Merge all Stages | Control + Option + M | Option + M |
 | Freeform ↔ TabStack (focused display) | Control + Option + B | Option + B |
-| Focus pane up / left / down / right | Control + Option + Command + I / J / K / L | Command + Option + I / J / K / L |
-| Move window to that pane | add Shift | add Shift |
+| Focus the pane or window up / left / down / right (freeform windows and other displays too) | Control + Option + Command + I / J / K / L | Command + Option + I / J / K / L |
+| Move the window to that pane, or swap places with the freeform window there | add Shift | add Shift |
+| Focus the previous / next window, across all displays | Control + Option + Command + [ / ] | Command + Option + [ / ] |
 | Previous / next tab | Control + Option + [ / ] | same |
 | Split right / below | Control + Option + Command + \ / Shift + \ | Command + Option + \ / Shift + \ |
 | Send window to previous / next display | Control + Option + Command + Shift + [ / ] | Command + Option + Shift + [ / ] |

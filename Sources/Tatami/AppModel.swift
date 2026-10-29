@@ -487,8 +487,9 @@ import TatamiCore
         case .mergeAll: mergeAll()
         case .cycleAppWindows(let offset): cycleAppWindows(offset)
         case .cycleMode: toggleWindowMode()
-        case .focusPane(let direction): focusPane(direction)
-        case .moveToPane(let direction): moveToPane(direction)
+        case .focusPane(let direction): focusDirectional(direction)
+        case .moveToPane(let direction): moveDirectional(direction)
+        case .cycleWindows(let offset): cycleWindows(offset: offset)
         case .tab(let offset): mutateLayout { layout, _ in layout.cycleTab(offset) }
         case .zoomPane: mutateLayout { layout, _ in layout.toggleZoom(layout.focused) }
         case .splitPane(let axis): mutateLayout { layout, _ in

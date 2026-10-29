@@ -34,6 +34,18 @@ In the Stages Bar: click a card to switch, click a name to rename, drag a window
 
 Tip: focusing a window from another Stage (Cmd + Tab, Dock click) switches to that Stage automatically.
 
+### Moving between windows with the keyboard
+
+Tatami is keyboard first: everything below works without the mouse, in freeform and in TabStack.
+
+| You want | Keys |
+|---|---|
+| Focus the window above / left / below / right | `⌃⌥⌘` + I / J / K / L |
+| Swap places with the freeform window that way (or move to the next pane in TabStack) | `⌃⌥⌘⇧` + I / J / K / L |
+| Focus the previous / next window, across all displays | `⌃⌥⌘[` / `⌃⌥⌘]` |
+
+Focus stops at the edge of your screens. Windows are ordered left to right across displays, then top to bottom. Classic uses `⌘⌥` in place of `⌃⌥⌘`.
+
 ## 3. Three productivity setups
 
 **Deep work.** Put your editor, terminal, and docs in one Stage. Put Slack and Mail in another. Work in Stage 1 with notifications out of sight, and check Stage 2 on your own schedule with `⌃⌥2`.
