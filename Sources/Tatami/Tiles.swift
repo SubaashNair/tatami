@@ -127,6 +127,7 @@ extension AppModel {
             changed = true
         }
         freeformFrames = freeformFrames.filter { byID[$0.key] != nil }  // closed windows leave no entry behind
+        behaviorOverrides = behaviorOverrides.filter { byID[$0.key] != nil }
         return changed
     }
 
@@ -411,11 +412,50 @@ extension AppModel {
             persist()
         }
         syncLayouts(); applyLayouts()
-        if behavior == .floating, let area = service.display(for: window.frame)?.area {
-            service.move(id, to: Geometry.visibleFrame(CGRect(x: area.midX - window.frame.width / 4, y: area.midY - window.frame.height / 4,
-                                                               width: window.frame.width / 2, height: window.frame.height / 2), in: area))
-        }
+        if behavior == .floating { centreAsFloat(window) }
         notice = behavior == .floating ? "\(window.appName) window floats\(saveRule ? "; new \(window.appName) windows will too" : "")." : "\(window.appName) window is managed in the layout."
+    }
+
+    /// A window leaving the tiles lands in the middle of its display at half its tiled size, so it is easy to see.
+    /// `cascade` steps several windows apart so they do not sit exactly on top of each other.
+    private func centreAsFloat(_ window: LiveWindow, cascade: Int = 0) {
+        guard let area = service.display(for: window.frame)?.area else { return }
+        let step = CGFloat(cascade) * 28
+        service.move(window.id, to: Geometry.visibleFrame(CGRect(x: area.midX - window.frame.width / 4 + step, y: area.midY - window.frame.height / 4 + step,
+                                                                 width: window.frame.width / 2, height: window.frame.height / 2), in: area))
+    }
+
+    /// Float and tile only mean something for a window on a tiled display while Tatami is managing; elsewhere the keys
+    /// would just shrink a window that never was in the tiles.
+    private func focusedTileableWindow() -> LiveWindow? {
+        guard let id = service.focusedID(), let window = service.windows.first(where: { $0.id == id }) else { notice = "Focus a window first."; return nil }
+        guard managing, !state.excludedBundleIDs.contains(window.bundleID), !window.minimized,
+              service.display(for: window.frame).map({ isTiled(stage: window.stageID, display: $0.id) }) == true else {
+            notice = "Float and tile apply to windows on a tiled display while Tatami is managing."
+            return nil
+        }
+        return window
+    }
+
+    /// One key: float the focused window if it is tiled, tile it if it floats.
+    func toggleFloating() {
+        guard let window = focusedTileableWindow() else { return }
+        setBehavior(window.id, isFloating(window) ? .managed : .floating, saveRule: false)
+    }
+
+    /// The same for every window of the focused window's app, saved as a rule. A second press undoes it.
+    func toggleFloatingForApp() {
+        guard let window = focusedTileableWindow() else { return }
+        let siblings = service.windows.filter { $0.bundleID == window.bundleID && $0.hidden == nil && !$0.minimized }
+        let wasFloating = Set(siblings.filter(isFloating).map(\.id))
+        let floats = state.toggleAppBehavior(bundleID: window.bundleID)
+        for other in service.windows where other.bundleID == window.bundleID { behaviorOverrides[other.id] = nil }  // the rule decides now
+        persist()
+        syncLayouts(); applyLayouts()
+        // Only windows that really went from tiled to floating are moved, each a little apart from the last.
+        let moved = siblings.filter { !wasFloating.contains($0.id) && isFloating($0) }
+        for (index, sibling) in moved.enumerated() { centreAsFloat(sibling, cascade: index) }
+        notice = floats ? "\(window.appName) windows float." : "\(window.appName) windows tile."
     }
 
     func splitTab(_ id: UUID, axis: Axis) {

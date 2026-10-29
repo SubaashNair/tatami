@@ -79,6 +79,7 @@ Global shortcuts register only while Stage management is running.
 | Focus the previous / next window, across all displays | Control + Option + Command + [ / ] | Command + Option + [ / ] |
 | Previous / next tab | Control + Option + [ / ] | same |
 | Split right / below | Control + Option + Command + \ / Shift + \ | Command + Option + \ / Shift + \ |
+| Float or tile the focused window; add Shift for every window of its app (a second press undoes it) | Control + Option + Command + T | Command + Option + T |
 | Rotate the split (side by side to stacked, and back) | Control + Option + Command + / | Command + Option + / |
 | Focus pane 1 to 9 (numbers shown on each tab bar, in reading order) | Control + Option + Command + 1–9 | Command + Option + 1–9 |
 | Move the window to pane 1 to 9 | add Shift | add Shift |

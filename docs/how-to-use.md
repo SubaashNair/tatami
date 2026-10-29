@@ -54,6 +54,8 @@ Focus stops at the edge of your screens. Windows are ordered left to right acros
 | Move the focused window into pane 1 to 9 | `⌃⌥⌘⇧1` to `⌃⌥⌘⇧9` |
 | Turn the focused pane's split the other way (side by side to stacked, and back) | `⌃⌥⌘/` |
 
+**Floating a window, and bringing it back.** `⌃⌥⌘T` floats the focused window (it sits in the middle of its display at half its tiled size) and, pressed on a floating window, puts it back into a pane. `⌃⌥⌘⇧T` does the same for every window of that app and remembers it; pressing it again removes the rule. A floating window has no tab bar, so the menu-bar item **Float or Tile Focused Window** is the mouse route. Focus and cycling keys reach floating windows too.
+
 Rotate keeps every window and every pane size; it only changes the direction. If the pane's neighbours form a nested split, rotating can merge them into one row or column, and rotating again does not split them back (`⌃⌥⌘Z` does). Numbers read row by row, so a left pane with two stacked panes on its right is numbered 1, 2, 3 from the top row down.
 
 ## 3. Three productivity setups

@@ -217,6 +217,19 @@ extension WorkspaceState {
         "com.apple.PhotoBooth",  // cannot shrink to a pane, so it would spill over its neighbours
     ]
 
+    /// Flips every window of an app between floating and tiled. A rule is saved only when the default list disagrees with
+    /// the new state, so pressing it twice leaves nothing behind. Rules for a specific title are left alone.
+    /// Returns whether the app now floats.
+    @discardableResult public mutating func toggleAppBehavior(bundleID: String) -> Bool {
+        let floats = !isFloating(bundleID: bundleID, title: "")
+        behaviorRules.removeAll { $0.bundleID == bundleID && $0.titleContains.isEmpty }
+        if isFloating(bundleID: bundleID, title: "") != floats {
+            // Last, so a rule for a specific window title (checked first) keeps winning over the app-wide choice.
+            behaviorRules.append(WindowBehaviorRule(bundleID: bundleID, behavior: floats ? .floating : .managed))
+        }
+        return floats
+    }
+
     /// Saved rules first, then the default float list; everything else is managed.
     public func isFloating(bundleID: String, title: String) -> Bool {
         if let rule = behaviorRules.first(where: { $0.bundleID == bundleID && ($0.titleContains.isEmpty || title.localizedCaseInsensitiveContains($0.titleContains)) }),
