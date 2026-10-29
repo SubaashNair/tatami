@@ -499,6 +499,7 @@ import TatamiCore
         case .reflow: mutateLayout { layout, display in layout.reflow(aspect: display.area.width / max(display.area.height, 1)) }
         case .undoLayout: undoLayout()
         case .raiseFloats: raiseFloats(activate: true)
+        case .sendToDisplay(let offset): sendFocusedWindowToDisplay(offset: offset)
         case .retile: if layouts[LayoutKey(stage: state.activeStageID, display: targetDisplay()?.id ?? "")] != nil { mutateLayout { layout, _ in layout.evenOut() } } else { retile() }
         case .rescue: rescue()
         case .organizer: showOrganizer?()

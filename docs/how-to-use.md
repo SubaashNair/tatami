@@ -65,7 +65,9 @@ Set a routing rule (a window's menu, then app routing) so Slack always lands in 
 5. Zoom a pane `⌃⌥⌘Return`, reflow as grid `⌃⌥⌘G`, undo layout `⌃⌥⌘Z`.
 6. Press `⌃⌥B` again to put every window back where it was.
 
-Not available yet: drag-to-split, divider handles, layout presets.
+**Two displays:** to send a window to the other screen, right-click its tab and choose **Move to Display**, or press `⌃⌥⌘⇧[` (previous display) or `⌃⌥⌘⇧]` (next display). On a tiled display it joins the focused pane as a tab. On a freeform display it keeps its relative position and size.
+
+Not available yet: drag-to-split, drag a tab to another pane or display, divider handles, layout presets.
 
 ## 5. Let AI sort a messy desktop
 

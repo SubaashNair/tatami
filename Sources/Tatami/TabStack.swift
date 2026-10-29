@@ -234,6 +234,10 @@ extension AppModel {
     func undoLayout(key: LayoutKey) {
         guard let previous = histories[key]?.undo() else { notice = "Nothing to undo in this layout."; return }
         layouts[key] = previous
+        // A window lives in one layout. If the snapshot holds one that has since moved to another display, the restored layout wins.
+        for other in Array(layouts.keys) where other != key {
+            for id in previous.windows { layouts[other]?.remove(id, keepEmptyPanes: state.keepEmptyPanes) }
+        }
         syncLayouts()  // windows may have closed since that step
         applyLayouts()
     }
