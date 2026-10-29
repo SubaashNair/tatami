@@ -12,7 +12,21 @@ extension AppModel {
     private static let frameTolerance: CGFloat = 2
     private static let editRecheckDelay: TimeInterval = 0.15
 
-    func isTiled(stage: UUID, display: String) -> Bool { state.tiledDisplays[stage.uuidString]?.contains(display) == true }
+    func isTiled(stage: UUID, display: String) -> Bool { state.isTiled(stage: stage, display: display) }
+
+    /// Turns "tile new windows automatically" on or off. Turning it off sends every display that was only tiled
+    /// by default back to Freeform, with its windows where they were; displays tiled by key stay tiled.
+    func setTilesByDefault(_ on: Bool) {
+        guard on != state.tilesByDefault else { return }
+        let tiledNow = layouts.keys.filter { isTiled(stage: $0.stage, display: $0.display) }
+        state.tilesByDefault = on
+        for key in tiledNow where !isTiled(stage: key.stage, display: key.display) {
+            if let display = service.displays.first(where: { $0.id == key.display }) { leaveTiles(key, display: display) }
+        }
+        persist()
+        if managing { syncLayouts(); applyLayouts() } else { publish() }
+        notice = on ? "New windows now tile automatically." : "Windows stay where you put them. Tiles is still available per display."
+    }
 
     func isFloating(_ window: LiveWindow) -> Bool {
         if let override = behaviorOverrides[window.id], override != .automatic { return override == .floating }
@@ -63,7 +77,7 @@ extension AppModel {
             .sorted { a, _ in a.id == focused }
         for window in members { freeformFrames[window.id] = window.frame }
         layouts[key] = PaneLayout.balanced(windows: members.map(\.id), aspect: display.area.width / max(display.area.height, 1))
-        state.tiledDisplays[key.stage.uuidString, default: []].append(key.display)
+        state.setTiled(true, stage: key.stage, display: key.display)
         persist()
         applyLayouts()
         notice = "Tiles is on for \(display.name). \(state.shortcutPreset == .classic ? "⌥B" : "⌃⌥B") switches back to Freeform."
@@ -72,12 +86,12 @@ extension AppModel {
     private func leaveTiles(_ key: LayoutKey, display: DisplayInfo) {
         let members = layouts.removeValue(forKey: key)?.windows ?? []
         histories[key] = nil
-        state.tiledDisplays[key.stage.uuidString]?.removeAll { $0 == key.display }
-        if state.tiledDisplays[key.stage.uuidString]?.isEmpty == true { state.tiledDisplays[key.stage.uuidString] = nil }
+        state.setTiled(false, stage: key.stage, display: key.display)
         persist()
         reportFailures(applyVisibility(), action: "show background tabs")
         // Back to where each window was before Tiles; windows that joined later stay where they are.
-        for id in members { if let frame = freeformFrames.removeValue(forKey: id) { service.move(id, to: frame) } }
+        // place() so a window parked on an inactive Stage gets its return frame recorded instead of jumping on screen.
+        for id in members { if let frame = freeformFrames.removeValue(forKey: id) { service.place(id, at: frame) } }
         onLayoutsApplied?()
         publish()
         notice = "Freeform is back on \(display.name)."
@@ -106,10 +120,13 @@ extension AppModel {
             guard let display = service.display(for: window.frame), isTiled(stage: window.stageID, display: display.id) else { continue }
             let key = LayoutKey(stage: window.stageID, display: display.id)
             var layout = layouts[key] ?? PaneLayout(root: .pane(Pane()))
+            // Remember where it was, so switching the display to Freeform puts it back (as when Tiles is entered by key).
+            freeformFrames[window.id] = window.frame  // always current: it is joining a layout now, so any old entry is stale
             layout.place(window.id, policy: state.newWindowPlacement, in: display.area)
             layouts[key] = layout
             changed = true
         }
+        freeformFrames = freeformFrames.filter { byID[$0.key] != nil }  // closed windows leave no entry behind
         return changed
     }
 
@@ -208,8 +225,11 @@ extension AppModel {
     func mutateLayout(_ change: (inout PaneLayout, DisplayInfo) -> Void) {
         guard managing, let display = targetDisplay() else { return }
         let key = LayoutKey(stage: state.activeStageID, display: display.id)
-        guard layouts[key] != nil else { notice = "\(display.name) is in Freeform. \(state.shortcutPreset == .classic ? "⌥B" : "⌃⌥B") turns on Tiles."; return }
+        guard isTiled(stage: key.stage, display: key.display) else { notice = "\(display.name) is in Freeform. \(state.shortcutPreset == .classic ? "⌥B" : "⌃⌥B") turns on Tiles."; return }
+        if layouts[key] == nil { layouts[key] = PaneLayout(root: .pane(Pane())) }  // a tiled display with no windows yet
         mutate(key, followFocus: true, change)
+        // A command that changed nothing must not leave an empty layout, and so an empty tab bar, on a display with no windows.
+        if let layout = layouts[key], layout.windows.isEmpty, layout.root.panes.count == 1 { layouts[key] = nil }
     }
 
     /// Mutates one layout with undo, applies it, and focuses its focused pane.

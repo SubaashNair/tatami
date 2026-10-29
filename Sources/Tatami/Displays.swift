@@ -63,7 +63,10 @@ extension AppModel {
             layouts[key] = nil
             let destination = LayoutKey(stage: key.stage, display: target.id)
             guard var receiving = layouts[destination] else { continue }
-            for window in layout.windows { receiving.add(window, to: receiving.focused) }
+            for window in layout.windows {
+                receiving.add(window, to: receiving.focused)
+                freeformFrames[window] = nil  // its saved frame belonged to the display that is gone
+            }
             layouts[destination] = receiving
         }
         applyLayouts()

@@ -76,6 +76,10 @@ public struct WorkspaceState: Codable {
     public var scopeCommandBacktick = false
     /// Stage id → display keys using Tiles (M3 decision 11). Freeform elsewhere.
     public var tiledDisplays: [String: [String]] = [:]
+    /// New windows tile on their own unless a display was set to Freeform (keyboard first: no mode key needed).
+    public var tilesByDefault = true
+    /// Stage id → display keys the user set to Freeform (a choice, kept even if the default changes).
+    public var freeformDisplays: [String: [String]] = [:]
     public var newWindowPlacement: NewWindowPlacement = .automatic
     public var keepEmptyPanes = false
     /// Saved per-app Manage in Layout / Keep Floating choices (M3 decision 8), first match wins.
@@ -90,7 +94,7 @@ public struct WorkspaceState: Codable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, stages, activeStageID, saved, rules, excludedBundleIDs, followSentWindow, followActivatedWindows, showSwitchIndicator, showInDock, barHotZone, barDelay, barIgnoresNotch, scopeCommandBacktick, tiledDisplays, newWindowPlacement, keepEmptyPanes, behaviorRules, shortcutPreset, gap, ai
+        case version, stages, activeStageID, saved, rules, excludedBundleIDs, followSentWindow, followActivatedWindows, showSwitchIndicator, showInDock, barHotZone, barDelay, barIgnoresNotch, scopeCommandBacktick, tiledDisplays, tilesByDefault, freeformDisplays, newWindowPlacement, keepEmptyPanes, behaviorRules, shortcutPreset, gap, ai
     }
 
     /// Keys written by earlier builds, read for migration only.
@@ -118,6 +122,8 @@ public struct WorkspaceState: Codable {
         let legacy = try decoder.container(keyedBy: LegacyKeys.self)
         tiledDisplays = try c.decodeIfPresent([String: [String]].self, forKey: .tiledDisplays)
             ?? legacy.decodeIfPresent([String: [String]].self, forKey: .tabStack) ?? defaults.tiledDisplays
+        tilesByDefault = try c.decodeIfPresent(Bool.self, forKey: .tilesByDefault) ?? defaults.tilesByDefault
+        freeformDisplays = try c.decodeIfPresent([String: [String]].self, forKey: .freeformDisplays) ?? defaults.freeformDisplays
         newWindowPlacement = try c.decodeIfPresent(NewWindowPlacement.self, forKey: .newWindowPlacement) ?? defaults.newWindowPlacement
         keepEmptyPanes = try c.decodeIfPresent(Bool.self, forKey: .keepEmptyPanes) ?? defaults.keepEmptyPanes
         behaviorRules = try c.decodeIfPresent([WindowBehaviorRule].self, forKey: .behaviorRules) ?? defaults.behaviorRules
@@ -128,15 +134,34 @@ public struct WorkspaceState: Codable {
 
     public var activeStage: Stage { stages.first(where: { $0.id == activeStageID }) ?? stages[0] }
 
+    /// Whether a display is tiled on a Stage: an explicit choice wins, otherwise the default mode applies.
+    public func isTiled(stage: UUID, display: String) -> Bool {
+        let key = stage.uuidString
+        if tiledDisplays[key]?.contains(display) == true { return true }
+        if freeformDisplays[key]?.contains(display) == true { return false }
+        return tilesByDefault
+    }
+
+    /// Sets one display's mode on one Stage. The choice is always stored, so it survives a later change of the default.
+    public mutating func setTiled(_ tiled: Bool, stage: UUID, display: String) {
+        let key = stage.uuidString
+        tiledDisplays[key]?.removeAll { $0 == display }
+        freeformDisplays[key]?.removeAll { $0 == display }
+        if tiled { tiledDisplays[key, default: []].append(display) } else { freeformDisplays[key, default: []].append(display) }
+        if tiledDisplays[key]?.isEmpty == true { tiledDisplays[key] = nil }
+        if freeformDisplays[key]?.isEmpty == true { freeformDisplays[key] = nil }
+    }
+
     public mutating func validate() throws {
         guard version == 1 else { throw ValidationError.unsupportedVersion }
         // Deleting or merging a Stage never removes its Tiles entry; stale ones must not push saving over the limit.
         let live = Set(stages.map { $0.id.uuidString })
         tiledDisplays = tiledDisplays.filter { live.contains($0.key) && !$0.value.isEmpty }
+        freeformDisplays = freeformDisplays.filter { live.contains($0.key) && !$0.value.isEmpty }
         guard !stages.isEmpty, stages.count <= 9, Set(stages.map(\.id)).count == stages.count,
               stages.allSatisfy({ !$0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && $0.name.count <= 60 }),
               gap.isFinite, (0...40).contains(gap), barDelay.isFinite, (0...2).contains(barDelay), saved.count <= 100,
-              rules.count <= 500, behaviorRules.count <= 500, tiledDisplays.count <= 9, ai?.isValid ?? true else { throw ValidationError.invalidState }
+              rules.count <= 500, behaviorRules.count <= 500, tiledDisplays.count <= 9, freeformDisplays.count <= 9, ai?.isValid ?? true else { throw ValidationError.invalidState }
         guard stages.contains(where: { $0.id == activeStageID }) else { throw ValidationError.invalidState }
         for workspace in saved {
             guard !workspace.stages.isEmpty, workspace.stages.count <= 9,
@@ -189,6 +214,7 @@ extension WorkspaceState {
     public static let defaultFloatingBundles: Set<String> = [
         "com.apple.systempreferences", "com.apple.calculator", "com.apple.ActivityMonitor", "com.apple.PIPAgent",
         "com.apple.finder.Get-Info", "com.apple.archiveutility", "com.apple.ScreenSharing",
+        "com.apple.PhotoBooth",  // cannot shrink to a pane, so it would spill over its neighbours
     ]
 
     /// Saved rules first, then the default float list; everything else is managed.

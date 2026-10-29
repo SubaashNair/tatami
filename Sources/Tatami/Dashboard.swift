@@ -369,6 +369,8 @@ struct Dashboard: View {
             settingsBox("WORKFLOW") {
                 Toggle("Launch Tatami at login", isOn: Binding(get: { model.loginEnabled }, set: { model.setLogin($0) }))
                 Divider()
+                Toggle("Tile new windows automatically (turn off to keep windows where you put them)", isOn: Binding(get: { model.state.tilesByDefault }, set: { model.setTilesByDefault($0) }))
+                Divider()
                 Toggle("Switch Stage when you focus a window from another Stage (Cmd+Tab, Dock)", isOn: Binding(get: { model.state.followActivatedWindows }, set: { model.state.followActivatedWindows = $0; model.persist() }))
                 Divider()
                 Toggle("Show the Stage name briefly after switching", isOn: Binding(get: { model.state.showSwitchIndicator }, set: { model.state.showSwitchIndicator = $0; model.persist() }))

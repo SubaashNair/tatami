@@ -70,7 +70,8 @@ Set a routing rule (a window's menu, then app routing) so Slack always lands in 
 
 **Tiles** (tiling with tab bars), per display per Stage:
 
-1. Press `⌃⌥B` to tile the focused display. Each window gets a pane (up to four); extras become tabs.
+0. Tiles is the default. While Tatami is managing, every window you open joins a pane by itself, with no key press. `⌃⌥B` switches the focused display to Freeform and back. Preferences has **Tile new windows automatically** to change the default.
+1. Each window gets a pane (up to four); extras become tabs.
 2. Move around: focus a pane with `⌃⌥⌘` + I / J / K / L, move the window there by adding `⇧`.
 3. Switch tabs with `⌃⌥[` and `⌃⌥]`. Click a tab to select it, right-click for Close, Split, Keep Floating, Move to Stage.
 4. Resize: drag a window edge, or use `⌃⌥⌘=` and `⌃⌥⌘−`.
@@ -96,7 +97,7 @@ Do these in order and note anything odd. Use throwaway windows, not unsaved docu
 - [ ] Open the Stages Bar. Rename a Stage, drag a window onto a card.
 - [ ] Close a Stage and click Undo.
 - [ ] Snap a window to a half and a quarter, then undo the arrangement.
-- [ ] Press `⌃⌥B` for Tiles, move focus with `⌃⌥⌘` + I / J / K / L, switch tabs, then `⌃⌥B` to return.
+- [ ] Open a new app: it should join a pane by itself. Move focus with `⌃⌥⌘` + I / J / K / L, switch tabs, then press `⌃⌥B` to go to Freeform and back.
 - [ ] Press `⌃⌥⌘R`. Everything should reappear. Start managing again.
 - [ ] Quit Tatami with windows hidden. All windows should come back.
 - [ ] With two displays: unplug one and check the Restore / Keep Current prompt on reconnect.
