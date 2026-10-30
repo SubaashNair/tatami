@@ -41,19 +41,50 @@ A native macOS workspace manager that you drive from the keyboard, like AeroSpac
 
 ## See it
 
-> These are illustrations of the real interface, drawn for this page. Real screenshots depend on your own windows, so they are not committed here.
+The first two images are real captures of the Tatami app, taken with a clean data folder. The last two are drawn illustrations, because real ones would show your own windows.
 
-**Tiles: every window gets a pane, with a number on its tab bar**
+**The dashboard**
+
+<p align="center"><img src="docs/images/dashboard.png" alt="The Tatami dashboard: Stages Work, Comms and Browse, the window list and the snap grid" width="92%"></p>
+
+| Control | Keys |
+|---|---|
+| Switch to Stage 1 to 9 | `⌃⌥1` to `⌃⌥9` |
+| New or close Stage | `⌃⌥N` / `⌃⌥X` |
+| Arrange the active Stage | `⌃⌥⌘↓` |
+| AI Organizer | `⌃⌥Z` |
+
+**Stages: one card per task, across every display** (rest the pointer at the top centre of a screen, or press `⌃⌥⌘↑`)
+
+<p align="center"><img src="docs/images/stage-cards.png" alt="The Stage cards: Work, Comms and Browse, with a New Stage card" width="80%"></p>
+
+| Control | Keys |
+|---|---|
+| Show the cards | `⌃⌥⌘↑` |
+| Pick a card | click it, or `←` `→` then `Return`, or press `1` to `9` |
+| Rename, close, reorder | click the name, hover for ×, drag a card |
+| Move a window to a Stage | drag it to a card, or `⌃⌥⇧1` to `⌃⌥⇧9` |
+
+**Tiles: every window gets a pane, with a number on its tab bar** (illustration)
 
 <p align="center"><img src="docs/images/tiles-layout.svg" alt="Four panes in Tiles mode, each with a numbered tab bar" width="92%"></p>
 
-**Stages: one card per task, across every display**
+| Control | Keys |
+|---|---|
+| Focus the pane up, left, down, right | `⌃⌥⌘ I J K L` |
+| Go to pane 1 to 9 | `⌃⌥⌘1` to `⌃⌥⌘9` |
+| Move the window to pane 1 to 9 | `⌃⌥⌘⇧1` to `⌃⌥⌘⇧9` |
+| Rotate the split | `⌃⌥⌘/` |
+| Float or tile the window | `⌃⌥⌘T` |
 
-<p align="center"><img src="docs/images/stages.svg" alt="Stages shown as three cards: Work, Comms and Browse" width="92%"></p>
-
-**Send a window to another display**
+**Send a window to another display** (illustration)
 
 <p align="center"><img src="docs/images/send-to-display.svg" alt="A Browser pane moving from the left display to join the Terminal pane on the right display" width="92%"></p>
+
+| Control | Keys |
+|---|---|
+| Send the window to the next or previous display | `⌃⌥⌘⇧]` / `⌃⌥⌘⇧[` |
+| Same, from a terminal | `tatami display next` |
 
 ## Quick start
 

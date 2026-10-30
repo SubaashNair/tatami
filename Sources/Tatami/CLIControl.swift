@@ -7,7 +7,8 @@ extension AppModel {
     private var cliSocketPath: String { CLIPaths.socketPath(home: NSHomeDirectory(), uid: getuid()) }
 
     func startCLIServer() {
-        guard state.cliEnabled, cliServer == nil else { return }
+        // An isolated data folder (tests, snapshots) must never take over the real user's socket.
+        guard state.cliEnabled, cliServer == nil, ProcessInfo.processInfo.environment["TATAMI_DATA_DIR"] == nil else { return }
         let server = CLIServer(path: cliSocketPath) { [weak self] request in
             await AppModel.handleCLI(request, on: self)  // hops to the main actor, where all window state lives
         }

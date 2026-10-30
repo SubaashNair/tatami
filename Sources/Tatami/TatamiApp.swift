@@ -52,6 +52,20 @@ final class OrganizerPanel: NSPanel {
         }
     }
 
+    /// Debug: render the dashboard to a PNG and quit. Use TATAMI_DATA_DIR so no real settings are read or written.
+    private func snapshotDashboard(to path: String) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [self] in
+            guard let view = window.contentView else { return }
+            window.setContentSize(NSSize(width: 1180, height: 820))
+            view.layoutSubtreeIfNeeded()
+            if let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+                view.cacheDisplay(in: view.bounds, to: rep)
+                try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
+            }
+            NSApp.terminate(nil)
+        }
+    }
+
     /// Debug: render the Stage cards to a PNG and quit. Our own view, so no Screen Recording is needed.
     private func snapshotBar(to path: String) {
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [self] in
@@ -95,6 +109,7 @@ final class OrganizerPanel: NSPanel {
         model.showStagesBar = { [weak self] in self?.stagesBar.toggle() }
         if let path = ProcessInfo.processInfo.environment["TATAMI_SNAPSHOT_BAR"] { snapshotBar(to: path) }
         if let path = ProcessInfo.processInfo.environment["TATAMI_SNAPSHOT_TABS"] { snapshotTabs(to: path) }
+        if let path = ProcessInfo.processInfo.environment["TATAMI_SNAPSHOT_DASHBOARD"] { snapshotDashboard(to: path) }
         model.onStageSwitched = { [weak self] index, stage in self?.indicator.show(index: index, stage: stage) }
         model.onDockPreferenceChanged = { [weak self] in self?.applyDockPreference() }
         applyDockPreference()
