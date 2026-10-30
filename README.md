@@ -11,6 +11,7 @@
   <img alt="Swift 5.10" src="https://img.shields.io/badge/Swift-5.10-d9a441?logo=swift&logoColor=white">
   <img alt="No dependencies" src="https://img.shields.io/badge/dependencies-none-3b5a47">
   <img alt="Keyboard first" src="https://img.shields.io/badge/keyboard-first-2f4a3a">
+  <img alt="Status: alpha" src="https://img.shields.io/badge/status-alpha-d9a441">
   <img alt="Local first" src="https://img.shields.io/badge/data-stays%20on%20your%20Mac-4d7a60">
 </p>
 
@@ -28,6 +29,8 @@
 # Tatami
 
 A native macOS workspace manager that you drive from the keyboard, like AeroSpace. Give each task a **Stage**, let your windows tile themselves into **Tiles**, and move between everything with one key. The mouse works too, but nothing needs it.
+
+> **Alpha (0.3.0).** Tatami works day to day on the setups it was built on, but expect rough edges: multi-display and unusual apps are the least tested, and settings or shortcuts may still change between releases. It moves other apps' windows off screen to switch Stages, so read [Safety and privacy](#safety-and-privacy) first, and keep `⌃⌥⌘R` (rescue) in mind. Bug reports are very welcome.
 
 ## Why Tatami
 

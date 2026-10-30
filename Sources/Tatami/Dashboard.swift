@@ -363,8 +363,6 @@ struct Dashboard: View {
         }
     }
 
-    /// Read from the app bundle, so the About text and the footer never fall behind the real version.
-    private var appVersion: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev" }
 
     /// What the active Stage's displays are doing: Tiles by default, Freeform where chosen.
     private var modeLabel: String {
@@ -423,7 +421,7 @@ struct Dashboard: View {
                 HStack { VStack(alignment: .leading, spacing: 6) { Text("Bring your windows back"); Text("Restores windows minimized by Tatami and pauses Stage management.").font(.system(size: 11)).foregroundStyle(Theme.muted) }; Spacer(); Button("Rescue Windows") { model.rescue() } }
                 Text("Emergency shortcut while managing: Control + Option + Command + R. macOS Stage Manager should be turned off while using Tatami.").font(.system(size: 11)).foregroundStyle(Theme.muted)
             }
-            Text("TATAMI \(appVersion) · LOCAL FIRST\nKeyboard first window management: Stages that span every display, Tiles that arrange new windows on their own, snapping, routing, and saved arrangements. It also includes the AI Organizer with your own key or a local model, and a tatami command for the terminal. Display pinning and AI Recipes are planned next.").font(.system(size: 11)).foregroundStyle(Theme.muted).lineSpacing(5)
+            Text("TATAMI \(Release.label) · LOCAL FIRST\nKeyboard first window management: Stages that span every display, Tiles that arrange new windows on their own, snapping, routing, and saved arrangements. It also includes the AI Organizer with your own key or a local model, and a tatami command for the terminal. Display pinning and AI Recipes are planned next.").font(.system(size: 11)).foregroundStyle(Theme.muted).lineSpacing(5)
         }.toggleStyle(.switch).controlSize(.small)
     }
 
@@ -447,7 +445,7 @@ struct Dashboard: View {
             Text(model.notice ?? "A calmer desk. A clearer mind.").lineLimit(2)
             Spacer()
             if model.notice != nil { Button { model.notice = nil } label: { Image(systemName: "xmark") }.buttonStyle(.plain).help("Dismiss status") }
-            Text("v\(appVersion)").font(.system(size: 10, design: .monospaced))
+            Text("v\(Release.label)").font(.system(size: 10, design: .monospaced))
         }.font(.system(size: 10)).foregroundStyle(Theme.muted).padding(.horizontal, 32).frame(height: 42).background(.white.opacity(0.5))
     }
     private func nameSheet(title: String, subtitle: String, button: String, action: @escaping () -> Void) -> some View {

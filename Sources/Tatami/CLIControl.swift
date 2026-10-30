@@ -91,15 +91,13 @@ extension AppModel {
 
     // MARK: queries
 
-    private var appVersion: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev" }
-
     private func cliStatus(json: Bool) -> String {
         let onStage = service.windows.filter { $0.stageID == state.activeStageID }.count
         if json {
-            return CLIFormat.json([["version": appVersion, "protocol": "\(CLIProtocol.version)", "managing": managing ? "yes" : "no",
+            return CLIFormat.json([["version": Release.version, "release": Release.stage, "protocol": "\(CLIProtocol.version)", "managing": managing ? "yes" : "no",
                                     "stage": state.activeStage.name, "windows": "\(onStage)", "displays": "\(displays.count)"]])
         }
-        return ["Tatami \(appVersion)", managing ? "Managing" : "Paused", "Stage: \(state.activeStage.name)",
+        return ["Tatami \(Release.label)", managing ? "Managing" : "Paused", "Stage: \(state.activeStage.name)",
                 "Windows on this Stage: \(onStage)", "Displays: \(displays.count)"].joined(separator: "\n")
     }
 
