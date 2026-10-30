@@ -68,14 +68,20 @@ public struct WorkspaceState: Codable {
     public var showSwitchIndicator = true
     /// Menu-bar-only by default (M2 decision 6).
     public var showInDock = false
-    /// Stages Bar hot zone at the top-centre of each display (M2 decision 3).
+    /// Stage cards hot zone at the top-centre of each display (M2 decision 3).
     public var barHotZone = true
     public var barDelay: Double = 0.2
     public var barIgnoresNotch = false
     /// Cmd+` cycles only the frontmost app's windows on the active Stage (STG-07). Off by default.
     public var scopeCommandBacktick = false
-    /// Stage id → display keys using TabStack (M3 decision 11). Freeform elsewhere.
-    public var tabStack: [String: [String]] = [:]
+    /// Stage id → display keys using Tiles (M3 decision 11). Freeform elsewhere.
+    public var tiledDisplays: [String: [String]] = [:]
+    /// New windows tile on their own unless a display was set to Freeform (keyboard first: no mode key needed).
+    public var tilesByDefault = true
+    /// Stage id → display keys the user set to Freeform (a choice, kept even if the default changes).
+    public var freeformDisplays: [String: [String]] = [:]
+    /// The `tatami` command may talk to the app over a private local socket (same user only).
+    public var cliEnabled = true
     public var newWindowPlacement: NewWindowPlacement = .automatic
     public var keepEmptyPanes = false
     /// Saved per-app Manage in Layout / Keep Floating choices (M3 decision 8), first match wins.
@@ -90,8 +96,11 @@ public struct WorkspaceState: Codable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, stages, activeStageID, saved, rules, excludedBundleIDs, followSentWindow, followActivatedWindows, showSwitchIndicator, showInDock, barHotZone, barDelay, barIgnoresNotch, scopeCommandBacktick, tabStack, newWindowPlacement, keepEmptyPanes, behaviorRules, shortcutPreset, gap, ai
+        case version, stages, activeStageID, saved, rules, excludedBundleIDs, followSentWindow, followActivatedWindows, showSwitchIndicator, showInDock, barHotZone, barDelay, barIgnoresNotch, scopeCommandBacktick, tiledDisplays, tilesByDefault, freeformDisplays, cliEnabled, newWindowPlacement, keepEmptyPanes, behaviorRules, shortcutPreset, gap, ai
     }
+
+    /// Keys written by earlier builds, read for migration only.
+    private enum LegacyKeys: String, CodingKey { case tabStack }
 
     // Missing keys fall back to defaults so older files keep loading. Legacy `europeanShortcuts` is ignored: every file migrates to `.standard`.
     public init(from decoder: Decoder) throws {
@@ -111,7 +120,13 @@ public struct WorkspaceState: Codable {
         barDelay = try c.decodeIfPresent(Double.self, forKey: .barDelay) ?? defaults.barDelay
         barIgnoresNotch = try c.decodeIfPresent(Bool.self, forKey: .barIgnoresNotch) ?? defaults.barIgnoresNotch
         scopeCommandBacktick = try c.decodeIfPresent(Bool.self, forKey: .scopeCommandBacktick) ?? defaults.scopeCommandBacktick
-        tabStack = try c.decodeIfPresent([String: [String]].self, forKey: .tabStack) ?? defaults.tabStack
+        // Files saved before TabStack became Tiles used the key "tabStack".
+        let legacy = try decoder.container(keyedBy: LegacyKeys.self)
+        tiledDisplays = try c.decodeIfPresent([String: [String]].self, forKey: .tiledDisplays)
+            ?? legacy.decodeIfPresent([String: [String]].self, forKey: .tabStack) ?? defaults.tiledDisplays
+        tilesByDefault = try c.decodeIfPresent(Bool.self, forKey: .tilesByDefault) ?? defaults.tilesByDefault
+        freeformDisplays = try c.decodeIfPresent([String: [String]].self, forKey: .freeformDisplays) ?? defaults.freeformDisplays
+        cliEnabled = try c.decodeIfPresent(Bool.self, forKey: .cliEnabled) ?? defaults.cliEnabled
         newWindowPlacement = try c.decodeIfPresent(NewWindowPlacement.self, forKey: .newWindowPlacement) ?? defaults.newWindowPlacement
         keepEmptyPanes = try c.decodeIfPresent(Bool.self, forKey: .keepEmptyPanes) ?? defaults.keepEmptyPanes
         behaviorRules = try c.decodeIfPresent([WindowBehaviorRule].self, forKey: .behaviorRules) ?? defaults.behaviorRules
@@ -122,15 +137,34 @@ public struct WorkspaceState: Codable {
 
     public var activeStage: Stage { stages.first(where: { $0.id == activeStageID }) ?? stages[0] }
 
+    /// Whether a display is tiled on a Stage: an explicit choice wins, otherwise the default mode applies.
+    public func isTiled(stage: UUID, display: String) -> Bool {
+        let key = stage.uuidString
+        if tiledDisplays[key]?.contains(display) == true { return true }
+        if freeformDisplays[key]?.contains(display) == true { return false }
+        return tilesByDefault
+    }
+
+    /// Sets one display's mode on one Stage. The choice is always stored, so it survives a later change of the default.
+    public mutating func setTiled(_ tiled: Bool, stage: UUID, display: String) {
+        let key = stage.uuidString
+        tiledDisplays[key]?.removeAll { $0 == display }
+        freeformDisplays[key]?.removeAll { $0 == display }
+        if tiled { tiledDisplays[key, default: []].append(display) } else { freeformDisplays[key, default: []].append(display) }
+        if tiledDisplays[key]?.isEmpty == true { tiledDisplays[key] = nil }
+        if freeformDisplays[key]?.isEmpty == true { freeformDisplays[key] = nil }
+    }
+
     public mutating func validate() throws {
         guard version == 1 else { throw ValidationError.unsupportedVersion }
-        // Deleting or merging a Stage never removes its TabStack entry; stale ones must not push saving over the limit.
+        // Deleting or merging a Stage never removes its Tiles entry; stale ones must not push saving over the limit.
         let live = Set(stages.map { $0.id.uuidString })
-        tabStack = tabStack.filter { live.contains($0.key) && !$0.value.isEmpty }
+        tiledDisplays = tiledDisplays.filter { live.contains($0.key) && !$0.value.isEmpty }
+        freeformDisplays = freeformDisplays.filter { live.contains($0.key) && !$0.value.isEmpty }
         guard !stages.isEmpty, stages.count <= 9, Set(stages.map(\.id)).count == stages.count,
               stages.allSatisfy({ !$0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && $0.name.count <= 60 }),
               gap.isFinite, (0...40).contains(gap), barDelay.isFinite, (0...2).contains(barDelay), saved.count <= 100,
-              rules.count <= 500, behaviorRules.count <= 500, tabStack.count <= 9, ai?.isValid ?? true else { throw ValidationError.invalidState }
+              rules.count <= 500, behaviorRules.count <= 500, tiledDisplays.count <= 9, freeformDisplays.count <= 9, ai?.isValid ?? true else { throw ValidationError.invalidState }
         guard stages.contains(where: { $0.id == activeStageID }) else { throw ValidationError.invalidState }
         for workspace in saved {
             guard !workspace.stages.isEmpty, workspace.stages.count <= 9,
@@ -179,11 +213,25 @@ public struct WindowBehaviorRule: Codable, Equatable, Identifiable {
 }
 
 extension WorkspaceState {
-    /// Apps whose windows float by default in TabStack (M3 decision 8).
+    /// Apps whose windows float by default in Tiles (M3 decision 8).
     public static let defaultFloatingBundles: Set<String> = [
         "com.apple.systempreferences", "com.apple.calculator", "com.apple.ActivityMonitor", "com.apple.PIPAgent",
         "com.apple.finder.Get-Info", "com.apple.archiveutility", "com.apple.ScreenSharing",
+        "com.apple.PhotoBooth",  // cannot shrink to a pane, so it would spill over its neighbours
     ]
+
+    /// Flips every window of an app between floating and tiled. A rule is saved only when the default list disagrees with
+    /// the new state, so pressing it twice leaves nothing behind. Rules for a specific title are left alone.
+    /// Returns whether the app now floats.
+    @discardableResult public mutating func toggleAppBehavior(bundleID: String) -> Bool {
+        let floats = !isFloating(bundleID: bundleID, title: "")
+        behaviorRules.removeAll { $0.bundleID == bundleID && $0.titleContains.isEmpty }
+        if isFloating(bundleID: bundleID, title: "") != floats {
+            // Last, so a rule for a specific window title (checked first) keeps winning over the app-wide choice.
+            behaviorRules.append(WindowBehaviorRule(bundleID: bundleID, behavior: floats ? .floating : .managed))
+        }
+        return floats
+    }
 
     /// Saved rules first, then the default float list; everything else is managed.
     public func isFloating(bundleID: String, title: String) -> Bool {
@@ -222,7 +270,7 @@ public enum ShortcutPreset: String, Codable, CaseIterable {
     case standard, classic
     public var stageModifiers: String { self == .standard ? "⌃⌥" : "⌥" }
     public var navigationModifiers: String { self == .standard ? "⌃⌥⌘" : "⌥" }
-    /// TabStack pane commands. Classic keeps BetterStage's ⌘⌥; Standard avoids ⌘⌥I/J (browser developer tools).
+    /// Tiles pane commands. Classic keeps BetterStage's ⌘⌥; Standard avoids ⌘⌥I/J (browser developer tools).
     public var paneModifiers: String { self == .standard ? "⌃⌥⌘" : "⌘⌥" }
 }
 

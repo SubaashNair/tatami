@@ -127,7 +127,7 @@ public struct Checkpoint: Codable {
     /// Stage → window number of the last focused window on that Stage.
     public var lastFocused: [UUID: UInt32]
     public var windows: [CheckpointWindow]
-    /// TabStack layouts (M3 decision 11). Optional so M1/M2 checkpoints still load.
+    /// Tiles layouts (M3 decision 11). Optional so M1/M2 checkpoints still load.
     public var layouts: [SavedLayout]?
     public init(activeStageID: UUID, lastFocused: [UUID: UInt32], windows: [CheckpointWindow], layouts: [SavedLayout]? = nil) {
         self.activeStageID = activeStageID; self.lastFocused = lastFocused; self.windows = windows; self.layouts = layouts

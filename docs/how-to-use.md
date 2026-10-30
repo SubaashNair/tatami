@@ -30,9 +30,33 @@ Safety: `⌃⌥⌘R` (Rescue and pause) brings every hidden window back. Quittin
 | Make a new / close a Stage | `⌃⌥N` / `⌃⌥X` (close shows Undo) |
 | Collapse everything into one Stage | `⌃⌥M` |
 
-In the Stages Bar: click a card to switch, click a name to rename, drag a window by its title bar up to the bar and drop it on a card (or on **+** for a new Stage).
+Stage cards (rest the pointer at the top centre of a screen): click a card to switch, click a name to rename, drag a window by its title bar up to the cards and drop it on one (or on **+** for a new Stage).
 
 Tip: focusing a window from another Stage (Cmd + Tab, Dock click) switches to that Stage automatically.
+
+### Moving between windows with the keyboard
+
+Tatami is keyboard first: everything below works without the mouse, in freeform and in Tiles.
+
+| You want | Keys |
+|---|---|
+| Focus the window above / left / below / right | `⌃⌥⌘` + I / J / K / L |
+| Swap places with the freeform window that way (or move to the next pane in Tiles) | `⌃⌥⌘⇧` + I / J / K / L |
+| Focus the previous / next window, across all displays | `⌃⌥⌘[` / `⌃⌥⌘]` |
+
+Focus stops at the edge of your screens. Windows are ordered left to right across displays, then top to bottom. Classic uses `⌘⌥` in place of `⌃⌥⌘`.
+
+**Going straight to a pane, and turning a split.** Each tab bar shows its pane's number (1, 2, 3…, in reading order across displays).
+
+| You want | Keys |
+|---|---|
+| Focus pane 1 to 9 | `⌃⌥⌘1` to `⌃⌥⌘9` |
+| Move the focused window into pane 1 to 9 | `⌃⌥⌘⇧1` to `⌃⌥⌘⇧9` |
+| Turn the focused pane's split the other way (side by side to stacked, and back) | `⌃⌥⌘/` |
+
+**Floating a window, and bringing it back.** `⌃⌥⌘T` floats the focused window (it sits in the middle of its display at half its tiled size) and, pressed on a floating window, puts it back into a pane. `⌃⌥⌘⇧T` does the same for every window of that app and remembers it; pressing it again removes the rule. A floating window has no tab bar, so the menu-bar item **Float or Tile Focused Window** is the mouse route. Focus and cycling keys reach floating windows too.
+
+Rotate keeps every window and every pane size; it only changes the direction. If the pane's neighbours form a nested split, rotating can merge them into one row or column, and rotating again does not split them back (`⌃⌥⌘Z` does). Numbers read row by row, so a left pane with two stacked panes on its right is numbered 1, 2, 3 from the top row down.
 
 ## 3. Three productivity setups
 
@@ -56,9 +80,10 @@ Set a routing rule (a window's menu, then app routing) so Slack always lands in 
 | Two thirds | `⌃⌥` + Q / R / W |
 | Center / maximize | `⌃⌥C` / `⌃⌥Return` |
 
-**TabStack** (tiling with tab bars), per display per Stage:
+**Tiles** (tiling with tab bars), per display per Stage:
 
-1. Press `⌃⌥B` to tile the focused display. Each window gets a pane (up to four); extras become tabs.
+0. Tiles is the default. While Tatami is managing, every window you open joins a pane by itself, with no key press. `⌃⌥B` switches the focused display to Freeform and back. Preferences has **Tile new windows automatically** to change the default.
+1. Each window gets a pane (up to four); extras become tabs.
 2. Move around: focus a pane with `⌃⌥⌘` + I / J / K / L, move the window there by adding `⇧`.
 3. Switch tabs with `⌃⌥[` and `⌃⌥]`. Click a tab to select it, right-click for Close, Split, Keep Floating, Move to Stage.
 4. Resize: drag a window edge, or use `⌃⌥⌘=` and `⌃⌥⌘−`.
@@ -81,10 +106,10 @@ Do these in order and note anything odd. Use throwaway windows, not unsaved docu
 - [ ] Start managing with 3 Stages and 6 or more windows (include Safari or Chrome, Finder, Terminal).
 - [ ] Switch Stages with `⌃⌥1` to `⌃⌥3` repeatedly. Check it feels instant and the right windows show.
 - [ ] Cmd + Tab to a window in another Stage. It should switch Stage.
-- [ ] Open the Stages Bar. Rename a Stage, drag a window onto a card.
+- [ ] Show the Stage cards. Rename a Stage, drag a window onto a card.
 - [ ] Close a Stage and click Undo.
 - [ ] Snap a window to a half and a quarter, then undo the arrangement.
-- [ ] Press `⌃⌥B` for TabStack, move focus with `⌃⌥⌘` + I / J / K / L, switch tabs, then `⌃⌥B` to return.
+- [ ] Open a new app: it should join a pane by itself. Move focus with `⌃⌥⌘` + I / J / K / L, switch tabs, then press `⌃⌥B` to go to Freeform and back.
 - [ ] Press `⌃⌥⌘R`. Everything should reappear. Start managing again.
 - [ ] Quit Tatami with windows hidden. All windows should come back.
 - [ ] With two displays: unplug one and check the Restore / Keep Current prompt on reconnect.
@@ -99,6 +124,7 @@ Do these in order and note anything odd. Use throwaway windows, not unsaved docu
 | Windows jump or fight | Another window manager or Stage Manager is still running |
 | A window peeks out at a corner | Parked windows keep 1 pt visible. This is expected |
 | An app window won't move off screen | Tatami minimizes it instead. This is expected |
+| An app is too big for its pane (Photo Booth, apps with a minimum size) | Tatami first widens or heightens that pane at its neighbours' expense. If there is no room it floats the window and says so; `⌃⌥⌘T` tiles it again, `⌃⌥⌘Z` undoes a widened pane |
 | Accessibility was revoked | Re-enable it; parked windows return on their own |
 
 Data lives in `~/Library/Application Support/Tatami/`. For anything that breaks, note the app, what you pressed, and what happened.

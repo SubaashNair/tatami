@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="Tatami green bold">
+  <defs>
+    <clipPath id="clip"><rect x="100" y="100" width="824" height="824" rx="185"/></clipPath>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#315a49"/><stop offset="1" stop-color="#223f33"/></linearGradient>
+    <filter id="sh" x="-10%" y="-10%" width="120%" height="125%"><feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#000" flood-opacity="0.35"/></filter>
+  </defs>
+  <g filter="url(#sh)"><rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/></g>
+  
+  <rect x="212" y="272" width="600" height="480" rx="70" fill="none" stroke="#efe9d2" stroke-width="34"/>
+  <rect x="274" y="334" width="226" height="170" rx="30" fill="#efe9d2" fill-opacity="0.18" stroke="#efe9d2" stroke-width="22"/>
+  <rect x="524" y="334" width="226" height="170" rx="30" fill="#d9b44a" stroke="#efe9d2" stroke-width="22"/>
+  <rect x="274" y="528" width="476" height="166" rx="30" fill="#efe9d2" fill-opacity="0.18" stroke="#efe9d2" stroke-width="22"/>
+</svg>

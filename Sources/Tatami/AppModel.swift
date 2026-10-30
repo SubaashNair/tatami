@@ -35,13 +35,21 @@ import TatamiCore
     /// Stage → window last focused there, restored when returning to the Stage (M1 decision 12).
     var lastFocused: [UUID: UUID] = [:]
     var checkpointWork: DispatchWorkItem?
-    // TabStack (M3)
+    // Tiles (M3)
     var layouts: [LayoutKey: PaneLayout] = [:]
     var histories: [LayoutKey: LayoutHistory] = [:]
-    /// Pre-TabStack frames, restored when a display returns to Freeform. ponytail: in memory only; after a relaunch windows stay tiled-size.
+    /// Pre-Tiles frames, restored when a display returns to Freeform. ponytail: in memory only; after a relaunch windows stay tiled-size.
     var freeformFrames: [UUID: CGRect] = [:]
     var expectedFrames: [UUID: CGRect] = [:]
     var minSizeWindows: Set<UUID> = []
+    /// True while making room for windows that cannot shrink, so the layout pass that follows does not start another.
+    var fittingOversized = false
+    /// The local socket behind the `tatami` command, while command-line control is on.
+    var cliServer: CLIServer?
+    /// A delayed re-check is queued, so a window that is merely slow to resize is not mistaken for one with a minimum size.
+    var oversizedCheckPending = false
+    /// Sizes below which a window cannot go, learned when it overflowed its pane; other fits must not squeeze it further.
+    var knownMinSizes: [UUID: CGSize] = [:]
     var userEditingLayout = false
     /// Per-window Keep Floating / Manage in Layout choices that were not saved as rules.
     var behaviorOverrides: [UUID: WindowBehavior] = [:]
@@ -100,6 +108,7 @@ import TatamiCore
         if trusted { _ = service.recoverPreviousSession() }
         service.stateProvider = { [weak self] in self?.state ?? WorkspaceState() }
         applyLaunchAtLoginDefault()
+        startCLIServer()
         service.onWindowsChanged = { [weak self] notifications in
             self?.windowsChanged()
             if notifications.contains(kAXFocusedWindowChangedNotification) || notifications.contains(kAXMainWindowChangedNotification) { self?.followFocus() }
@@ -288,7 +297,7 @@ import TatamiCore
         state.stages.swapAt(index, index + direction); persist()
     }
 
-    /// Drag-to-reorder in the Stages Bar. Number shortcuts follow the new order.
+    /// Drag-to-reorder in the Stage cards. Number shortcuts follow the new order.
     func moveStage(_ id: UUID, before target: UUID) {
         guard id != target, let from = state.stages.firstIndex(where: { $0.id == id }) else { return }
         let stage = state.stages.remove(at: from)
@@ -472,7 +481,7 @@ import TatamiCore
         if managing { let failures = hotkeys.register(preset: state.shortcutPreset, scopeCommandBacktick: state.scopeCommandBacktick); scrollSwitcher.stop(); scrollSwitcher.start(preset: state.shortcutPreset); reportFailures(failures, action: "register shortcuts") }
     }
 
-    func shutdown() { timer?.invalidate(); hotkeys.unregister(); scrollSwitcher.stop(); _ = service.restoreOwnedWindows(); writeCheckpoint(); persist() }
+    func shutdown() { timer?.invalidate(); stopCLIServer(); hotkeys.unregister(); scrollSwitcher.stop(); _ = service.restoreOwnedWindows(); writeCheckpoint(); persist() }
     func reportFailures(_ count: Int, action: String) { if count > 0 { error = "Could not \(action) for \(count) item(s). Some applications may not support the requested action." } }
 
     private func handle(_ action: HotkeyAction) {
@@ -487,8 +496,14 @@ import TatamiCore
         case .mergeAll: mergeAll()
         case .cycleAppWindows(let offset): cycleAppWindows(offset)
         case .cycleMode: toggleWindowMode()
-        case .focusPane(let direction): focusPane(direction)
-        case .moveToPane(let direction): moveToPane(direction)
+        case .focusPane(let direction): focusDirectional(direction)
+        case .moveToPane(let direction): moveDirectional(direction)
+        case .cycleWindows(let offset): cycleWindows(offset: offset)
+        case .focusPaneNumber(let number): focusPane(number: number)
+        case .movePaneNumber(let number): moveToPane(number: number)
+        case .rotateSplit: rotateSplit()
+        case .toggleFloat: toggleFloating()
+        case .toggleFloatApp: toggleFloatingForApp()
         case .tab(let offset): mutateLayout { layout, _ in layout.cycleTab(offset) }
         case .zoomPane: mutateLayout { layout, _ in layout.toggleZoom(layout.focused) }
         case .splitPane(let axis): mutateLayout { layout, _ in

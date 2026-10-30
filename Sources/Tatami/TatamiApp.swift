@@ -52,7 +52,21 @@ final class OrganizerPanel: NSPanel {
         }
     }
 
-    /// Debug: render the Stages Bar to a PNG and quit. Our own view, so no Screen Recording is needed.
+    /// Debug: render the dashboard to a PNG and quit. Use TATAMI_DATA_DIR so no real settings are read or written.
+    private func snapshotDashboard(to path: String) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [self] in
+            guard let view = window.contentView else { return }
+            window.setContentSize(NSSize(width: 1180, height: 820))
+            view.layoutSubtreeIfNeeded()
+            if let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+                view.cacheDisplay(in: view.bounds, to: rep)
+                try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
+            }
+            NSApp.terminate(nil)
+        }
+    }
+
+    /// Debug: render the Stage cards to a PNG and quit. Our own view, so no Screen Recording is needed.
     private func snapshotBar(to path: String) {
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [self] in
             let bar = BarState(); bar.keyboard = true; bar.selected = 1
@@ -87,7 +101,7 @@ final class OrganizerPanel: NSPanel {
         window.center()
         setupMainMenu()
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem.button?.image = NSImage(systemSymbolName: "square.split.2x2", accessibilityDescription: "Tatami")
+        statusItem.button?.image = BrandMark.menuBarImage()
         model.showDashboard = { [weak self] in self?.showWindow() }
         stagesBar = StagesBarController(model: model)
         tabBars = TabBarController(model: model)
@@ -95,6 +109,7 @@ final class OrganizerPanel: NSPanel {
         model.showStagesBar = { [weak self] in self?.stagesBar.toggle() }
         if let path = ProcessInfo.processInfo.environment["TATAMI_SNAPSHOT_BAR"] { snapshotBar(to: path) }
         if let path = ProcessInfo.processInfo.environment["TATAMI_SNAPSHOT_TABS"] { snapshotTabs(to: path) }
+        if let path = ProcessInfo.processInfo.environment["TATAMI_SNAPSHOT_DASHBOARD"] { snapshotDashboard(to: path) }
         model.onStageSwitched = { [weak self] index, stage in self?.indicator.show(index: index, stage: stage) }
         model.onDockPreferenceChanged = { [weak self] in self?.applyDockPreference() }
         applyDockPreference()
@@ -171,6 +186,8 @@ final class OrganizerPanel: NSPanel {
     }
     @objc private func selectStage(_ sender: NSMenuItem) { if let id = sender.representedObject as? UUID { model.switchStage(id) } }
     @objc private func preferences() { model.selection = "settings"; showWindow() }
+    @objc private func floatOrTile() { model.toggleFloating() }
+    @objc private func installCommandLine() { model.installCommandLineTool() }
 
     private func updateStatusMenu() {
         statusItem.button?.title = " \(model.state.activeStage.name)"
@@ -189,6 +206,8 @@ final class OrganizerPanel: NSPanel {
         add(menu, "Arrange with AI…", #selector(toggleOrganizer))
         add(menu, "Sort Windows into Stages…", #selector(sortWindows))
         add(menu, model.managing ? "Pause & Restore Windows" : "Start Managing", #selector(toggleManagement))
+        add(menu, "Float or Tile Focused Window", #selector(floatOrTile))
+        add(menu, "Install Command Line Tool…", #selector(installCommandLine))
         add(menu, "Rescue Windows", #selector(rescue))
         add(menu, "Preferences…", #selector(preferences))
         menu.addItem(.separator())

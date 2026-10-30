@@ -6,14 +6,28 @@ import CoreGraphics
 final class ReviewFixTests: XCTestCase {
     // MARK: settings must keep saving after Stages are deleted or merged
 
-    func testValidateDropsTabStackEntriesForRemovedStages() throws {
+    func testValidateDropsTiledEntriesForRemovedStages() throws {
         var state = WorkspaceState()
         let kept = state.stages[0].id.uuidString
-        state.tabStack = [kept: ["display-a"]]
-        for _ in 0..<12 { state.tabStack[UUID().uuidString] = ["display-a"] }  // Stages that were deleted or merged away
+        state.tiledDisplays = [kept: ["display-a"]]
+        for _ in 0..<12 { state.tiledDisplays[UUID().uuidString] = ["display-a"] }  // Stages that were deleted or merged away
         try state.validate()
-        XCTAssertEqual(Array(state.tabStack.keys), [kept])
-        XCTAssertEqual(state.tabStack[kept], ["display-a"])
+        XCTAssertEqual(Array(state.tiledDisplays.keys), [kept])
+        XCTAssertEqual(state.tiledDisplays[kept], ["display-a"])
+    }
+
+    // MARK: renaming TabStack to Tiles must not lose saved settings
+
+    func testSettingsSavedUnderTheOldTabStackKeyStillLoad() throws {
+        var state = WorkspaceState()
+        let stage = state.stages[0].id.uuidString
+        state.tiledDisplays = [stage: ["display-a"]]
+        let json = try JSONEncoder().encode(state)
+        XCTAssertTrue(String(decoding: json, as: UTF8.self).contains("tiledDisplays"))
+        // A settings file written before the rename used "tabStack".
+        let legacy = String(decoding: json, as: UTF8.self).replacingOccurrences(of: "tiledDisplays", with: "tabStack")
+        let loaded = try JSONDecoder().decode(WorkspaceState.self, from: Data(legacy.utf8))
+        XCTAssertEqual(loaded.tiledDisplays[stage], ["display-a"])
     }
 
     // MARK: an app that did not answer a scan is not an app with no windows

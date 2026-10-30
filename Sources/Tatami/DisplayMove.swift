@@ -25,7 +25,7 @@ extension AppModel {
         let sourceKey = layoutKey(containing: id)
         guard window.hidden == nil || sourceKey != nil else { notice = "\(window.appName) is on another Stage. Switch to it first."; return }
         guard let source = service.display(for: window.hidden == nil ? window.frame : window.realFrame), source.id != target.id else { return }
-        let tiledThere = isTabStack(stage: window.stageID, display: target.id) && isLayoutCandidate(window)
+        let tiledThere = isTiled(stage: window.stageID, display: target.id) && isLayoutCandidate(window)
         let targetKey = LayoutKey(stage: window.stageID, display: target.id)
         let moved = tiledThere ? joinLayout(id, from: sourceKey, to: targetKey) : moveFreeform(window, from: source, to: target, leaving: sourceKey)
         if moved { notice = "\(window.appName) moved to \(target.name)." }
@@ -38,7 +38,7 @@ extension AppModel {
         layout.add(id, to: landing)
         if layout.zoomed != landing { layout.zoomed = nil }  // a zoomed neighbour pane would hide the arriving tab
         layouts[targetKey] = layout
-        freeformFrames[id] = nil  // it joined this layout later, so leaving TabStack leaves it where it is
+        freeformFrames[id] = nil  // it joined this layout later, so leaving Tiles leaves it where it is
         applyLayouts()
         service.focus(id)
         return true

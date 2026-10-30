@@ -26,7 +26,7 @@ extension AppModel {
             detachLayouts(of: gone, into: target)
         }
         for display in returned {
-            // TabStack windows are also in `displaced`; count each window once.
+            // Tiles windows are also in `displaced`; count each window once.
             let count = max(displaced.values.filter { $0.display == display.id }.count,
                             detachedLayouts.filter { $0.key.display == display.id }.values.reduce(0) { $0 + $1.windows.count })
             if count > 0 { onReconnectOffer?(ReconnectOffer(displayName: display.name, displayKey: display.id, count: count)) }
@@ -54,8 +54,8 @@ extension AppModel {
         if moved > 0 { notice = "\(moved) window(s) moved from the disconnected display to \(target.name)." }
     }
 
-    /// A TabStack display went away: its windows become tabs in the focused pane on `target` when that display
-    /// is also TabStack (otherwise they stay free-floating there), and its layout waits for Restore.
+    /// A Tiles display went away: its windows become tabs in the focused pane on `target` when that display
+    /// is also Tiles (otherwise they stay free-floating there), and its layout waits for Restore.
     private func detachLayouts(of gone: [DisplayInfo], into target: DisplayInfo) {
         let goneKeys = Set(gone.map(\.id))
         for (key, layout) in layouts where goneKeys.contains(key.display) {
@@ -63,7 +63,10 @@ extension AppModel {
             layouts[key] = nil
             let destination = LayoutKey(stage: key.stage, display: target.id)
             guard var receiving = layouts[destination] else { continue }
-            for window in layout.windows { receiving.add(window, to: receiving.focused) }
+            for window in layout.windows {
+                receiving.add(window, to: receiving.focused)
+                freeformFrames[window] = nil  // its saved frame belonged to the display that is gone
+            }
             layouts[destination] = receiving
         }
         applyLayouts()

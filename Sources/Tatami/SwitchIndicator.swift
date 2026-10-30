@@ -8,7 +8,7 @@ import TatamiCore
     private let panel: NSPanel
     private var hideWork: DispatchWorkItem?
     private static let visibleFor: TimeInterval = 1.5
-    private static let offsetFromTop: CGFloat = 140  // below the Stages Bar area
+    private static let offsetFromTop: CGFloat = 140  // below the Stage cards area
 
     init() {
         panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 240, height: 56), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)

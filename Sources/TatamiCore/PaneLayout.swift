@@ -1,7 +1,7 @@
 import Foundation
 import CoreGraphics
 
-// TabStack layout engine (M3). Pure value types: every mutation is a cheap copy, which also makes undo trivial.
+// Tiles layout engine (M3). Pure value types: every mutation is a cheap copy, which also makes undo trivial.
 // Frames use AX coordinates (y grows downward).
 
 public typealias WindowID = UUID
@@ -72,6 +72,24 @@ public indirect enum LayoutNode: Codable, Equatable {
         case .split(let axis, let children):
             return .split(axis, children.map { Child(node: $0.node.replacing(id, with: replacement), weight: $0.weight) })
         }
+    }
+
+    /// The tree with the split that directly holds pane `id` turned the other way (row to column, column to row).
+    /// Nil when that pane has no parent split. The result is not yet normalized.
+    func rotatingSplit(holding id: UUID) -> LayoutNode? {
+        guard case .split(let axis, let children) = self else { return nil }
+        let holdsIt = children.contains { child in
+            if case .pane(let pane) = child.node { return pane.id == id }
+            return false
+        }
+        if holdsIt { return .split(axis == .horizontal ? .vertical : .horizontal, children) }
+        for (index, child) in children.enumerated() {
+            guard let rotated = child.node.rotatingSplit(holding: id) else { continue }
+            var copy = children
+            copy[index] = Child(node: rotated, weight: child.weight)
+            return .split(axis, copy)
+        }
+        return nil
     }
 
     /// No empty or single-child splits; a child split on the parent's axis is flattened into it, keeping its share.
@@ -196,7 +214,7 @@ public struct PaneLayout: Codable, Equatable {
         return rows.count == 1 ? rows[0] : .split(.vertical, rows.map { Child(node: $0, weight: 1) })
     }
 
-    /// Entering TabStack (M3 decision 4): one pane per window up to four; extras join the largest pane as tabs.
+    /// Entering Tiles (M3 decision 4): one pane per window up to four; extras join the largest pane as tabs.
     public static func balanced(windows: [WindowID], aspect: Double) -> PaneLayout {
         guard !windows.isEmpty else { return PaneLayout(root: .pane(Pane())) }
         let own = windows.prefix(maxAutoPanes).map { Pane(tabs: [$0]) }
@@ -279,6 +297,75 @@ public struct PaneLayout: Codable, Equatable {
         root = root.replacing(pane, with: .split(axis, [Child(node: .pane(current), weight: 1), Child(node: .pane(fresh), weight: 1)])).normalized() ?? root
         focused = fresh.id
         return fresh.id
+    }
+
+    /// No pane is squeezed below this to make room for a window that cannot shrink.
+    static let minPaneWidth: CGFloat = 240, minPaneHeight: CGFloat = 160
+
+    /// Grows `pane` until its window area holds `size`, taking space from its neighbours on both sides. Returns false, and
+    /// changes nothing, when that would squeeze another pane below a usable size (or below a window minimum already known
+    /// in `keeping`, by pane), or the window is bigger than the screen allows. A pane that was already small before is not
+    /// blamed unless this change makes it smaller.
+    @discardableResult public mutating func fit(_ pane: UUID, toWindowSize size: CGSize, in area: CGRect, gap: Double, tabBar: Double,
+                                                keeping minimums: [UUID: CGSize] = [:]) -> Bool {
+        var trial = self
+        let before = frames(in: area, gap: gap, tabBar: tabBar)
+        let inner = area.insetBy(dx: gap / 2, dy: gap / 2)
+        func shortfall() -> CGSize? {
+            guard let window = trial.frames(in: area, gap: gap, tabBar: tabBar)[pane]?.window else { return nil }
+            return CGSize(width: max(0, size.width - window.width), height: max(0, size.height - window.height))
+        }
+        guard let first = shortfall() else { return false }
+        if first.width <= 1, first.height <= 1 { return true }  // already fits: nothing to do, nothing to check
+        /// Takes the missing space from the neighbour that can give up the most first, never more than it can spare
+        /// (down to the minimum pane size), then from the other side. Repeats a few times, since gaps and tab bars are not proportional.
+        func grow(_ axis: Axis) {
+            let (forward, backward): (Direction, Direction) = axis == .horizontal ? (.right, .left) : (.down, .up)
+            for _ in 0..<3 {
+                guard let missing = shortfall().map({ axis == .horizontal ? $0.width : $0.height }), missing > 1 else { return }
+                let frames = trial.frames(in: area, gap: gap, tabBar: tabBar)
+                guard let mine = frames[pane]?.pane else { return }
+                let others = frames.filter { $0.key != pane }.map { ($0.key, $0.value.pane) }
+                func spare(_ direction: Direction) -> CGFloat {
+                    guard let id = Self.neighbour(of: mine, toward: direction, among: others), let rect = frames[id]?.pane else { return 0 }
+                    return max(0, axis == .horizontal ? rect.width - Self.minPaneWidth : rect.height - Self.minPaneHeight)
+                }
+                var needed = missing
+                for (towardNext, available) in [(true, spare(forward)), (false, spare(backward))].sorted(by: { $0.1 > $1.1 }) where needed > 1 && available > 0 {
+                    let take = min(needed, available)
+                    trial.transfer(pane: pane, axis: axis, towardNext: towardNext, amount: { total, rect in
+                        Double(take / max(axis == .horizontal ? rect.width : rect.height, 1)) * total
+                    }, area: inner)
+                    needed -= take
+                }
+            }
+        }
+        grow(.horizontal); grow(.vertical); grow(.horizontal)  // in nested layouts, growing one way can change the other
+        guard let left = shortfall(), left.width <= 1, left.height <= 1 else { return false }
+        let after = trial.frames(in: area, gap: gap, tabBar: tabBar)
+        for (other, frame) in after where other != pane {
+            let was = before[other]?.pane ?? frame.pane
+            guard frame.pane.width >= Self.minPaneWidth || frame.pane.width >= was.width - 1,
+                  frame.pane.height >= Self.minPaneHeight || frame.pane.height >= was.height - 1 else { return false }
+        }
+        for (other, minimum) in minimums where other != pane {
+            guard let window = after[other]?.window else { continue }
+            let was = before[other]?.window ?? window
+            guard window.width >= minimum.width - 1 || window.width >= was.width - 1,
+                  window.height >= minimum.height - 1 || window.height >= was.height - 1 else { return false }
+        }
+        self = trial
+        return true
+    }
+
+    /// Each pane's rectangle in `area`, ignoring any zoom, so panes can be numbered by position.
+    public func paneRects(in area: CGRect) -> [UUID: CGRect] { root.rects(in: area) }
+
+    /// Rotates the split holding `pane`: side by side becomes stacked and back, with every window and share kept.
+    /// A lone pane has nothing to rotate.
+    public mutating func rotateSplit(of pane: UUID) {
+        guard let rotated = root.rotatingSplit(holding: pane), let normalized = rotated.normalized() else { return }
+        root = normalized
     }
 
     public mutating func toggleZoom(_ pane: UUID) { zoomed = zoomed == pane ? nil : pane }
