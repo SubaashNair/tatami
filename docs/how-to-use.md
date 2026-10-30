@@ -30,7 +30,7 @@ Safety: `⌃⌥⌘R` (Rescue and pause) brings every hidden window back. Quittin
 | Make a new / close a Stage | `⌃⌥N` / `⌃⌥X` (close shows Undo) |
 | Collapse everything into one Stage | `⌃⌥M` |
 
-In the Stages Bar: click a card to switch, click a name to rename, drag a window by its title bar up to the bar and drop it on a card (or on **+** for a new Stage).
+Stage cards (rest the pointer at the top centre of a screen): click a card to switch, click a name to rename, drag a window by its title bar up to the cards and drop it on one (or on **+** for a new Stage).
 
 Tip: focusing a window from another Stage (Cmd + Tab, Dock click) switches to that Stage automatically.
 
@@ -106,7 +106,7 @@ Do these in order and note anything odd. Use throwaway windows, not unsaved docu
 - [ ] Start managing with 3 Stages and 6 or more windows (include Safari or Chrome, Finder, Terminal).
 - [ ] Switch Stages with `⌃⌥1` to `⌃⌥3` repeatedly. Check it feels instant and the right windows show.
 - [ ] Cmd + Tab to a window in another Stage. It should switch Stage.
-- [ ] Open the Stages Bar. Rename a Stage, drag a window onto a card.
+- [ ] Show the Stage cards. Rename a Stage, drag a window onto a card.
 - [ ] Close a Stage and click Undo.
 - [ ] Snap a window to a half and a quarter, then undo the arrangement.
 - [ ] Open a new app: it should join a pane by itself. Move focus with `⌃⌥⌘` + I / J / K / L, switch tabs, then press `⌃⌥B` to go to Freeform and back.

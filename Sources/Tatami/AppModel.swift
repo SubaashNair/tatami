@@ -297,7 +297,7 @@ import TatamiCore
         state.stages.swapAt(index, index + direction); persist()
     }
 
-    /// Drag-to-reorder in the Stages Bar. Number shortcuts follow the new order.
+    /// Drag-to-reorder in the Stage cards. Number shortcuts follow the new order.
     func moveStage(_ id: UUID, before target: UUID) {
         guard id != target, let from = state.stages.firstIndex(where: { $0.id == id }) else { return }
         let stage = state.stages.remove(at: from)

@@ -68,7 +68,7 @@ public struct WorkspaceState: Codable {
     public var showSwitchIndicator = true
     /// Menu-bar-only by default (M2 decision 6).
     public var showInDock = false
-    /// Stages Bar hot zone at the top-centre of each display (M2 decision 3).
+    /// Stage cards hot zone at the top-centre of each display (M2 decision 3).
     public var barHotZone = true
     public var barDelay: Double = 0.2
     public var barIgnoresNotch = false

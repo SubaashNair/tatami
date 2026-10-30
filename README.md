@@ -43,9 +43,9 @@ A native macOS workspace manager that you drive from the keyboard, like AeroSpac
 
 <p align="center"><img src="docs/images/tiles-layout.svg" alt="Four panes in Tiles mode, each with a numbered tab bar" width="92%"></p>
 
-**The Stages Bar: one card per task, across every display**
+**Stages: one card per task, across every display**
 
-<p align="center"><img src="docs/images/stages-bar.svg" alt="The Stages Bar with three Stage cards: Work, Comms and Browse" width="92%"></p>
+<p align="center"><img src="docs/images/stages.svg" alt="Stages shown as three cards: Work, Comms and Browse" width="92%"></p>
 
 **Send a window to another display**
 
@@ -86,7 +86,7 @@ Tatami is a small native app. Everything that decides *what should happen* is pu
 
 ```mermaid
 flowchart LR
-    keys["Shortcut, menu or Stages Bar"] --> model["AppModel<br/>decides what to do"]
+    keys["Shortcut, menu or Stages"] --> model["AppModel<br/>decides what to do"]
     model --> core["TatamiCore<br/>Stages, pane layouts, rules<br/>pure logic, unit tested"]
     model --> service["WindowService"]
     service --> ax["Accessibility thread<br/>reads and moves windows"]
@@ -170,7 +170,7 @@ Global shortcuts work only while Tatami is managing. `⌃` Control, `⌥` Option
 | Previous or next Stage | `⌃⌥⌘←` / `⌃⌥⌘→` | `⌥←` / `⌥→` |
 | Cycle Stages (`⇧` reverses) | `⌃⌥Tab` | `⌥Tab` |
 | Switch by scrolling | `⌃⌥` + scroll | `⌥` + scroll |
-| Stages Bar | `⌃⌥⌘↑` | `⌥↑` |
+| Show Stages | `⌃⌥⌘↑` | `⌥↑` |
 | New or close Stage | `⌃⌥N` / `⌃⌥X` | `⌥N` / `⌥X` |
 | Merge all Stages | `⌃⌥M` | `⌥M` |
 | Tiles or Freeform on the focused display | `⌃⌥B` | `⌥B` |
@@ -202,11 +202,11 @@ Select a window row in the dashboard to use its snap controls. Classic shortcuts
 ## Features
 
 <details open>
-<summary><b>Stages and the Stages Bar</b></summary>
+<summary><b>Stages</b></summary>
 
 - Up to nine named Stages that span every display. Create, rename, reorder, remove, switch, send windows, merge all, and undo.
 - Focusing a window from another Stage (Cmd+Tab, Dock) switches to it; returning to a Stage focuses its last used window.
-- **Stages Bar:** rest the pointer at the top centre of any screen to see every Stage as a card with a scaled map of your displays. Click to switch, click a name to rename, hover to close, drag cards to reorder, or drag a window to the top edge and drop it on a card (or **+** for a new Stage).
+- **Stage cards:** rest the pointer at the top centre of any screen to see every Stage as a card with a scaled map of your displays. Click to switch, click a name to rename, hover to close, drag cards to reorder, or drag a window to the top edge and drop it on a card (or **+** for a new Stage).
 - **Sort Windows into Stages…** groups chat apps, browsers and the rest as a preview you confirm.
 - Runs from the menu bar without a Dock icon (turn on **Show in Dock** in Preferences).
 
@@ -284,7 +284,7 @@ Open it with `⌃⌥Z`, from the menu bar (**Arrange with AI…**), or from the 
 
 ```text
 Sources/
-  Tatami/         the app: window service, Accessibility thread, shortcuts, Tiles, Stages Bar, dashboard, AI Organizer
+  Tatami/         the app: window service, Accessibility thread, shortcuts, Tiles, Stages, dashboard, AI Organizer
   TatamiCLI/      the tatami command (ships inside the app)
   TatamiCore/     pure logic: Stages, pane layouts, focus by position, display order, routing, settings
 Tests/

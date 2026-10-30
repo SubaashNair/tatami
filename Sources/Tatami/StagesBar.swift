@@ -31,7 +31,7 @@ final class BarPanel: NSPanel {
     override var canBecomeKey: Bool { acceptsKey }
 }
 
-/// The Stages Bar (M2 decisions 2, 3, 12): opened from the top-centre hot zone without taking focus,
+/// The Stage cards (M2 decisions 2, 3, 12): opened from the top-centre hot zone without taking focus,
 /// or from the shortcut with keyboard navigation.
 @MainActor final class StagesBarController {
     private let model: AppModel

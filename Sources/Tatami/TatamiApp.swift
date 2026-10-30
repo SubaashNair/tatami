@@ -52,7 +52,7 @@ final class OrganizerPanel: NSPanel {
         }
     }
 
-    /// Debug: render the Stages Bar to a PNG and quit. Our own view, so no Screen Recording is needed.
+    /// Debug: render the Stage cards to a PNG and quit. Our own view, so no Screen Recording is needed.
     private func snapshotBar(to path: String) {
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [self] in
             let bar = BarState(); bar.keyboard = true; bar.selected = 1

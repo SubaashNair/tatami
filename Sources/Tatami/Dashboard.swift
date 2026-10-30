@@ -401,8 +401,8 @@ struct Dashboard: View {
                 Toggle("Classic shortcuts (Option + number, Option + arrows)", isOn: Binding(get: { model.state.shortcutPreset == .classic }, set: { model.state.shortcutPreset = $0 ? .classic : .standard; model.updateShortcuts() }))
                 Text("Shortcuts are active only while management is running. Standard uses Control + Option + 1 to 9 to switch Stages and adds Shift to send windows. Control + Option + Command with I, J, K, L moves focus, with 1 to 9 goes to a pane, with / rotates a split, and with T floats or tiles a window. Control + Option + B switches a display between Tiles and Freeform. Classic uses Option alone for Stages, which blocks typing characters such as ¡ and ™ and replaces word navigation with Option + arrows.").font(.system(size: 11)).foregroundStyle(Theme.muted)
             }
-            settingsBox("STAGES BAR") {
-                Toggle("Open the Stages Bar when the pointer rests at the top centre of a screen", isOn: Binding(get: { model.state.barHotZone }, set: { model.state.barHotZone = $0; model.persist() }))
+            settingsBox("STAGE CARDS") {
+                Toggle("Show the Stage cards when the pointer rests at the top centre of a screen", isOn: Binding(get: { model.state.barHotZone }, set: { model.state.barHotZone = $0; model.persist() }))
                 HStack { Text("Delay before opening"); Spacer(); Text(String(format: "%.1f s", model.state.barDelay)).foregroundStyle(Theme.muted).monospacedDigit() }
                 Slider(value: Binding(get: { model.state.barDelay }, set: { model.state.barDelay = $0; model.persist() }), in: 0...2, step: 0.1).disabled(!model.state.barHotZone)
                 Toggle("Ignore the notch area on built-in displays", isOn: Binding(get: { model.state.barIgnoresNotch }, set: { model.state.barIgnoresNotch = $0; model.persist() })).disabled(!model.state.barHotZone)
