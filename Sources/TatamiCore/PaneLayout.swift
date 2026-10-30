@@ -221,7 +221,12 @@ public struct PaneLayout: Codable, Equatable {
         var layout = PaneLayout(root: grid(own, aspect: aspect))
         let unit = CGRect(x: 0, y: 0, width: aspect, height: 1)
         let rects = layout.root.rects(in: unit)
-        if let largest = own.map(\.id).max(by: { (rects[$0]?.width ?? 0) * (rects[$0]?.height ?? 0) < (rects[$1]?.width ?? 0) * (rects[$1]?.height ?? 0) }) {
+        // Spelled out step by step: older compilers give up on this as one expression.
+        func area(_ id: UUID) -> Double {
+            guard let rect = rects[id] else { return 0 }
+            return Double(rect.width * rect.height)
+        }
+        if let largest = own.map(\.id).max(by: { area($0) < area($1) }) {
             for window in windows.dropFirst(maxAutoPanes) { layout.add(window, to: largest) }
         }
         layout.focused = own[0].id
