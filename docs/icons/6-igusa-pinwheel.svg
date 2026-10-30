@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="Green mat pinwheel">
+  <defs>
+    <filter id="sh" x="-10%" y="-10%" width="120%" height="125%"><feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#000" flood-opacity="0.35"/></filter>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6f1e4"/><stop offset="1" stop-color="#e3dcc6"/></linearGradient><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8fb36b"/><stop offset="1" stop-color="#5f8b47"/></linearGradient>
+  </defs>
+  <g filter="url(#sh)"><rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/></g>
+<rect x="232" y="232" width="360" height="200" rx="16" fill="url(#g)" stroke="#f1ebd8" stroke-width="14"/><rect x="592" y="232" width="200" height="360" rx="16" fill="url(#g)" stroke="#f1ebd8" stroke-width="14"/><rect x="432" y="592" width="360" height="200" rx="16" fill="url(#g)" stroke="#f1ebd8" stroke-width="14"/><rect x="232" y="432" width="200" height="360" rx="16" fill="url(#g)" stroke="#f1ebd8" stroke-width="14"/><rect x="432" y="432" width="160" height="160" rx="16" fill="#2e3a5a" stroke="#f1ebd8" stroke-width="14"/>
+</svg>

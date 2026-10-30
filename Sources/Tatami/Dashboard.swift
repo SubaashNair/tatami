@@ -83,7 +83,7 @@ struct Dashboard: View {
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 12) {
-                Image(systemName: "square.split.2x2.fill").font(.system(size: 29, weight: .medium)).foregroundStyle(Theme.accent)
+                Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 38, height: 38)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("tatami").font(.system(size: 25, weight: .semibold, design: .rounded)).tracking(-1)
                     Text("A little room to focus.").font(.system(size: 10)).foregroundStyle(Theme.muted)

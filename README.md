@@ -1,4 +1,8 @@
 <p align="center">
+  <img src="docs/icons/7-green-frame.svg" alt="The Tatami app icon: a cream frame with two panes over one wide pane, one pane in gold, on deep green" width="128">
+</p>
+
+<p align="center">
   <img src="docs/images/hero.svg" alt="Tatami: keyboard first window management for macOS" width="100%">
 </p>
 

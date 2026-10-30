@@ -87,7 +87,7 @@ final class OrganizerPanel: NSPanel {
         window.center()
         setupMainMenu()
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem.button?.image = NSImage(systemSymbolName: "square.split.2x2", accessibilityDescription: "Tatami")
+        statusItem.button?.image = BrandMark.menuBarImage()
         model.showDashboard = { [weak self] in self?.showWindow() }
         stagesBar = StagesBarController(model: model)
         tabBars = TabBarController(model: model)

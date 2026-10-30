@@ -13,6 +13,7 @@ cp "$binary_dir/Tatami" "$app/Contents/MacOS/Tatami"
 # The `tatami` command lives in Helpers, not MacOS: file names ignore case on macOS, so tatami would replace Tatami.
 cp "$binary_dir/tatami-cli" "$app/Contents/Helpers/tatami"
 cp Resources/Info.plist "$app/Contents/Info.plist"
+cp Resources/AppIcon.icns "$app/Contents/Resources/AppIcon.icns"
 xattr -cr "$app"
 # Set TATAMI_SIGN_IDENTITY (e.g. "Apple Development: ...") for a stable identity so Keychain access survives rebuilds.
 identity="${TATAMI_SIGN_IDENTITY:--}"
