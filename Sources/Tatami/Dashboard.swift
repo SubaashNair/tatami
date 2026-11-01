@@ -47,17 +47,17 @@ struct Dashboard: View {
         .preferredColorScheme(.light)
         .sheet(item: $model.sortPreview) { preview in SortPreviewView(model: model, preview: preview) }
         .sheet(isPresented: $newStage) {
-            nameSheet(title: "A place for your next project", subtitle: "Give your Stage a short, memorable name.", button: "Create Stage") {
+            nameSheet(title: "A place for your next project", subtitle: "Give your Room a short, memorable name.", button: "Create Room") {
                 model.addStage(name); newStage = false
             }
         }
         .sheet(isPresented: $saving) {
-            nameSheet(title: "Keep this arrangement", subtitle: "Save your Stages and the positions of currently open windows.", button: "Save Workspace") {
+            nameSheet(title: "Keep this arrangement", subtitle: "Save your Rooms and the positions of currently open windows.", button: "Save Workspace") {
                 model.saveWorkspace(name); saving = false
             }
         }
         .sheet(item: $rename) { stage in
-            nameSheet(title: "Rename Stage", subtitle: "Your windows and layout will stay together.", button: "Save Name") {
+            nameSheet(title: "Rename Room", subtitle: "Your windows and layout will stay together.", button: "Save Name") {
                 model.renameStage(stage.id, name: name); rename = nil
             }
         }
@@ -65,8 +65,8 @@ struct Dashboard: View {
             VStack(alignment: .leading, spacing: 20) {
                 Label("Load workspace", systemImage: "square.stack.3d.up").font(.title2.weight(.semibold))
                 Text(workspace.name).font(.largeTitle.weight(.medium))
-                Text("\(workspace.stages.count) Stages · \(workspace.windows.count) saved windows").foregroundStyle(Theme.muted)
-                Text("Tatami will match currently open windows by app and title, restore their positions, and replace your current Stage arrangement. Closed or renamed windows will be skipped. You can undo this load.")
+                Text("\(workspace.stages.count) Rooms · \(workspace.windows.count) saved windows").foregroundStyle(Theme.muted)
+                Text("Tatami will match currently open windows by app and title, restore their positions, and replace your current Room arrangement. Closed or renamed windows will be skipped. You can undo this load.")
                     .fixedSize(horizontal: false, vertical: true)
                 HStack {
                     Button("Cancel") { pendingLoad = nil }.keyboardShortcut(.cancelAction)
@@ -90,13 +90,13 @@ struct Dashboard: View {
                 }
             }.padding(.top, 34).padding(.bottom, 39).padding(.horizontal, 22)
             Text("YOUR DESK").font(.system(size: 10, weight: .semibold)).tracking(1.6).foregroundStyle(Theme.muted).padding(.horizontal, 24).padding(.bottom, 12)
-            nav("stages", "Stages", "square.grid.2x2", badge: "\(model.state.stages.count)")
+            nav("stages", "Rooms", "square.grid.2x2", badge: "\(model.state.stages.count)")
             nav("saved", "Saved Workspaces", "bookmark", badge: model.state.saved.isEmpty ? nil : "\(model.state.saved.count)")
             nav("rules", "App Routing", "arrow.triangle.branch")
             nav("ai", "AI Organizer", "sparkles")
             nav("settings", "Preferences", "slider.horizontal.3")
             Divider().padding(.horizontal, 22).padding(.vertical, 24)
-            HStack { Text("STAGES").font(.system(size: 10, weight: .semibold)).tracking(1.6); Spacer(); Button { name = ""; newStage = true } label: { Image(systemName: "plus") }.buttonStyle(.plain).help("Create a Stage") }
+            HStack { Text("ROOMS").font(.system(size: 10, weight: .semibold)).tracking(1.6); Spacer(); Button { name = ""; newStage = true } label: { Image(systemName: "plus") }.buttonStyle(.plain).help("Create a Room") }
                 .foregroundStyle(Theme.muted).padding(.horizontal, 24).padding(.bottom, 12)
             ForEach(Array(model.state.stages.enumerated()), id: \.element.id) { index, stage in
                 Button { model.switchStage(stage.id); model.selection = "stages" } label: {
@@ -113,7 +113,7 @@ struct Dashboard: View {
             VStack(alignment: .leading, spacing: 10) {
                 Label(model.managing ? "Your desk is connected" : "Your desk, at your pace", systemImage: model.managing ? "checkmark.circle.fill" : "leaf")
                     .font(.system(size: 12, weight: .medium))
-                Text(model.managing ? "Stage shortcuts are active. Pause anytime to restore all windows." : "Arrange your Stages, then start managing when you're ready.")
+                Text(model.managing ? "Room shortcuts are active. Pause anytime to restore all windows." : "Arrange your Rooms, then start managing when you're ready.")
                     .font(.system(size: 11)).foregroundStyle(Theme.muted).lineSpacing(4)
                 Button(model.managing ? "Pause management" : "Start managing") { model.toggleManagement() }
                     .buttonStyle(.borderedProminent).controlSize(.large).frame(maxWidth: .infinity)
@@ -137,7 +137,7 @@ struct Dashboard: View {
 
     private var toolbar: some View {
         HStack {
-            HStack(spacing: 7) { Image(systemName: "desktopcomputer"); Text("My Mac"); Image(systemName: "chevron.right").font(.system(size: 8)); Text(model.selection == "stages" ? "Stages" : model.selection == "saved" ? "Saved Workspaces" : model.selection == "rules" ? "App Routing" : model.selection == "ai" ? "AI Organizer" : "Preferences").foregroundStyle(Theme.ink) }
+            HStack(spacing: 7) { Image(systemName: "desktopcomputer"); Text("My Mac"); Image(systemName: "chevron.right").font(.system(size: 8)); Text(model.selection == "stages" ? "Rooms" : model.selection == "saved" ? "Saved Workspaces" : model.selection == "rules" ? "App Routing" : model.selection == "ai" ? "AI Organizer" : "Preferences").foregroundStyle(Theme.ink) }
                 .font(.system(size: 11)).foregroundStyle(Theme.muted)
             Spacer()
             Label("\(model.displays.count) display\(model.displays.count == 1 ? "" : "s")", systemImage: "display.2").font(.system(size: 11)).foregroundStyle(Theme.muted)
@@ -164,10 +164,10 @@ struct Dashboard: View {
     private var stages: some View {
         VStack(alignment: .leading, spacing: 26) {
             HStack(alignment: .center) {
-                heading("Everything in its place.", "One Stage for each way you work. Switch your whole desk together.")
+                heading("Everything in its place.", "One Room for each way you work. Switch your whole desk together.")
                 Spacer()
-                Button { model.prepareSort() } label: { Label("Sort Windows…", systemImage: "wand.and.stars") }.controlSize(.large).help("Sort open windows into Stages by app type")
-                Button { name = ""; newStage = true } label: { Label("New Stage", systemImage: "plus") }.buttonStyle(.borderedProminent).controlSize(.large).disabled(model.state.stages.count >= 9)
+                Button { model.prepareSort() } label: { Label("Sort Windows…", systemImage: "wand.and.stars") }.controlSize(.large).help("Sort open windows into Rooms by app type")
+                Button { name = ""; newStage = true } label: { Label("New Room", systemImage: "plus") }.buttonStyle(.borderedProminent).controlSize(.large).disabled(model.state.stages.count >= 9)
             }
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: 16)], spacing: 16) {
                 ForEach(Array(model.state.stages.enumerated()), id: \.element.id) { index, stage in
@@ -190,7 +190,7 @@ struct Dashboard: View {
             }
             HStack(spacing: 9) {
                 Image(systemName: "info.circle")
-                Text(model.managing ? "Switching Stages moves inactive windows just off screen. Your other apps stay running." : "Management is paused. Stage selection previews your groups without hiding windows.")
+                Text(model.managing ? "Switching Rooms moves inactive windows just off screen. Your other apps stay running." : "Management is paused. Room selection previews your groups without hiding windows.")
             }.font(.system(size: 11)).foregroundStyle(Theme.muted)
         }
     }
@@ -233,8 +233,8 @@ struct Dashboard: View {
                     Button("Move Left") { model.reorderStage(stage.id, direction: -1) }.disabled(index == 0)
                     Button("Move Right") { model.reorderStage(stage.id, direction: 1) }.disabled(index == model.state.stages.count - 1)
                     Divider()
-                    Button("Close Stage", role: .destructive) { model.deleteStage(stage.id) }.disabled(model.state.stages.count == 1)
-                } label: { Image(systemName: "ellipsis") }.menuStyle(.borderlessButton).frame(width: 20).help("Stage actions")
+                    Button("Close Room", role: .destructive) { model.deleteStage(stage.id) }.disabled(model.state.stages.count == 1)
+                } label: { Image(systemName: "ellipsis") }.menuStyle(.borderlessButton).frame(width: 20).help("Room actions")
             }.padding(.horizontal, 16).padding(.bottom, 12)
         }.background(active ? Color.white : Color.white.opacity(0.45), in: RoundedRectangle(cornerRadius: 12))
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(active ? Theme.accent.opacity(0.65) : Theme.line, lineWidth: active ? 1.5 : 1))
@@ -253,7 +253,7 @@ struct Dashboard: View {
                 VStack(spacing: 12) {
                     Image(systemName: model.trusted ? "macwindow.badge.plus" : "macwindow").font(.system(size: 33, weight: .ultraLight)).foregroundStyle(Theme.muted)
                     Text(model.search.isEmpty ? "A clear space to start." : "No matching windows.").font(.system(size: 15, weight: .medium))
-                    Text(model.trusted ? "Open an app here, or send a window from another Stage." : "Connect Accessibility to see your open windows here.").font(.system(size: 11)).foregroundStyle(Theme.muted).multilineTextAlignment(.center)
+                    Text(model.trusted ? "Open an app here, or send a window from another Room." : "Connect Accessibility to see your open windows here.").font(.system(size: 11)).foregroundStyle(Theme.muted).multilineTextAlignment(.center)
                 }.frame(maxWidth: .infinity).frame(height: 180).padding(18)
             } else {
                 ForEach(model.activeWindows) { window in
@@ -266,9 +266,9 @@ struct Dashboard: View {
                         Spacer(minLength: 4)
                         Button { model.focus(window) } label: { Image(systemName: "arrow.up.forward") }.buttonStyle(.plain).help("Focus window")
                         Menu {
-                            Section("Move to Stage") { ForEach(model.state.stages) { stage in Button(stage.name) { model.send(window.id, to: stage.id) } } }
+                            Section("Move to Room") { ForEach(model.state.stages) { stage in Button(stage.name) { model.send(window.id, to: stage.id) } } }
                             Divider()
-                            Button(model.state.excludedBundleIDs.contains(window.bundleID) ? "Stage This App" : "Keep App Always Visible") { model.exclude(window.bundleID) }
+                            Button(model.state.excludedBundleIDs.contains(window.bundleID) ? "Put App Back in Rooms" : "Keep App Always Visible") { model.exclude(window.bundleID) }
                             Menu("Route New Windows To") { ForEach(model.state.stages) { stage in Button(stage.name) { model.addRule(for: window, stageID: stage.id) } } }
                         } label: { Image(systemName: "ellipsis") }.menuStyle(.borderlessButton).frame(width: 19)
                     }.padding(.horizontal, 16).padding(.vertical, 13)
@@ -307,7 +307,7 @@ struct Dashboard: View {
                     Image(systemName: "square.stack.3d.up").font(.system(size: 24, weight: .light)).foregroundStyle(Theme.accent).frame(width: 46, height: 46).background(Theme.sidebar, in: RoundedRectangle(cornerRadius: 10))
                     VStack(alignment: .leading, spacing: 6) {
                         Text(workspace.name).font(.system(size: 16, weight: .medium))
-                        Text("\(workspace.stages.count) Stages · \(workspace.windows.count) windows · \(workspace.date.formatted(date: .abbreviated, time: .shortened))").font(.system(size: 11)).foregroundStyle(Theme.muted)
+                        Text("\(workspace.stages.count) Rooms · \(workspace.windows.count) windows · \(workspace.date.formatted(date: .abbreviated, time: .shortened))").font(.system(size: 11)).foregroundStyle(Theme.muted)
                     }
                     Spacer()
                     Button("Preview & Load") { pendingLoad = workspace }.buttonStyle(.bordered)
@@ -343,7 +343,7 @@ struct Dashboard: View {
                         Toggle("", isOn: Binding(get: { model.state.rules.first(where: { $0.id == rule.id })?.enabled ?? false }, set: { value in if let i = model.state.rules.firstIndex(where: { $0.id == rule.id }) { model.state.rules[i].enabled = value; model.persist() } })).labelsHidden().toggleStyle(.switch).controlSize(.small)
                         Text(rule.appName).font(.system(size: 14, weight: .medium))
                         Image(systemName: "arrow.right").foregroundStyle(Theme.muted)
-                        Text(model.state.stages.first(where: { $0.id == rule.stageID })?.name ?? "Stage not found").foregroundStyle(Theme.accent)
+                        Text(model.state.stages.first(where: { $0.id == rule.stageID })?.name ?? "Room not found").foregroundStyle(Theme.accent)
                         Spacer()
                         Button { model.state.rules.swapAt(index, index - 1); model.persist() } label: { Image(systemName: "arrow.up") }.disabled(index == 0).help("Evaluate this rule earlier")
                         Button { model.state.rules.removeAll { $0.id == rule.id }; model.persist() } label: { Image(systemName: "trash") }.help("Delete rule")
@@ -386,25 +386,25 @@ struct Dashboard: View {
                     Button("Install Command…") { model.installCommandLineTool() }
                 }
                 Divider()
-                Toggle("Switch Stage when you focus a window from another Stage (Cmd+Tab, Dock)", isOn: Binding(get: { model.state.followActivatedWindows }, set: { model.state.followActivatedWindows = $0; model.persist() }))
+                Toggle("Switch Room when you focus a window from another Room (Cmd+Tab, Dock)", isOn: Binding(get: { model.state.followActivatedWindows }, set: { model.state.followActivatedWindows = $0; model.persist() }))
                 Divider()
-                Toggle("Show the Stage name briefly after switching", isOn: Binding(get: { model.state.showSwitchIndicator }, set: { model.state.showSwitchIndicator = $0; model.persist() }))
+                Toggle("Show the Room name briefly after switching", isOn: Binding(get: { model.state.showSwitchIndicator }, set: { model.state.showSwitchIndicator = $0; model.persist() }))
                 Divider()
                 Toggle("Show Tatami in the Dock", isOn: Binding(get: { model.state.showInDock }, set: { model.state.showInDock = $0; model.persist(); model.onDockPreferenceChanged?() }))
                 Divider()
-                Toggle("Limit Cmd+` to windows on the current Stage", isOn: Binding(get: { model.state.scopeCommandBacktick }, set: { model.state.scopeCommandBacktick = $0; model.updateShortcuts() }))
+                Toggle("Limit Cmd+` to windows on the current Room", isOn: Binding(get: { model.state.scopeCommandBacktick }, set: { model.state.scopeCommandBacktick = $0; model.updateShortcuts() }))
                 Divider()
-                Toggle("Follow a window when sending it to another Stage", isOn: Binding(get: { model.state.followSentWindow }, set: { model.state.followSentWindow = $0; model.persist() }))
+                Toggle("Follow a window when sending it to another Room", isOn: Binding(get: { model.state.followSentWindow }, set: { model.state.followSentWindow = $0; model.persist() }))
                 Divider()
                 Toggle("Classic shortcuts (Option + number, Option + arrows)", isOn: Binding(get: { model.state.shortcutPreset == .classic }, set: { model.state.shortcutPreset = $0 ? .classic : .standard; model.updateShortcuts() }))
-                Text("Shortcuts are active only while management is running. Standard uses Control + Option + 1 to 9 to switch Stages and adds Shift to send windows. Control + Option + Command with I, J, K, L moves focus, with 1 to 9 goes to a pane, with / rotates a split, and with T floats or tiles a window. Control + Option + B switches a display between Tiles and Freeform. Classic uses Option alone for Stages, which blocks typing characters such as ¡ and ™ and replaces word navigation with Option + arrows.").font(.system(size: 11)).foregroundStyle(Theme.muted)
+                Text("Shortcuts are active only while management is running. Standard uses Control + Option + 1 to 9 to switch Rooms and adds Shift to send windows. Control + Option + Command with I, J, K, L moves focus, with 1 to 9 goes to a pane, with / rotates a split, and with T floats or tiles a window. Control + Option + B switches a display between Tiles and Freeform. Classic uses Option alone for Rooms, which blocks typing characters such as ¡ and ™ and replaces word navigation with Option + arrows.").font(.system(size: 11)).foregroundStyle(Theme.muted)
             }
-            settingsBox("STAGE CARDS") {
-                Toggle("Show the Stage cards when the pointer rests at the top centre of a screen", isOn: Binding(get: { model.state.barHotZone }, set: { model.state.barHotZone = $0; model.persist() }))
+            settingsBox("ROOM CARDS") {
+                Toggle("Show the Room cards when the pointer rests at the top centre of a screen", isOn: Binding(get: { model.state.barHotZone }, set: { model.state.barHotZone = $0; model.persist() }))
                 HStack { Text("Delay before opening"); Spacer(); Text(String(format: "%.1f s", model.state.barDelay)).foregroundStyle(Theme.muted).monospacedDigit() }
                 Slider(value: Binding(get: { model.state.barDelay }, set: { model.state.barDelay = $0; model.persist() }), in: 0...2, step: 0.1).disabled(!model.state.barHotZone)
                 Toggle("Ignore the notch area on built-in displays", isOn: Binding(get: { model.state.barIgnoresNotch }, set: { model.state.barIgnoresNotch = $0; model.persist() })).disabled(!model.state.barHotZone)
-                Text("Also opens with \(model.state.shortcutPreset.navigationModifiers)↑. From the keyboard, use ←/→ and Return, or 1–9. Click a Stage name to rename it.").font(.system(size: 11)).foregroundStyle(Theme.muted)
+                Text("Also opens with \(model.state.shortcutPreset.navigationModifiers)↑. From the keyboard, use ←/→ and Return, or 1–9. Click a Room name to rename it.").font(.system(size: 11)).foregroundStyle(Theme.muted)
             }
             settingsBox("WINDOW SPACING") {
                 HStack { Text("Space between windows"); Spacer(); Text("\(Int(model.state.gap)) pt").foregroundStyle(Theme.muted).monospacedDigit() }
@@ -413,15 +413,15 @@ struct Dashboard: View {
             }
             AISettingsBox(model: model)
             settingsBox("YOUR DATA") {
-                HStack { VStack(alignment: .leading, spacing: 6) { Text("Portable settings"); Text("Stage names, rules, exclusions, and preferences. No live window data.").font(.system(size: 11)).foregroundStyle(Theme.muted) }; Spacer(); Button("Import…") { model.importBackup() }; Button("Export…") { model.exportBackup() } }
+                HStack { VStack(alignment: .leading, spacing: 6) { Text("Portable settings"); Text("Room names, rules, exclusions, and preferences. No live window data.").font(.system(size: 11)).foregroundStyle(Theme.muted) }; Spacer(); Button("Import…") { model.importBackup() }; Button("Export…") { model.exportBackup() } }
                 Divider()
                 HStack { Text("Local workspace storage"); Spacer(); Button("Show in Finder") { NSWorkspace.shared.open(model.directory) } }
             }
             settingsBox("RECOVERY") {
-                HStack { VStack(alignment: .leading, spacing: 6) { Text("Bring your windows back"); Text("Restores windows minimized by Tatami and pauses Stage management.").font(.system(size: 11)).foregroundStyle(Theme.muted) }; Spacer(); Button("Rescue Windows") { model.rescue() } }
+                HStack { VStack(alignment: .leading, spacing: 6) { Text("Bring your windows back"); Text("Restores windows minimized by Tatami and pauses Room management.").font(.system(size: 11)).foregroundStyle(Theme.muted) }; Spacer(); Button("Rescue Windows") { model.rescue() } }
                 Text("Emergency shortcut while managing: Control + Option + Command + R. macOS Stage Manager should be turned off while using Tatami.").font(.system(size: 11)).foregroundStyle(Theme.muted)
             }
-            Text("TATAMI \(Release.label) · LOCAL FIRST\nKeyboard first window management: Stages that span every display, Tiles that arrange new windows on their own, snapping, routing, and saved arrangements. It also includes the AI Organizer with your own key or a local model, and a tatami command for the terminal. Display pinning and AI Recipes are planned next.").font(.system(size: 11)).foregroundStyle(Theme.muted).lineSpacing(5)
+            Text("TATAMI \(Release.label) · LOCAL FIRST\nKeyboard first window management: Rooms that span every display, Tiles that arrange new windows on their own, snapping, routing, and saved arrangements. It also includes the AI Organizer with your own key or a local model, and a tatami command for the terminal. Display pinning and AI Recipes are planned next.").font(.system(size: 11)).foregroundStyle(Theme.muted).lineSpacing(5)
         }.toggleStyle(.switch).controlSize(.small)
     }
 

@@ -19,7 +19,7 @@
   <g font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif">
     <text x="72" y="160" font-size="92" font-weight="700" fill="#f4efe2">Tatami</text>
     <text x="76" y="212" font-size="30" fill="#cfe3d6">Keyboard first window management for macOS</text>
-    <text x="76" y="262" font-size="22" fill="#9fc3ad">Stages  ·  Tiles  ·  one key for everything</text>
+    <text x="76" y="262" font-size="22" fill="#9fc3ad">Rooms  ·  Tiles  ·  one key for everything</text>
   </g>
   <g transform="translate(900 70)" fill="none" stroke="#f4efe2" stroke-width="3" stroke-linejoin="round">
     <rect x="0" y="0" width="230" height="150" rx="12" stroke-opacity=".9"/>

@@ -14,7 +14,7 @@ struct AIOrganizerView: View {
                 Spacer()
                 Text("\(preset.name) · \(model.aiModel ?? "no model")").font(.system(size: 10)).foregroundStyle(Theme.muted)
             }
-            TextField("Describe your desk, e.g. “Xcode and Simulator on a Build Stage, Slack on the side screen”", text: $model.aiPrompt, axis: .vertical)
+            TextField("Describe your desk, e.g. “Xcode and Simulator on a Build Room, Slack on the side screen”", text: $model.aiPrompt, axis: .vertical)
                 .lineLimit(2...5).textFieldStyle(.roundedBorder).font(.system(size: 13))
                 .onSubmit { model.organize() }
                 .disabled(isWorking)
@@ -58,13 +58,13 @@ struct AIOrganizerView: View {
     private func dataLine(_ preset: AIPreset) -> String {
         let config = model.aiConfig
         if preset.isLocal(config) { return "Runs on this Mac (\(preset.host(config)))." }
-        return "Sends app names\(model.aiSendsTitles ? ", window titles" : ""), Stage names, and window positions to \(preset.host(config))."
+        return "Sends app names\(model.aiSendsTitles ? ", window titles" : ""), Room names, and window positions to \(preset.host(config))."
     }
 
     private func disclosure(_ preset: AIPreset) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Before sending to \(preset.host(model.aiConfig))").font(.system(size: 12, weight: .semibold))
-            Text("Tatami sends each window's app name, bundle ID, position, and Stage, plus your Stage names and display sizes. Window titles can contain document names, email subjects, or client names. No screenshots, file contents, or keystrokes are sent. The request goes directly from this Mac to \(preset.name) using your key.")
+            Text("Tatami sends each window's app name, bundle ID, position, and Room, plus your Room names and display sizes. Window titles can contain document names, email subjects, or client names. No screenshots, file contents, or keystrokes are sent. The request goes directly from this Mac to \(preset.name) using your key.")
                 .font(.system(size: 11)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true)
             Toggle("Include window titles", isOn: titlesBinding(model)).toggleStyle(.switch).controlSize(.small).font(.system(size: 11))
             HStack {
@@ -89,7 +89,7 @@ struct AIOrganizerView: View {
                 }.font(.system(size: 11)).frame(maxWidth: .infinity, alignment: .leading)
             }.frame(maxHeight: 220)
             if plan.valid.isEmpty { Text("Nothing in this plan can be applied. Edit your request and ask again.").font(.system(size: 11)).foregroundStyle(Theme.muted) }
-            else if !model.managing { Text("Stages take effect when you start managing.").font(.system(size: 10)).foregroundStyle(Theme.muted) }
+            else if !model.managing { Text("Rooms take effect when you start managing.").font(.system(size: 10)).foregroundStyle(Theme.muted) }
             HStack {
                 Button("Discard") { model.discardPlan() }
                 Spacer()

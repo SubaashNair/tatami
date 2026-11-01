@@ -279,7 +279,7 @@ public enum ValidationError: LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .unsupportedVersion: "This backup uses a version Tatami does not support."
-        case .invalidState: "The workspace file contains invalid stages, layouts, or settings. Nothing was imported."
+        case .invalidState: "The workspace file contains invalid rooms, layouts, or settings. Nothing was imported."
         }
     }
 }

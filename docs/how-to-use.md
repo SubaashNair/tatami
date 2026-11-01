@@ -1,6 +1,6 @@
 # How to use Tatami for productivity
 
-Tatami groups your windows into **Stages** (one per task or project). Switching a Stage hides everything else and shows only that task's windows, instantly, across all your monitors.
+Tatami groups your windows into **Rooms** (one per task or project). Switching a Room hides everything else and shows only that task's windows, instantly, across all your monitors.
 
 Shortcuts below are the **Standard** preset (Control + Option based). Written as `⌃⌥` = Control + Option, `⌘` = Command, `⇧` = Shift.
 
@@ -14,7 +14,7 @@ Shortcuts below are the **Standard** preset (Control + Option based). Written as
    ```
 2. Turn **Stage Manager off** (System Settings → Desktop & Dock). Quit AeroSpace, yabai, or Amethyst if running.
 3. In Tatami choose **Connect Tatami**, then enable it under System Settings → Privacy & Security → Accessibility.
-4. Create 3 Stages, for example **Work**, **Comms**, **Browse**. Or use **Sort Windows into Stages…** in the menu bar to group chat, browsers, and everything else automatically (you confirm a preview first).
+4. Create 3 Rooms, for example **Work**, **Comms**, **Browse**. Or use **Sort Windows into Rooms…** in the menu bar to group chat, browsers, and everything else automatically (you confirm a preview first).
 5. Click **Start managing**. Shortcuts only work while managing is running.
 
 Safety: `⌃⌥⌘R` (Rescue and pause) brings every hidden window back. Quitting Tatami also restores them.
@@ -25,14 +25,14 @@ Safety: `⌃⌥⌘R` (Rescue and pause) brings every hidden window back. Quittin
 |---|---|
 | Jump to a task | `⌃⌥1` to `⌃⌥9` |
 | Send the current window to another task | `⌃⌥⇧1` to `⌃⌥⇧9` |
-| Go to previous / next Stage | `⌃⌥⌘←` / `⌃⌥⌘→` |
-| See all Stages at once | `⌃⌥⌘↑`, or rest the pointer at the top centre of a screen |
-| Make a new / close a Stage | `⌃⌥N` / `⌃⌥X` (close shows Undo) |
-| Collapse everything into one Stage | `⌃⌥M` |
+| Go to previous / next Room | `⌃⌥⌘←` / `⌃⌥⌘→` |
+| See all Rooms at once | `⌃⌥⌘↑`, or rest the pointer at the top centre of a screen |
+| Make a new / close a Room | `⌃⌥N` / `⌃⌥X` (close shows Undo) |
+| Collapse everything into one Room | `⌃⌥M` |
 
-Stage cards (rest the pointer at the top centre of a screen): click a card to switch, click a name to rename, drag a window by its title bar up to the cards and drop it on one (or on **+** for a new Stage).
+Room cards (rest the pointer at the top centre of a screen): click a card to switch, click a name to rename, drag a window by its title bar up to the cards and drop it on one (or on **+** for a new Room).
 
-Tip: focusing a window from another Stage (Cmd + Tab, Dock click) switches to that Stage automatically.
+Tip: focusing a window from another Room (Cmd + Tab, Dock click) switches to that Room automatically.
 
 ### Moving between windows with the keyboard
 
@@ -60,15 +60,15 @@ Rotate keeps every window and every pane size; it only changes the direction. If
 
 ## 3. Three productivity setups
 
-**Deep work.** Put your editor, terminal, and docs in one Stage. Put Slack and Mail in another. Work in Stage 1 with notifications out of sight, and check Stage 2 on your own schedule with `⌃⌥2`.
+**Deep work.** Put your editor, terminal, and docs in one Room. Put Slack and Mail in another. Work in Room 1 with notifications out of sight, and check Room 2 on your own schedule with `⌃⌥2`.
 
-**Several projects.** One Stage per project, named after it. Open the project's files and browser windows there. `⌃⌥1` to `⌃⌥9` becomes your project switcher, and each Stage remembers its last focused window.
+**Several projects.** One Room per project, named after it. Open the project's files and browser windows there. `⌃⌥1` to `⌃⌥9` becomes your project switcher, and each Room remembers its last focused window.
 
-**Two monitors.** Stages span all displays. Keep your main app on one display and reference material on the other, per Stage. Switching one Stage swaps both screens at once.
+**Two monitors.** Rooms span all displays. Keep your main app on one display and reference material on the other, per Room. Switching one Room swaps both screens at once.
 
 Set a routing rule (a window's menu, then app routing) so Slack always lands in Comms. Mark always-visible apps (for example Music) as exclusions so they never hide.
 
-## 4. Arranging windows inside a Stage
+## 4. Arranging windows inside a Room
 
 **Snap** (freeform windows):
 
@@ -80,12 +80,12 @@ Set a routing rule (a window's menu, then app routing) so Slack always lands in 
 | Two thirds | `⌃⌥` + Q / R / W |
 | Center / maximize | `⌃⌥C` / `⌃⌥Return` |
 
-**Tiles** (tiling with tab bars), per display per Stage:
+**Tiles** (tiling with tab bars), per display per Room:
 
 0. Tiles is the default. While Tatami is managing, every window you open joins a pane by itself, with no key press. `⌃⌥B` switches the focused display to Freeform and back. Preferences has **Tile new windows automatically** to change the default.
 1. Each window gets a pane (up to four); extras become tabs.
 2. Move around: focus a pane with `⌃⌥⌘` + I / J / K / L, move the window there by adding `⇧`.
-3. Switch tabs with `⌃⌥[` and `⌃⌥]`. Click a tab to select it, right-click for Close, Split, Keep Floating, Move to Stage.
+3. Switch tabs with `⌃⌥[` and `⌃⌥]`. Click a tab to select it, right-click for Close, Split, Keep Floating, Move to Room.
 4. Resize: drag a window edge, or use `⌃⌥⌘=` and `⌃⌥⌘−`.
 5. Zoom a pane `⌃⌥⌘Return`, reflow as grid `⌃⌥⌘G`, undo layout `⌃⌥⌘Z`.
 6. Press `⌃⌥B` again to put every window back where it was.
@@ -103,17 +103,17 @@ Not available yet: drag-to-split, drag a tab to another pane or display, divider
 
 Do these in order and note anything odd. Use throwaway windows, not unsaved documents.
 
-- [ ] Start managing with 3 Stages and 6 or more windows (include Safari or Chrome, Finder, Terminal).
-- [ ] Switch Stages with `⌃⌥1` to `⌃⌥3` repeatedly. Check it feels instant and the right windows show.
-- [ ] Cmd + Tab to a window in another Stage. It should switch Stage.
-- [ ] Show the Stage cards. Rename a Stage, drag a window onto a card.
-- [ ] Close a Stage and click Undo.
+- [ ] Start managing with 3 Rooms and 6 or more windows (include Safari or Chrome, Finder, Terminal).
+- [ ] Switch Rooms with `⌃⌥1` to `⌃⌥3` repeatedly. Check it feels instant and the right windows show.
+- [ ] Cmd + Tab to a window in another Room. It should switch Room.
+- [ ] Show the Room cards. Rename a Room, drag a window onto a card.
+- [ ] Close a Room and click Undo.
 - [ ] Snap a window to a half and a quarter, then undo the arrangement.
 - [ ] Open a new app: it should join a pane by itself. Move focus with `⌃⌥⌘` + I / J / K / L, switch tabs, then press `⌃⌥B` to go to Freeform and back.
 - [ ] Press `⌃⌥⌘R`. Everything should reappear. Start managing again.
 - [ ] Quit Tatami with windows hidden. All windows should come back.
 - [ ] With two displays: unplug one and check the Restore / Keep Current prompt on reconnect.
-- [ ] Sleep and wake the Mac, then check Stages still hold.
+- [ ] Sleep and wake the Mac, then check Rooms still hold.
 
 ## 7. If something goes wrong
 

@@ -18,8 +18,8 @@ extension WorkspaceState {
 
     public func nextStageName() -> String {
         var number = stages.count + 1
-        while stages.contains(where: { $0.name.caseInsensitiveCompare("Stage \(number)") == .orderedSame }) { number += 1 }
-        return "Stage \(number)"
+        while stages.contains(where: { $0.name.caseInsensitiveCompare("Room \(number)") == .orderedSame }) { number += 1 }
+        return "Room \(number)"
     }
 }
 

@@ -136,7 +136,7 @@ extension AppModel {
             return w.title.isEmpty ? w.appName : "\(w.appName): \(w.title.prefix(40))"
         }
         switch action {
-        case .createStage(let name): return "Create Stage “\(name)”"
+        case .createStage(let name): return "Create Room “\(name)”"
         case .renameStage(let from, let to): return "Rename “\(from)” to “\(to)”"
         case .assign(let ref, let stage): return "Move \(window(ref)) to \(stage)"
         case .snap(let ref, let zone, let display): return "Place \(window(ref)): \(zone.label.lowercased())" + (display.map { " on display \($0)" } ?? "")

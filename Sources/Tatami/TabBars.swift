@@ -87,7 +87,7 @@ struct TabBarView: View {
         Divider()
         Button("Keep Floating") { model.setBehavior(window.id, .floating, saveRule: false) }
         Button("Always Float \(window.appName)") { model.setBehavior(window.id, .floating, saveRule: true) }
-        Menu("Move to Stage") {
+        Menu("Move to Room") {
             ForEach(model.state.stages) { stage in Button(stage.name) { model.send(window.id, to: stage.id) }.disabled(stage.id == key.stage) }
         }
         Menu("Move to Display") {

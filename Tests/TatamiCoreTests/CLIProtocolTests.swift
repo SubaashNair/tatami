@@ -40,13 +40,16 @@ final class CLIProtocolTests: XCTestCase {
 
     private func parse(_ words: String...) -> Result<CLICommand, CLIParseError> { CLICommand.parse(words) }
 
-    func testStageCommands() {
+    func testRoomCommands() {
+        XCTAssertEqual(parse("room", "3"), .success(.stage(3)))
+        XCTAssertEqual(parse("room", "next"), .success(.stageStep(1)))
+        XCTAssertEqual(parse("room", "prev"), .success(.stageStep(-1)))
+        // "stage" was the old word and keeps working
         XCTAssertEqual(parse("stage", "3"), .success(.stage(3)))
-        XCTAssertEqual(parse("stage", "next"), .success(.stageStep(1)))
-        XCTAssertEqual(parse("stage", "prev"), .success(.stageStep(-1)))
+        XCTAssertEqual(parse("STAGE", "next"), .success(.stageStep(1)))
         XCTAssertEqual(parse("send", "2"), .success(.send(2)))
         for bad in ["0", "10", "-1", "two", ""] {
-            if case .success = parse("stage", bad) { XCTFail("stage \(bad) must not parse") }
+            if case .success = parse("room", bad) { XCTFail("room \(bad) must not parse") }
         }
         if case .success = parse("send", "0") { XCTFail("send 0 must not parse") }
     }
@@ -82,7 +85,8 @@ final class CLIProtocolTests: XCTestCase {
 
     func testQueriesAcceptAJsonFlag() {
         XCTAssertEqual(parse("list", "windows"), .success(.list(.windows, json: false)))
-        XCTAssertEqual(parse("list", "stages", "--json"), .success(.list(.stages, json: true)))
+        XCTAssertEqual(parse("list", "rooms", "--json"), .success(.list(.rooms, json: true)))
+        XCTAssertEqual(parse("list", "stages"), .success(.list(.rooms, json: false)))  // the old word still works
         XCTAssertEqual(parse("list", "displays"), .success(.list(.displays, json: false)))
         XCTAssertEqual(parse("status"), .success(.status(json: false)))
         XCTAssertEqual(parse("status", "--json"), .success(.status(json: true)))
@@ -91,9 +95,9 @@ final class CLIProtocolTests: XCTestCase {
     func testBadInputGivesAUsefulError() {
         XCTAssertEqual(CLICommand.parse([]), .failure(.empty))
         XCTAssertEqual(parse("bogus"), .failure(.unknown("bogus")))
-        if case .failure(.usage(let text)) = parse("stage") { XCTAssertTrue(text.contains("stage")) } else { XCTFail("stage alone needs a usage message") }
+        if case .failure(.usage(let text)) = parse("room") { XCTAssertTrue(text.contains("room")) } else { XCTFail("room alone needs a usage message") }
         if case .success = parse("float", "now") { XCTFail("extra arguments must be refused") }
-        if case .success = parse("stage", "1", "2") { XCTFail("extra arguments must be refused") }
+        if case .success = parse("room", "1", "2") { XCTFail("extra arguments must be refused") }
     }
 
     func testCommandsAreCaseInsensitive() {
@@ -101,7 +105,7 @@ final class CLIProtocolTests: XCTestCase {
     }
 
     func testHelpMentionsEveryCommand() {
-        for word in ["stage", "send", "focus", "move", "window", "pane", "move-to-pane", "float", "float-app", "rotate", "tiles",
+        for word in ["room", "send", "focus", "move", "window", "pane", "move-to-pane", "float", "float-app", "rotate", "tiles",
                      "display", "undo-layout", "rescue", "start", "pause", "list", "status"] {
             XCTAssertTrue(CLICommand.helpText.contains(word), "help should mention \(word)")
         }

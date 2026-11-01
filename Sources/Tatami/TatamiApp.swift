@@ -204,7 +204,7 @@ final class OrganizerPanel: NSPanel {
         menu.addItem(.separator())
         add(menu, "Open Tatami", #selector(showWindow))
         add(menu, "Arrange with AI…", #selector(toggleOrganizer))
-        add(menu, "Sort Windows into Stages…", #selector(sortWindows))
+        add(menu, "Sort Windows into Rooms…", #selector(sortWindows))
         add(menu, model.managing ? "Pause & Restore Windows" : "Start Managing", #selector(toggleManagement))
         add(menu, "Float or Tile Focused Window", #selector(floatOrTile))
         add(menu, "Install Command Line Tool…", #selector(installCommandLine))

@@ -291,10 +291,10 @@ struct StagesBarView: View {
                 RoundedRectangle(cornerRadius: 8).strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
                     .foregroundStyle(.secondary).frame(width: StageCard.previewSize.width, height: StageCard.previewSize.height)
                     .overlay(Image(systemName: "plus").font(.system(size: 22, weight: .light)).foregroundStyle(.secondary))
-                Text("New Stage").font(.system(size: 12)).foregroundStyle(.secondary)
+                Text("New Room").font(.system(size: 12)).foregroundStyle(.secondary)
             }.padding(10)
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.accentColor, lineWidth: bar.dropTarget == BarState.newStageTarget ? 2 : 0))
-        }.buttonStyle(.plain).help("New Stage")
+        }.buttonStyle(.plain).help("New Room")
     }
 }
 
@@ -320,7 +320,7 @@ struct StageCard: View {
             HStack(spacing: 6) {
                 Text("\(index + 1)").font(.system(size: 11, weight: .medium, design: .monospaced)).foregroundStyle(.secondary)
                 if bar.renaming == stage.id {
-                    TextField("Stage name", text: $bar.renameText).textFieldStyle(.plain).font(.system(size: 12, weight: .semibold))
+                    TextField("Room name", text: $bar.renameText).textFieldStyle(.plain).font(.system(size: 12, weight: .semibold))
                         .onSubmit { onRename(bar.renameText) }
                 } else {
                     Text(stage.name).font(.system(size: 12, weight: .semibold)).lineLimit(1)
@@ -336,14 +336,14 @@ struct StageCard: View {
         .overlay(alignment: .topTrailing) {
             if hovering && canClose {
                 Button(action: onClose) { Image(systemName: "xmark.circle.fill").font(.system(size: 15)).symbolRenderingMode(.hierarchical) }
-                    .buttonStyle(.plain).padding(5).help("Close Stage (Undo available)")
+                    .buttonStyle(.plain).padding(5).help("Close Room (Undo available)")
             }
         }
         .contentShape(RoundedRectangle(cornerRadius: 12))
         .onTapGesture(perform: onSwitch)
         .onHover { hovering = $0 }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Stage \(index + 1), \(stage.name), \(windows.count) windows\(active ? ", active" : "")")
+        .accessibilityLabel("Room \(index + 1), \(stage.name), \(windows.count) windows\(active ? ", active" : "")")
         .accessibilityAddTraits(.isButton)
     }
 }

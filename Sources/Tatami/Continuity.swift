@@ -47,7 +47,7 @@ extension AppModel {
             if let window = service.windows.first(where: { $0.windowNumber == number }) { lastFocused[stage] = window.id }
         }
         if stageIDs.contains(checkpoint.activeStageID) { state.activeStageID = checkpoint.activeStageID }
-        if restored > 0 { notice = "Restored \(restored) window(s) to their Stages." }
+        if restored > 0 { notice = "Restored \(restored) window(s) to their Rooms." }
         windowsChanged()
     }
 

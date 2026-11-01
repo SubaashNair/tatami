@@ -65,11 +65,11 @@ extension AppModel {
         error = nil
         switch command {
         case .stage(let number):
-            guard state.stages.indices.contains(number - 1) else { return .failure("There is no Stage \(number).") }
+            guard state.stages.indices.contains(number - 1) else { return .failure("There is no Room \(number).") }
             switchStage(state.stages[number - 1].id)
         case .stageStep(let step): switchStage(state.stageID(offset: step))
         case .send(let number):
-            guard state.stages.indices.contains(number - 1) else { return .failure("There is no Stage \(number).") }
+            guard state.stages.indices.contains(number - 1) else { return .failure("There is no Room \(number).") }
             guard let id = service.focusedID() else { return .failure("Focus a window first.") }
             send(id, to: state.stages[number - 1].id)
         case .focus(let direction): focusDirectional(direction)
@@ -95,10 +95,10 @@ extension AppModel {
         let onStage = service.windows.filter { $0.stageID == state.activeStageID }.count
         if json {
             return CLIFormat.json([["version": Release.version, "release": Release.stage, "protocol": "\(CLIProtocol.version)", "managing": managing ? "yes" : "no",
-                                    "stage": state.activeStage.name, "windows": "\(onStage)", "displays": "\(displays.count)"]])
+                                    "room": state.activeStage.name, "windows": "\(onStage)", "displays": "\(displays.count)"]])
         }
-        return ["Tatami \(Release.label)", managing ? "Managing" : "Paused", "Stage: \(state.activeStage.name)",
-                "Windows on this Stage: \(onStage)", "Displays: \(displays.count)"].joined(separator: "\n")
+        return ["Tatami \(Release.label)", managing ? "Managing" : "Paused", "Room: \(state.activeStage.name)",
+                "Windows on this Room: \(onStage)", "Displays: \(displays.count)"].joined(separator: "\n")
     }
 
     private func cliListing(_ what: CLIListing, json: Bool) -> String {
@@ -106,14 +106,14 @@ extension AppModel {
         let columns: [String]
         switch what {
         case .windows:
-            columns = ["id", "app", "title", "stage", "display", "mode"]
+            columns = ["id", "app", "title", "room", "display", "mode"]
             rows = service.windows.map { window in
                 let frame = window.hidden == nil ? window.frame : window.realFrame
                 let mode = window.hidden != nil ? "hidden" : layoutKey(containing: window.id) != nil ? "tiled" : isFloating(window) ? "floating" : "free"
                 return ["id": String(window.id.uuidString.prefix(8)), "app": window.appName, "title": window.title,
-                        "stage": state.stages.first { $0.id == window.stageID }?.name ?? "", "display": service.display(for: frame)?.name ?? "", "mode": mode]
+                        "room": state.stages.first { $0.id == window.stageID }?.name ?? "", "display": service.display(for: frame)?.name ?? "", "mode": mode]
             }
-        case .stages:
+        case .rooms:
             columns = ["number", "name", "active", "windows"]
             rows = state.stages.enumerated().map { index, stage in
                 ["number": "\(index + 1)", "name": stage.name, "active": stage.id == state.activeStageID ? "yes" : "no",
