@@ -48,6 +48,7 @@ extension AppModel {
         switch command {
         case .status(let json): return .success(cliStatus(json: json))
         case .list(let what, let json): return .success(cliListing(what, json: json))
+        case .home(let room, let display): return setRoomHome(room: room, display: display)
         case .start:
             if !managing { toggleManagement() }
             return managing ? .success("Managing windows.") : .failure(error ?? "Could not start. Grant Accessibility access first.")
@@ -83,7 +84,7 @@ extension AppModel {
         case .tiles: toggleWindowMode()
         case .display(let step): sendFocusedWindowToDisplay(offset: step)
         case .undoLayout: undoLayout()
-        case .status, .list, .start, .pause, .rescue: break  // handled above
+        case .status, .list, .start, .pause, .rescue, .home: break  // handled above
         }
         if let message = error { return .failure(message) }
         return .success(notice ?? "")
@@ -114,10 +115,16 @@ extension AppModel {
                         "room": state.stages.first { $0.id == window.stageID }?.name ?? "", "display": service.display(for: frame)?.name ?? "", "mode": mode]
             }
         case .rooms:
-            columns = ["number", "name", "active", "windows"]
+            // The home column only appears once a Room has a home, so output is unchanged for everyone else.
+            let anyHome = state.stages.contains { $0.homeDisplay != nil }
+            columns = ["number", "name", "active", "windows"] + (anyHome ? ["home"] : [])
             rows = state.stages.enumerated().map { index, stage in
-                ["number": "\(index + 1)", "name": stage.name, "active": stage.id == state.activeStageID ? "yes" : "no",
-                 "windows": "\(service.windows.filter { $0.stageID == stage.id }.count)"]
+                var row = ["number": "\(index + 1)", "name": stage.name, "active": stage.id == state.activeStageID ? "yes" : "no",
+                           "windows": "\(service.windows.filter { $0.stageID == stage.id }.count)"]
+                if anyHome {
+                    row["home"] = stage.homeDisplay.map { key in service.displays.first { $0.id == key }?.name ?? "(unplugged)" } ?? "-"
+                }
+                return row
             }
         case .displays:
             columns = ["number", "name", "size", "mode"]
