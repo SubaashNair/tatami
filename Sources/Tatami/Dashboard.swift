@@ -62,6 +62,7 @@ struct Dashboard: View {
                 model.renameStage(stage.id, name: name); rename = nil
             }
         }
+        .sheet(item: $model.aeroImport) { draft in AeroImportSheet(model: model, draft: draft) }
         .sheet(item: $roomSettings) { stage in RoomSettingsSheet(model: model, stageID: stage.id) { roomSettings = nil } }
         .sheet(item: $pendingLoad) { workspace in
             VStack(alignment: .leading, spacing: 20) {
@@ -339,6 +340,7 @@ struct Dashboard: View {
     private var routing: some View {
         VStack(alignment: .leading, spacing: 24) {
             heading("Let your apps find their way.", "Route new windows automatically. The first matching rule wins.")
+            Button { model.chooseAeroSpaceConfig() } label: { Label("Import from AeroSpace…", systemImage: "square.and.arrow.down") }.help("Turn the on-window-detected rules of an AeroSpace config into Rooms and routing rules")
             if model.state.rules.isEmpty { emptyState("A home for every app.", "Open the ••• menu beside a window and choose Route New Windows To to add your first rule.", "arrow.triangle.branch") }
             ForEach(Array(model.state.rules.enumerated()), id: \.element.id) { index, rule in
                 VStack(alignment: .leading, spacing: 12) {

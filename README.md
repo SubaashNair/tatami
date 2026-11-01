@@ -245,7 +245,7 @@ Select a window row in the dashboard to use its snap controls. Classic shortcuts
 <summary><b>Rooms</b></summary>
 
 - Up to nine named Rooms that span every display. Create, rename, reorder, remove, switch, send windows, merge all, and undo.
-- **Rooms on their own display (experimental):** a Room can live on a display, so coding apps open on one screen and chat on another, as tabs. Set it in **Room Settings** or with `tatami home`.
+- **Rooms on their own display (experimental):** a Room can live on a display, so coding apps open on one screen and chat on another, as tabs. Set it in **Room Settings** or with `tatami home`. Coming from AeroSpace? **App Routing, Import from AeroSpace…** turns your `on-window-detected` rules into Rooms and routing rules.
 - Focusing a window from another Room (Cmd+Tab, Dock) switches to it; returning to a Room focuses its last used window.
 - **Room cards:** rest the pointer at the top centre of any screen to see every Room as a card with a scaled map of your displays. Click to switch, click a name to rename, hover to close, drag cards to reorder, or drag a window to the top edge and drop it on a card (or **+** for a new Room).
 - **Sort Windows into Rooms…** groups chat apps, browsers and the rest as a preview you confirm.

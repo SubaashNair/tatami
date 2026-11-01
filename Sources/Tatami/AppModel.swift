@@ -75,6 +75,7 @@ import TatamiCore
     var showDashboard: (() -> Void)?
     var showStagesBar: (() -> Void)?
     @Published var sortPreview: SortPreview?
+    @Published var aeroImport: AeroImportDraft?
     /// No settings file existed at launch: offer to sort windows once Accessibility is available (ONB-06).
     var isFirstRun = false
     var onStageSwitched: ((_ index: Int, _ stage: Stage) -> Void)?
