@@ -82,6 +82,10 @@ public struct WorkspaceState: Codable {
     public var freeformDisplays: [String: [String]] = [:]
     /// The `tatami` command may talk to the app over a private local socket (same user only).
     public var cliEnabled = true
+    /// Each display shows its own Room (RoomsPerDisplay.swift). Off by default: one Room everywhere.
+    public var perDisplayRooms = false
+    /// Display key → the Room showing there, used only while `perDisplayRooms` is on.
+    public var displayRooms: [String: UUID] = [:]
     public var newWindowPlacement: NewWindowPlacement = .automatic
     public var keepEmptyPanes = false
     /// Saved per-app Manage in Layout / Keep Floating choices (M3 decision 8), first match wins.
@@ -96,7 +100,7 @@ public struct WorkspaceState: Codable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, stages, activeStageID, saved, rules, excludedBundleIDs, followSentWindow, followActivatedWindows, showSwitchIndicator, showInDock, barHotZone, barDelay, barIgnoresNotch, scopeCommandBacktick, tiledDisplays, tilesByDefault, freeformDisplays, cliEnabled, newWindowPlacement, keepEmptyPanes, behaviorRules, shortcutPreset, gap, ai
+        case version, stages, activeStageID, saved, rules, excludedBundleIDs, followSentWindow, followActivatedWindows, showSwitchIndicator, showInDock, barHotZone, barDelay, barIgnoresNotch, scopeCommandBacktick, tiledDisplays, tilesByDefault, freeformDisplays, cliEnabled, perDisplayRooms, displayRooms, newWindowPlacement, keepEmptyPanes, behaviorRules, shortcutPreset, gap, ai
     }
 
     /// Keys written by earlier builds, read for migration only.
@@ -127,6 +131,8 @@ public struct WorkspaceState: Codable {
         tilesByDefault = try c.decodeIfPresent(Bool.self, forKey: .tilesByDefault) ?? defaults.tilesByDefault
         freeformDisplays = try c.decodeIfPresent([String: [String]].self, forKey: .freeformDisplays) ?? defaults.freeformDisplays
         cliEnabled = try c.decodeIfPresent(Bool.self, forKey: .cliEnabled) ?? defaults.cliEnabled
+        perDisplayRooms = try c.decodeIfPresent(Bool.self, forKey: .perDisplayRooms) ?? defaults.perDisplayRooms
+        displayRooms = try c.decodeIfPresent([String: UUID].self, forKey: .displayRooms) ?? defaults.displayRooms
         newWindowPlacement = try c.decodeIfPresent(NewWindowPlacement.self, forKey: .newWindowPlacement) ?? defaults.newWindowPlacement
         keepEmptyPanes = try c.decodeIfPresent(Bool.self, forKey: .keepEmptyPanes) ?? defaults.keepEmptyPanes
         behaviorRules = try c.decodeIfPresent([WindowBehaviorRule].self, forKey: .behaviorRules) ?? defaults.behaviorRules
@@ -161,6 +167,10 @@ public struct WorkspaceState: Codable {
         let live = Set(stages.map { $0.id.uuidString })
         tiledDisplays = tiledDisplays.filter { live.contains($0.key) && !$0.value.isEmpty }
         freeformDisplays = freeformDisplays.filter { live.contains($0.key) && !$0.value.isEmpty }
+        let liveIDs = Set(stages.map(\.id))
+        displayRooms = displayRooms.filter { liveIDs.contains($0.value) }
+        // Entries for displays that are gone only pile up; keep a stable 32 so saving can never fail because of them.
+        if displayRooms.count > 32 { displayRooms = Dictionary(uniqueKeysWithValues: displayRooms.sorted { $0.key < $1.key }.prefix(32).map { ($0.key, $0.value) }) }
         guard !stages.isEmpty, stages.count <= 9, Set(stages.map(\.id)).count == stages.count,
               stages.allSatisfy({ !$0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && $0.name.count <= 60 }),
               gap.isFinite, (0...40).contains(gap), barDelay.isFinite, (0...2).contains(barDelay), saved.count <= 100,
