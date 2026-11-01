@@ -23,7 +23,7 @@ extension AppModel {
     func sendWindow(_ id: UUID, to target: DisplayInfo) {
         guard let window = service.windows.first(where: { $0.id == id }) else { return }
         let sourceKey = layoutKey(containing: id)
-        guard window.hidden == nil || sourceKey != nil else { notice = "\(window.appName) is on another Stage. Switch to it first."; return }
+        guard window.hidden == nil || sourceKey != nil else { notice = "\(window.appName) is on another Room. Switch to it first."; return }
         guard let source = service.display(for: window.hidden == nil ? window.frame : window.realFrame), source.id != target.id else { return }
         let tiledThere = isTiled(stage: window.stageID, display: target.id) && isLayoutCandidate(window)
         let targetKey = LayoutKey(stage: window.stageID, display: target.id)

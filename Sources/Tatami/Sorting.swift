@@ -39,12 +39,12 @@ extension AppModel {
         sortPreview = nil
         if managing { reportFailures(applyVisibility(), action: "sort windows") }
         publish(); persist()
-        notice = "Sorted \(preview.windowIDs.count) windows into Stages. Undo is available."
+        notice = "Sorted \(preview.windowIDs.count) windows into Rooms. Undo is available."
     }
 
     func sortWithAI() {
         sortPreview = nil
-        aiPrompt = "Sort my open windows into Stages by project or activity. Keep chat apps together and browsers with the work they belong to."
+        aiPrompt = "Sort my open windows into Rooms by project or activity. Keep chat apps together and browsers with the work they belong to."
         showOrganizer?()
     }
 
@@ -78,7 +78,7 @@ struct SortPreviewView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text("Sort your windows into Stages").font(.system(size: 24, weight: .medium, design: .serif))
+            Text("Sort your windows into Rooms").font(.system(size: 24, weight: .medium, design: .serif))
             Text("Chat and mail go to Comms, browsers to Browse, everything else to Work. Nothing moves until you apply, and Undo puts it back.")
                 .font(.system(size: 12)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true)
             ForEach(groups, id: \.stage) { group in

@@ -148,13 +148,13 @@ public struct AIPlan: Decodable {
         /// `renaming` is the Stage being renamed, so a case-only rename is not a duplicate of itself.
         func newNameProblem(_ name: String?, renaming: String? = nil) -> String? {
             let name = name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            if name.isEmpty || name.count > 60 { return "Stage names must be 1 to 60 characters." }
-            if let existing = canonical(name), existing != renaming { return "A Stage named \(name) already exists." }
+            if name.isEmpty || name.count > 60 { return "Room names must be 1 to 60 characters." }
+            if let existing = canonical(name), existing != renaming { return "A Room named \(name) already exists." }
             return nil
         }
         func stageProblem(_ name: String?) -> String {
             let key = name?.lowercased() ?? ""
-            return missing.contains(key) ? "Stage \(name ?? "") was not created because an earlier action was dropped." : "There is no Stage named \(name ?? "(none)")."
+            return missing.contains(key) ? "Room \(name ?? "") was not created because an earlier action was dropped." : "There is no Room named \(name ?? "(none)")."
         }
 
         for (index, raw) in actions.enumerated() {
@@ -164,7 +164,7 @@ public struct AIPlan: Decodable {
             case "createStage":
                 let name = raw.name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
                 if let p = newNameProblem(name) { problem = p }
-                else if stages.count >= 9 { problem = "Tatami supports up to nine Stages." }
+                else if stages.count >= 9 { problem = "Tatami supports up to nine Rooms." }
                 else { stages.append(name); valid.append(.createStage(name: name)) }
                 if problem != nil { missing.insert(name.lowercased()) }
             case "renameStage":

@@ -14,8 +14,8 @@ Command-line control is on by default. Turn it off with **Allow command-line con
 
 | Command | What it does |
 |---|---|
-| `tatami stage <1-9\|next\|prev>` | Switch Stage |
-| `tatami send <1-9>` | Send the focused window to a Stage |
+| `tatami room <1-9\|next\|prev>` | Switch Room |
+| `tatami send <1-9>` | Send the focused window to a Room |
 | `tatami focus <left\|right\|up\|down>` | Focus the pane or window that way |
 | `tatami move <left\|right\|up\|down>` | Move the window to the pane that way, or swap in Freeform |
 | `tatami window <next\|prev>` | Focus the next or previous window across displays |
@@ -28,10 +28,10 @@ Command-line control is on by default. Turn it off with **Allow command-line con
 | `tatami undo-layout` | Undo the last layout change |
 | `tatami rescue` | Bring every hidden window back and pause |
 | `tatami start` / `pause` | Start or pause window management |
-| `tatami list <windows\|stages\|displays> [--json]` | Show what Tatami sees |
+| `tatami list <windows\|rooms\|displays> [--json]` | Show what Tatami sees |
 | `tatami status [--json]` | Managing or paused, and the version |
 
-`tatami help` prints the same table. Words are case-insensitive.
+`tatami help` prints the same table. Words are case-insensitive. Rooms used to be called Stages, so `tatami stage` and `tatami list stages` still work, but the JSON field is now `room`.
 
 The focused window is the one in the frontmost app. Run from Terminal, that is the terminal itself, so for window actions bind the command to a key in your shortcut tool or use `sleep 2; tatami ...` to try it.
 

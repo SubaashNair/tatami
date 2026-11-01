@@ -22,9 +22,9 @@ final class StagesTests: XCTestCase {
 
     func testNextStageNameSkipsTakenNames() {
         var state = WorkspaceState()
-        XCTAssertEqual(state.nextStageName(), "Stage 4")
-        state.addStage(name: "Stage 4")
-        XCTAssertEqual(state.nextStageName(), "Stage 5")
+        XCTAssertEqual(state.nextStageName(), "Room 4")
+        state.addStage(name: "Room 4")
+        XCTAssertEqual(state.nextStageName(), "Room 5")
     }
 
     func testCategoriesClassifyKnownApps() {

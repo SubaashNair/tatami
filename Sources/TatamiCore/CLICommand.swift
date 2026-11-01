@@ -1,6 +1,6 @@
 import Foundation
 
-public enum CLIListing: String, Equatable { case windows, stages, displays }
+public enum CLIListing: String, Equatable { case windows, rooms, displays }
 
 /// What the `tatami` command can ask the app to do. Each action mirrors a keyboard shortcut that already exists.
 public enum CLICommand: Equatable {
@@ -19,8 +19,8 @@ public enum CLIParseError: Error, Equatable {
 extension CLICommand {
     /// Command, its usage line and what it does. The parser's error messages and the help text both come from here.
     static let reference: [(name: String, usage: String, summary: String)] = [
-        ("stage", "stage <1-9|next|prev>", "switch Stage"),
-        ("send", "send <1-9>", "send the focused window to a Stage"),
+        ("room", "room <1-9|next|prev>", "switch Room"),
+        ("send", "send <1-9>", "send the focused window to a Room"),
         ("focus", "focus <left|right|up|down>", "focus the pane or window that way"),
         ("move", "move <left|right|up|down>", "move the window to the pane that way, or swap with the freeform window there"),
         ("window", "window <next|prev>", "focus the next or previous window across displays"),
@@ -35,7 +35,7 @@ extension CLICommand {
         ("rescue", "rescue", "bring every hidden window back and pause"),
         ("start", "start", "start managing windows"),
         ("pause", "pause", "pause management and restore windows"),
-        ("list", "list <windows|stages|displays> [--json]", "show what Tatami sees"),
+        ("list", "list <windows|rooms|displays> [--json]", "show what Tatami sees"),
         ("status", "status [--json]", "show whether Tatami is managing, and its version"),
     ]
 
@@ -50,7 +50,8 @@ extension CLICommand {
     }
 
     public static func parse(_ args: [String]) -> Result<CLICommand, CLIParseError> {
-        guard let name = args.first?.lowercased() else { return .failure(.empty) }
+        guard let first = args.first?.lowercased() else { return .failure(.empty) }
+        let name = first == "stage" ? "room" : first  // "stage" was the old word for a Room
         let rest = args.dropFirst().map { $0.lowercased() }
         let wrong = Result<CLICommand, CLIParseError>.failure(usage(name))
 
@@ -74,7 +75,7 @@ extension CLICommand {
         }
 
         switch name {
-        case "stage": return rest.first.map({ $0 == "next" || $0 == "prev" }) == true ? step(CLICommand.stageStep) : number(CLICommand.stage)
+        case "room": return rest.first.map({ $0 == "next" || $0 == "prev" }) == true ? step(CLICommand.stageStep) : number(CLICommand.stage)
         case "send": return number(CLICommand.send)
         case "focus": return direction(CLICommand.focus)
         case "move": return direction(CLICommand.move)
@@ -91,7 +92,7 @@ extension CLICommand {
         case "start": return plain(.start)
         case "pause": return plain(.pause)
         case "list":
-            guard let what = rest.first.flatMap(CLIListing.init(rawValue:)), let json = jsonFlag(Array(rest.dropFirst())) else { return wrong }
+            guard let what = rest.first.map({ $0 == "stages" ? "rooms" : $0 }).flatMap(CLIListing.init(rawValue:)), let json = jsonFlag(Array(rest.dropFirst())) else { return wrong }
             return .success(.list(what, json: json))
         case "status":
             guard let json = jsonFlag(rest) else { return wrong }

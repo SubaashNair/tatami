@@ -229,7 +229,7 @@ import TatamiCore
                 error = "Scroll switching is unavailable because macOS did not allow Tatami to watch scroll events. Shortcuts still work; try Pause and Start managing again."
             }
             if conflicts > 0 { error = "\(conflicts) shortcuts are already in use. Those shortcuts were not registered." }
-            notice = "Stage management is on. Switch with \(state.shortcutPreset.stageModifiers)1–9."
+            notice = "Room management is on. Switch with \(state.shortcutPreset.stageModifiers)1–9."
         } else {
             let failures = service.restoreOwnedWindows()
             hotkeys.unregister(); scrollSwitcher.stop()
@@ -256,7 +256,7 @@ import TatamiCore
             Self.signposter.endInterval("switchStage", interval)
             let ms = (ContinuousClock.now - start) / .milliseconds(1)
             if state.showSwitchIndicator, let index = state.stages.firstIndex(where: { $0.id == id }) { onStageSwitched?(index, state.stages[index]) }
-            Self.log.info("Stage switch took \(ms, format: .fixed(precision: 1)) ms for \(self.service.windows.count) windows")
+            Self.log.info("Room switch took \(ms, format: .fixed(precision: 1)) ms for \(self.service.windows.count) windows")
         }
         publish(); persist()
     }
@@ -282,7 +282,7 @@ import TatamiCore
 
     func addStage(_ name: String) {
         if let stage = state.addStage(name: name) { switchStage(stage.id) }
-        else { error = "Use a name from 1–60 characters. This version supports up to nine Stages." }
+        else { error = "Use a name from 1–60 characters. This version supports up to nine Rooms." }
     }
 
     func renameStage(_ id: UUID, name: String) {
@@ -307,28 +307,28 @@ import TatamiCore
 
     /// Dropping a window on the "+" card: create a Stage and send the window there without switching.
     func sendToNewStage(_ windowID: UUID) {
-        guard let stage = state.addStage(name: state.nextStageName()) else { error = "Tatami supports up to nine Stages."; return }
+        guard let stage = state.addStage(name: state.nextStageName()) else { error = "Tatami supports up to nine Rooms."; return }
         persist()
         send(windowID, to: stage.id)
     }
 
     func deleteStage(_ id: UUID) {
-        let before = snapshot(name: "Before deleting Stage")
+        let before = snapshot(name: "Before deleting Room")
         guard let destination = state.removeStage(id) else { return }  // a refused delete must not replace the current undo
         undoSnapshot = before
         for i in service.windows.indices where service.windows[i].stageID == id { service.windows[i].stageID = destination }
-        if managing { reportFailures(applyVisibility(), action: "delete Stage") }
-        publish(); persist(); notice = "Stage closed. Its windows moved to \(state.activeStage.name). Undo is available."
+        if managing { reportFailures(applyVisibility(), action: "delete Room") }
+        publish(); persist(); notice = "Room closed. Its windows moved to \(state.activeStage.name). Undo is available."
     }
 
     /// Merge All (M2 decision 8). Undo restores every Stage and assignment.
     func mergeAll() {
         guard state.stages.count > 1 else { return }
-        undoSnapshot = snapshot(name: "Before merging Stages")
+        undoSnapshot = snapshot(name: "Before merging Rooms")
         let first = state.mergeAll()
         for i in service.windows.indices { service.windows[i].stageID = first }
-        if managing { reportFailures(applyVisibility(), action: "merge Stages") }
-        publish(); persist(); notice = "All Stages merged into \(state.activeStage.name). Undo is available."
+        if managing { reportFailures(applyVisibility(), action: "merge Rooms") }
+        publish(); persist(); notice = "All Rooms merged into \(state.activeStage.name). Undo is available."
     }
 
     func send(_ windowID: UUID, to stageID: UUID) {
@@ -345,7 +345,7 @@ import TatamiCore
             if service.windows[index].stageID != state.activeStageID { focusAfterSwitch(to: state.activeStageID) }
         }
         publish(); persist()
-        notice = "Window assigned to \(state.stages.first(where: { $0.id == stageID })?.name ?? "Stage")."
+        notice = "Window assigned to \(state.stages.first(where: { $0.id == stageID })?.name ?? "Room")."
     }
 
     func snap(_ zone: SnapZone, windowID: UUID? = nil) {
@@ -381,7 +381,7 @@ import TatamiCore
         }
         onLayoutsApplied?()  // hides the tab bars now that managing is off
         publish()
-        notice = failures == 0 ? "Windows restored. Stage management is paused." : "Some apps did not respond. Their minimized windows are still available in the Dock."
+        notice = failures == 0 ? "Windows restored. Room management is paused." : "Some apps did not respond. Their minimized windows are still available in the Dock."
     }
 
     func focus(_ window: LiveWindow) {
@@ -459,7 +459,7 @@ import TatamiCore
             guard data.count < 5_000_000 else { throw ValidationError.invalidState }
             var imported = try JSONDecoder().decode(WorkspaceState.self, from: data); try imported.validate()
             let alert = NSAlert(); alert.messageText = "Import Tatami settings?"
-            alert.informativeText = "This replaces Stage names, shortcuts preferences, and routing rules. Your saved workspaces remain on this Mac. Window management will pause."
+            alert.informativeText = "This replaces Room names, shortcuts preferences, and routing rules. Your saved workspaces remain on this Mac. Window management will pause."
             alert.addButton(withTitle: "Import"); alert.addButton(withTitle: "Cancel")
             guard alert.runModal() == .alertFirstButtonReturn else { return }
             rescue(); imported.saved = state.saved; imported.ai = state.ai; state = imported
