@@ -17,6 +17,7 @@ struct Dashboard: View {
     @State private var saving = false
     @State private var name = ""
     @State private var rename: Stage?
+    @State private var roomSettings: Stage?
     @State private var pendingLoad: SavedWorkspace?
 
     var body: some View {
@@ -61,6 +62,7 @@ struct Dashboard: View {
                 model.renameStage(stage.id, name: name); rename = nil
             }
         }
+        .sheet(item: $roomSettings) { stage in RoomSettingsSheet(model: model, stageID: stage.id) { roomSettings = nil } }
         .sheet(item: $pendingLoad) { workspace in
             VStack(alignment: .leading, spacing: 20) {
                 Label("Load workspace", systemImage: "square.stack.3d.up").font(.title2.weight(.semibold))
@@ -226,10 +228,11 @@ struct Dashboard: View {
                 }.padding(16)
             }.buttonStyle(.plain)
             HStack {
-                Text("\(windows.count) windows").font(.system(size: 10)).foregroundStyle(Theme.muted)
+                Text("\(windows.count) windows" + (stage.homeDisplay.map { key in " · on \(model.displays.first { $0.id == key }?.name ?? "an unplugged display")" } ?? "")).font(.system(size: 10)).foregroundStyle(Theme.muted).lineLimit(1)
                 Spacer()
                 Menu {
                     Button("Rename") { name = stage.name; rename = stage }
+                    Button("Room Settings…") { roomSettings = stage }
                     Button("Move Left") { model.reorderStage(stage.id, direction: -1) }.disabled(index == 0)
                     Button("Move Right") { model.reorderStage(stage.id, direction: 1) }.disabled(index == model.state.stages.count - 1)
                     Divider()

@@ -94,6 +94,16 @@ Set a routing rule (a window's menu, then app routing) so Slack always lands in 
 
 Not available yet: drag-to-split, drag a tab to another pane or display, divider handles, layout presets.
 
+### Give each display its own Room (experimental)
+
+Say display 1 is for coding, display 2 for chat and display 3 for teaching:
+
+1. Create a Room for each job and route the apps to it in **App Routing**.
+2. In the dashboard, open a Room's **⋯** menu, choose **Room Settings…**, and pick **Lives on** a display. This turns on "Each display shows its own Room".
+3. Leave **New windows open as** on the default (tabs in the focused pane) so a second coding app joins the first one's pane.
+
+Apps you open from then on go to their Room's display, as tabs. Windows already open stay where they are. From a terminal: `tatami home 1 1` puts Room 1 on display 1 (see the command-line guide).
+
 ## 5. Let AI sort a messy desktop
 
 1. Preferences → AI Organizer: pick a provider and save your key (stored in Keychain). Ollama or LM Studio work locally with no key.

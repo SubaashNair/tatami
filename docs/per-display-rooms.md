@@ -37,7 +37,7 @@ A Room can live on a display, so "coding apps on display 1, chat on display 2, t
 - A routed window is moved to its Room's home. If that display is showing another Room the window waits there, hidden, until you switch the display to the Room, like any inactive Room.
 - An unplugged home display is ignored. With the mode off homes are ignored. Merge All drops the home of the surviving Room.
 
-Steps: 1. core rules (done), 2. wiring (this change), 3. the Room settings screen and the AeroSpace import.
+Steps: 1. core rules (done), 2. wiring (done), 3. the Room settings screen (a Room's ⋯ menu, Room Settings…) and then the AeroSpace import.
 
 ### Trying step 2
 
