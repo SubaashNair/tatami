@@ -270,7 +270,7 @@ public enum ShortcutPreset: String, Codable, CaseIterable {
     case standard, classic
     public var stageModifiers: String { self == .standard ? "⌃⌥" : "⌥" }
     public var navigationModifiers: String { self == .standard ? "⌃⌥⌘" : "⌥" }
-    /// Tiles pane commands. Classic keeps BetterStage's ⌘⌥; Standard avoids ⌘⌥I/J (browser developer tools).
+    /// Tiles pane commands. Classic keeps the ⌘⌥ family; Standard avoids ⌘⌥I/J (browser developer tools).
     public var paneModifiers: String { self == .standard ? "⌃⌥⌘" : "⌘⌥" }
 }
 

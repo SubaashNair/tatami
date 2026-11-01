@@ -124,7 +124,7 @@ public final class CLIServer: @unchecked Sendable {
 
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else { throw StartError.system(errno) }
-        fcntl(fd, F_SETFD, FD_CLOEXEC)
+        _ = fcntl(fd, F_SETFD, FD_CLOEXEC)
         // The folder is 0700 and ours, so nobody else can reach the socket file even before the chmod below.
         let bound = withUnsafePointer(to: &target) { $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { bind(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) } }
         let bindError = errno
@@ -133,7 +133,7 @@ public final class CLIServer: @unchecked Sendable {
         var made = stat()
         if lstat(path, &made) == 0 { boundFile = (made.st_dev, made.st_ino) }
         guard listen(fd, 8) == 0 else { let error = errno; close(fd); unlink(path); throw StartError.system(error) }
-        fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK)
+        _ = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK)
 
         let reader = DispatchSource.makeReadSource(fileDescriptor: fd, queue: acceptQueue)
         reader.setEventHandler { [weak self] in self?.acceptReady(fd) }
@@ -185,7 +185,7 @@ public final class CLIServer: @unchecked Sendable {
         while true {
             let client = accept(listener, nil, nil)
             if client < 0 { return }
-            fcntl(client, F_SETFD, FD_CLOEXEC)
+            _ = fcntl(client, F_SETFD, FD_CLOEXEC)
             guard admitClient() else { close(client); continue }
             clientQueue.async { [self] in serve(client) }
         }
@@ -207,7 +207,7 @@ public final class CLIServer: @unchecked Sendable {
 
     private func serve(_ fd: Int32) {
         guard Self.isSameUser(fd) else { finish(fd); return }
-        fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) & ~O_NONBLOCK)  // accepted sockets can inherit non-blocking mode
+        _ = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) & ~O_NONBLOCK)  // accepted sockets can inherit non-blocking mode
         setTimeouts(fd, readTimeout)
         switch readRequest(fd) {
         case .nothing:

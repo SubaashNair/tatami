@@ -11,6 +11,8 @@
   <img alt="Swift 5.10" src="https://img.shields.io/badge/Swift-5.10-d9a441?logo=swift&logoColor=white">
   <img alt="No dependencies" src="https://img.shields.io/badge/dependencies-none-3b5a47">
   <img alt="Keyboard first" src="https://img.shields.io/badge/keyboard-first-2f4a3a">
+  <a href="https://github.com/SubaashNair/tatami/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/SubaashNair/tatami/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-3b5a47"></a>
   <img alt="Status: alpha" src="https://img.shields.io/badge/status-alpha-d9a441">
   <img alt="Local first" src="https://img.shields.io/badge/data-stays%20on%20your%20Mac-4d7a60">
 </p>
@@ -336,16 +338,16 @@ docs/             guides, plans and the product requirements
 | Read | For |
 |---|---|
 | [How to use Tatami](docs/how-to-use.md) | Setup, daily loop, test checklist, troubleshooting |
-| [Product requirements](docs/betterstage-inspired-prd.md) | The long-term specification |
-| [Feature parity roadmap](docs/betterstage-parity.md) | What is built, what is next |
 | [Implementation status](docs/implementation-status.md) | Architecture notes and scope decisions |
-| [Reverse-engineering study](docs/rea-prd-betterstage-aerospace.md) | BetterStage and AeroSpace compared |
 
-<details>
-<summary><b>Contributing and testing</b></summary>
+## Contributing
 
-- Run `swift test` before every commit. Logic goes into `TatamiCore` with a test first; the app target only wires it to the screen.
-- `bash scripts/ax_integration.sh` runs opt-in checks against real windows. Keep the desktop idle while it runs: another app stealing focus makes it flaky.
-- Never commit secrets. API keys are stored in the Keychain, not in files.
+Bug reports from real setups, especially several displays and unusual apps, are as useful as code. Start with [CONTRIBUTING.md](CONTRIBUTING.md): it covers building, the test-first rule for `TatamiCore`, and the keyboard-first and safety rules. Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
 
-</details>
+```bash
+swift build && swift test      # unit tests need no screen or permissions
+```
+
+## License
+
+[MIT](LICENSE). Tatami is an independent project. It is not affiliated with AeroSpace, which is named here only as inspiration and comparison; its name belongs to its owner.

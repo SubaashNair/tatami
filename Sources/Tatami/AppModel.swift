@@ -115,27 +115,27 @@ import TatamiCore
         }
         Task { await refreshNow(); restoreCheckpoint(); offerFirstRunSort() }
         timer = Timer.scheduledTimer(withTimeInterval: safetyNetInterval, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.refresh() }
+            Task { @MainActor [weak self] in self?.refresh() }
         }
         displayObserver = NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in self?.displaysChanged() }
+            Task { @MainActor [weak self] in self?.displaysChanged() }
         }
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
             // displaysChanged() diffs the old and new display lists itself; updating them first would hide a change from it.
-            Task { @MainActor in self?.displaysChanged(); self?.refresh() }
+            Task { @MainActor [weak self] in self?.displaysChanged(); self?.refresh() }
         }
         let workspace = NSWorkspace.shared.notificationCenter
         appObservers = [NSWorkspace.didLaunchApplicationNotification, NSWorkspace.didTerminateApplicationNotification].map { name in
             workspace.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                Task { @MainActor in self?.pauseIfConflictingManagerStarted(); self?.refresh() }
+                Task { @MainActor [weak self] in self?.pauseIfConflictingManagerStarted(); self?.refresh() }
             }
         }
         sleepObserver = workspace.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in self?.writeCheckpoint() }
+            Task { @MainActor [weak self] in self?.writeCheckpoint() }
         }
         // Cmd+Tab and Dock clicks activate an app without changing its focused window.
         appObservers.append(workspace.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in self?.followFocus() }
+            Task { @MainActor [weak self] in self?.followFocus() }
         })
     }
 
@@ -196,8 +196,7 @@ import TatamiCore
     var canUndo: Bool { undoSnapshot != nil }
 
     /// Two managers moving the same windows fight each other and can strand windows off-screen.
-    static let conflictingManagers = ["bobko.aerospace": "AeroSpace", "com.koekeishiya.yabai": "yabai", "com.amethyst.Amethyst": "Amethyst",
-                                      "app.betterstage.BetterStage": "BetterStage", "com.betterstage.app": "BetterStage"]
+    static let conflictingManagers = ["bobko.aerospace": "AeroSpace", "com.koekeishiya.yabai": "yabai", "com.amethyst.Amethyst": "Amethyst"]
 
     func runningConflictingManager() -> String? {
         let running = NSWorkspace.shared.runningApplications

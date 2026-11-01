@@ -1,6 +1,6 @@
 # M2: Stages polish
 
-Status: implemented 2026-09-27. Decisions settled in design review 2026-09-26. Part of [betterstage-parity.md](betterstage-parity.md). Covers PRD BAR-01 to BAR-06, STG-04, STG-07, STG-08, ONB-02, ONB-06, and the Stages rows of the parity table.
+Status: implemented 2026-09-27. Decisions settled in design review 2026-09-26. Part of the internal feature roadmap (not published). Covers PRD BAR-01 to BAR-06, STG-04, STG-07, STG-08, ONB-02, ONB-06, and the Stages rows of the parity table.
 
 ## Decisions
 

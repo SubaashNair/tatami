@@ -1,6 +1,6 @@
 # M1: Engine foundations
 
-Status: implemented 2026-09-26. Decisions settled in design review 2026-09-24. Part of [betterstage-parity.md](betterstage-parity.md). Covers PRD STG-03, STG-06, DSP-02, DSP-03, DSP-06, DSP-07, WSP-01 to WSP-05, SET-01, SET-10 (as far as macOS allows).
+Status: implemented 2026-09-26. Decisions settled in design review 2026-09-24. Part of the internal feature roadmap (not published). Covers PRD STG-03, STG-06, DSP-02, DSP-03, DSP-06, DSP-07, WSP-01 to WSP-05, SET-01, SET-10 (as far as macOS allows).
 
 ## Decisions
 
