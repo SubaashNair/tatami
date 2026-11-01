@@ -6,6 +6,7 @@ extension WorkspaceState {
         let first = stages[0]
         stages = [first]
         activeStageID = first.id
+        displayRooms = [:]
         return first.id
     }
 
