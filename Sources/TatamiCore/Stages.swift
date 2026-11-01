@@ -7,6 +7,7 @@ extension WorkspaceState {
         stages = [first]
         activeStageID = first.id
         displayRooms = [:]
+        stages[0].homeDisplay = nil  // one Room is left, so a home would only send every routed app to one screen
         return first.id
     }
 

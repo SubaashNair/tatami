@@ -5,8 +5,12 @@ public struct Stage: Identifiable, Codable, Equatable {
     public var id: UUID
     public var name: String
     public var symbol: String
-    public init(id: UUID = UUID(), name: String, symbol: String = "square.stack.3d.up") {
-        self.id = id; self.name = name; self.symbol = symbol
+    /// The display this Room lives on (a display key). Its windows open there. Used only while per-display Rooms is on.
+    public var homeDisplay: String?
+    /// How new windows open in this Room. Nil follows the desk-wide setting.
+    public var placement: NewWindowPlacement?
+    public init(id: UUID = UUID(), name: String, symbol: String = "square.stack.3d.up", homeDisplay: String? = nil, placement: NewWindowPlacement? = nil) {
+        self.id = id; self.name = name; self.symbol = symbol; self.homeDisplay = homeDisplay; self.placement = placement
     }
 }
 
@@ -169,6 +173,7 @@ public struct WorkspaceState: Codable {
         freeformDisplays = freeformDisplays.filter { live.contains($0.key) && !$0.value.isEmpty }
         let liveIDs = Set(stages.map(\.id))
         displayRooms = displayRooms.filter { liveIDs.contains($0.value) }
+        for index in stages.indices where (stages[index].homeDisplay?.count ?? 0) > 200 { stages[index].homeDisplay = nil }
         // Entries for displays that are gone only pile up; keep a stable 32 so saving can never fail because of them.
         if displayRooms.count > 32 { displayRooms = Dictionary(uniqueKeysWithValues: displayRooms.sorted { $0.key < $1.key }.prefix(32).map { ($0.key, $0.value) }) }
         guard !stages.isEmpty, stages.count <= 9, Set(stages.map(\.id)).count == stages.count,
@@ -205,6 +210,7 @@ public struct WorkspaceState: Codable {
     public mutating func removeStage(_ id: UUID) -> UUID? {
         guard stages.count > 1, stages.contains(where: { $0.id == id }) else { return nil }
         stages.removeAll { $0.id == id }
+        displayRooms = displayRooms.filter { $0.value != id }
         if activeStageID == id { activeStageID = stages[0].id }
         return activeStageID
     }
