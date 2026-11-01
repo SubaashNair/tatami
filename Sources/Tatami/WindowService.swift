@@ -71,6 +71,8 @@ struct RecoveryEntry: Codable {
     /// macOS moves windows itself around display changes and wake; for a short while, a parked window
     /// found on screen was put there by macOS, not rescued by the user, so it is re-parked.
     private var displaysChangedAt = Date.distantPast
+    /// True for a few seconds after a display change, while macOS is still moving windows around by itself.
+    var displaysAreSettling: Bool { Date().timeIntervalSince(displaysChangedAt) < displayChangeGrace }
     private let displayChangeGrace: TimeInterval = 3
     /// Bumped on every write so a scan that started before it cannot overwrite fresher frames.
     private var writeGeneration = 0
@@ -190,7 +192,7 @@ struct RecoveryEntry: Codable {
                     case .parked where !ParkPlanner.isParked(found.frame, displays: screens) && displaysSettling:
                         repark.append(existing.id)
                     case .minimized where !found.minimized, .parked where !ParkPlanner.isParked(found.frame, displays: screens):
-                        existing.hidden = nil; existing.stageID = state.activeStageID
+                        existing.hidden = nil; existing.stageID = state.activeRoomID(on: display(for: found.frame)?.id)
                     default: break
                     }
                 }
@@ -199,7 +201,7 @@ struct RecoveryEntry: Codable {
             } else {
                 let window = LiveWindow(id: UUID(), element: found.element, pid: found.pid, bundleID: found.bundleID, appName: found.appName,
                                         windowNumber: found.windowNumber, title: found.title, frame: found.frame, minimized: found.minimized,
-                                        stageID: state.destination(bundleID: found.bundleID, title: found.title) ?? state.activeStageID)
+                                        stageID: state.destination(bundleID: found.bundleID, title: found.title) ?? state.activeRoomID(on: display(for: found.frame)?.id))
                 // An app that quit while parked may reopen its window where it was saved: off-screen.
                 if managing, initialScanDone, !found.minimized, ParkPlanner.isParked(found.frame, displays: screens), let area = (display(for: found.frame) ?? displays.first)?.area {
                     rescue.append((window.id, Geometry.visibleFrame(found.frame, in: area)))
@@ -233,7 +235,7 @@ struct RecoveryEntry: Codable {
     func applyVisibility(state: WorkspaceState, extraHidden: Set<UUID> = []) -> Int {
         guard trusted else { return windows.filter { $0.hidden != nil }.count }
         func visible(_ window: LiveWindow) -> Bool {
-            !extraHidden.contains(window.id) && (state.excludedBundleIDs.contains(window.bundleID) || window.stageID == state.activeStageID)
+            !extraHidden.contains(window.id) && state.isVisible(room: window.stageID, bundleID: window.bundleID, on: display(for: window.realFrame)?.id)
         }
         let showing = windows.indices.filter { windows[$0].hidden != nil && visible(windows[$0]) }
         let hiding = windows.indices.filter { windows[$0].hidden == nil && !windows[$0].minimized && !visible(windows[$0]) }

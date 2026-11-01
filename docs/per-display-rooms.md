@@ -13,8 +13,17 @@ An opt-in mode where each display shows its own Room and switches on its own. Of
 
 ## Phases
 
-1. **Core model** (this change): the rules above in `TatamiCore` with unit tests. Nothing visible yet.
-2. **Wiring:** hiding and showing windows per display, focus following, the recovery journal and checkpoints.
+1. **Core model** (done): the rules above in `TatamiCore` with unit tests.
+2. **Wiring** (this change): hiding and showing windows per display, switching, focus following, new windows, Tiles and sending windows. Turn it on in Preferences, under Displays (experimental). Off by default, and with it off nothing behaves differently.
 3. **Interface:** keys, per-display Room cards, the dashboard switch, the `tatami room --display` option, docs.
 
 Each phase needs testing on a real multi-display setup before the next starts, because it decides which windows get hidden.
+
+## Testing phase 2 by hand (two or more displays)
+
+1. Preferences, Displays: turn on "Each display shows its own Room".
+2. With the pointer or a focused window on display 1, press the Room 2 key. Only display 1 should change; display 2 keeps its windows.
+3. Switch display 2 to another Room. Cycling Rooms, Cmd+Tab to a hidden app and Dock clicks should act on the display the window is on.
+4. Drag a window to the other display: it should join the Room showing there and stay visible.
+5. Send a window with the display key: same result.
+6. Turn the setting off: every display returns to one Room and every window is reachable. `⌃⌥⌘R` (rescue) always brings everything back.

@@ -46,6 +46,8 @@ import TatamiCore
     var fittingOversized = false
     /// The local socket behind the `tatami` command, while command-line control is on.
     var cliServer: CLIServer?
+    /// Which display each window was last seen on (per-display Rooms).
+    var displayTracker = WindowDisplayTracker()
     /// A delayed re-check is queued, so a window that is merely slow to resize is not mistaken for one with a minimum size.
     var oversizedCheckPending = false
     /// Sizes below which a window cannot go, learned when it overflowed its pane; other fits must not squeeze it further.
@@ -62,8 +64,8 @@ import TatamiCore
     var onReconnectOffer: ((ReconnectOffer) -> Void)?
     var sleepObserver: NSObjectProtocol?
     /// Our own switch moves focus around; ignore focus events until it settles.
-    private var suppressFollowUntil = Date.distantPast
-    private let followSuppression: TimeInterval = 1
+    var suppressFollowUntil = Date.distantPast
+    let followSuppression: TimeInterval = 1
     /// Events drive updates; this rescan only catches notifications apps fail to send (M1 decision 3).
     private let safetyNetInterval: TimeInterval = 5
     var undoSnapshot: SavedWorkspace?
@@ -100,7 +102,7 @@ import TatamiCore
         service = WindowService(directory: directory)
         error = loadError
         hotkeys.onAction = { [weak self] action in self?.handle(action) }
-        scrollSwitcher.onSwitch = { [weak self] offset in guard let self else { return }; self.switchStage(self.state.stageID(offset: offset)) }
+        scrollSwitcher.onSwitch = { [weak self] offset in guard let self else { return }; self.switchStage(self.roomID(offset: offset)) }
     }
 
     func start() {
@@ -162,6 +164,7 @@ import TatamiCore
     /// After any scan: new windows may need hiding (routing to inactive Stages), then the UI updates.
     func windowsChanged() {
         if managing {
+            adoptRoomsOfMovedWindows()
             let structural = syncLayouts()
             let edited = checkLayoutEdits()
             if structural || edited { applyLayouts() } else {
@@ -242,9 +245,12 @@ import TatamiCore
     private static let log = Logger(subsystem: "app.tatami.mac", category: "engine")
     private static let signposter = OSSignposter(logger: log)
 
-    func switchStage(_ id: UUID) {
+    /// Switches a Room: on `display` (default: the one you are working on) with per-display Rooms on, everywhere otherwise.
+    func switchStage(_ id: UUID, on display: String? = nil) {
         guard state.stages.contains(where: { $0.id == id }) else { return }
-        state.activeStageID = id; selectedWindowID = nil; search = ""
+        let target = display ?? (state.perDisplayRooms ? targetDisplay()?.id : nil)
+        setActiveRoom(id, on: target)
+        selectedWindowID = nil; search = ""
         if managing {
             // Measured, not assumed (M1 decision 7): view in Console or Instruments › os_signpost.
             let interval = Self.signposter.beginInterval("switchStage")
@@ -252,7 +258,7 @@ import TatamiCore
             suppressFollowUntil = Date().addingTimeInterval(followSuppression)
             reportFailures(applyVisibility(), action: "switch")
             applyLayouts()  // also moves tab bars to the new Stage (or hides them)
-            focusAfterSwitch(to: id)
+            focusAfterSwitch(to: id, on: target)
             Self.signposter.endInterval("switchStage", interval)
             let ms = (ContinuousClock.now - start) / .milliseconds(1)
             if state.showSwitchIndicator, let index = state.stages.firstIndex(where: { $0.id == id }) { onStageSwitched?(index, state.stages[index]) }
@@ -262,10 +268,13 @@ import TatamiCore
     }
 
     /// Typing must never go to a parked window: focus something visible on the new Stage, or the desktop.
-    private func focusAfterSwitch(to stage: UUID) {
-        let candidates = service.windows.filter { $0.stageID == stage && $0.hidden == nil && !$0.minimized }
+    private func focusAfterSwitch(to stage: UUID, on display: String? = nil) {
+        let candidates = service.windows.filter {
+            $0.stageID == stage && $0.hidden == nil && !$0.minimized && (display == nil || !state.perDisplayRooms || displayKey(of: $0) == display)
+        }
         if let id = lastFocused[stage], candidates.contains(where: { $0.id == id }) { service.focus(id) }
         else if let first = candidates.first { service.focus(first.id) }
+        else if state.perDisplayRooms, let other = service.windows.first(where: { $0.hidden == nil && !$0.minimized && isShownOnItsDisplay($0) }) { service.focus(other.id) }  // never leave typing aimed at a parked window
         else { NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.finder").first?.activate() }
     }
 
@@ -275,9 +284,10 @@ import TatamiCore
               let window = service.windows.first(where: { $0.id == id }) else { return }
         lastFocused[window.stageID] = id
         if noteLayoutFocus(id) { return }  // a tab on the active Stage: select it rather than switching
-        guard window.stageID != state.activeStageID, !state.excludedBundleIDs.contains(window.bundleID),
+        let home = displayKey(of: window)
+        guard !state.isActiveRoom(window.stageID, on: home), !state.excludedBundleIDs.contains(window.bundleID),
               state.followActivatedWindows, state.stages.contains(where: { $0.id == window.stageID }) else { return }
-        switchStage(window.stageID)
+        switchStage(window.stageID, on: home)
     }
 
     func addStage(_ name: String) {
@@ -334,18 +344,22 @@ import TatamiCore
     func send(_ windowID: UUID, to stageID: UUID) {
         guard state.stages.contains(where: { $0.id == stageID }), let index = service.windows.firstIndex(where: { $0.id == windowID }) else { return }
         undoSnapshot = snapshot(name: "Before moving window")
-        let previousStage = state.activeStageID
+        let home = displayKey(of: service.windows[index])
+        let previousRoom = state.activeRoomID(on: home)
         service.windows[index].stageID = stageID
-        if state.followSentWindow { state.activeStageID = stageID }
+        if state.followSentWindow { setActiveRoom(stageID, on: home) }
         if managing {
             // The sent window keeps focus while parked; without this, follow-on-focus would chase it.
             suppressFollowUntil = Date().addingTimeInterval(followSuppression)
             reportFailures(applyVisibility(), action: "move window")
-            if state.activeStageID != previousStage { applyLayouts() }  // tab bars and frames follow the new Stage
-            if service.windows[index].stageID != state.activeStageID { focusAfterSwitch(to: state.activeStageID) }
+            let shown = state.activeRoomID(on: home)
+            if shown != previousRoom { applyLayouts() }  // tab bars and frames follow the new Room
+            if service.windows[index].stageID != shown { focusAfterSwitch(to: shown, on: home) }
         }
         publish(); persist()
-        notice = "Window assigned to \(state.stages.first(where: { $0.id == stageID })?.name ?? "Room")."
+        let roomName = state.stages.first(where: { $0.id == stageID })?.name ?? "Room"
+        let hiddenNow = managing && state.perDisplayRooms && !state.isActiveRoom(stageID, on: home)
+        notice = hiddenNow ? "Window assigned to \(roomName). It stays hidden until \(roomName) is showing on this display." : "Window assigned to \(roomName)."
     }
 
     func snap(_ zone: SnapZone, windowID: UUID? = nil) {
@@ -362,7 +376,7 @@ import TatamiCore
         undoSnapshot = snapshot(name: "Before arranging")
         var failures = 0
         for display in displays {
-            let group = service.windows.filter { $0.stageID == state.activeStageID && !state.excludedBundleIDs.contains($0.bundleID) && !$0.minimized && service.display(for: $0.frame)?.id == display.id }
+            let group = service.windows.filter { state.isActiveRoom($0.stageID, on: display.id) && !state.excludedBundleIDs.contains($0.bundleID) && !$0.minimized && service.display(for: $0.frame)?.id == display.id }
             for (window, frame) in zip(group, Geometry.grid(count: group.count, area: display.area, gap: state.gap)) {
                 if !service.move(window.id, to: frame) { failures += 1 }
             }
@@ -385,7 +399,8 @@ import TatamiCore
     }
 
     func focus(_ window: LiveWindow) {
-        if window.stageID != state.activeStageID { switchStage(window.stageID) }
+        let home = displayKey(of: window)
+        if !state.isActiveRoom(window.stageID, on: home) { switchStage(window.stageID, on: home) }
         service.focus(window.id)
     }
 
@@ -410,6 +425,7 @@ import TatamiCore
         if keepUndo { undoSnapshot = snapshot(name: "Before loading workspace") }
         _ = service.restoreOwnedWindows()
         state.stages = workspace.stages; state.activeStageID = workspace.activeStageID
+        state.displayRooms = [:]  // a loaded arrangement puts every window in its own Rooms; old per-display choices no longer apply
         for i in service.windows.indices { service.windows[i].stageID = state.activeStageID }
         var unmatched = 0, failures = 0
         for saved in workspace.windows {
@@ -487,11 +503,11 @@ import TatamiCore
         switch action {
         case .stage(let index): if state.stages.indices.contains(index) { switchStage(state.stages[index].id) }
         case .send(let index): if state.stages.indices.contains(index), let id = service.focusedID() { send(id, to: state.stages[index].id) }
-        case .cycle(let offset): switchStage(state.stageID(offset: offset))
+        case .cycle(let offset): switchStage(roomID(offset: offset))
         case .snap(let zone): if !snapInLayout(zone) { snap(zone) }
         case .stagesBar: showStagesBar?()
         case .newStage: addStage(state.nextStageName())
-        case .closeStage: deleteStage(state.activeStageID)
+        case .closeStage: deleteStage(state.activeRoomID(on: targetDisplay()?.id))
         case .mergeAll: mergeAll()
         case .cycleAppWindows(let offset): cycleAppWindows(offset)
         case .cycleMode: toggleWindowMode()
@@ -514,7 +530,7 @@ import TatamiCore
         case .undoLayout: undoLayout()
         case .raiseFloats: raiseFloats(activate: true)
         case .sendToDisplay(let offset): sendFocusedWindowToDisplay(offset: offset)
-        case .retile: if layouts[LayoutKey(stage: state.activeStageID, display: targetDisplay()?.id ?? "")] != nil { mutateLayout { layout, _ in layout.evenOut() } } else { retile() }
+        case .retile: if layouts[LayoutKey(stage: state.activeRoomID(on: targetDisplay()?.id), display: targetDisplay()?.id ?? "")] != nil { mutateLayout { layout, _ in layout.evenOut() } } else { retile() }
         case .rescue: rescue()
         case .organizer: showOrganizer?()
         }

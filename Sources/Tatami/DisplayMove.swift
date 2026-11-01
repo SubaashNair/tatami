@@ -25,10 +25,17 @@ extension AppModel {
         let sourceKey = layoutKey(containing: id)
         guard window.hidden == nil || sourceKey != nil else { notice = "\(window.appName) is on another Room. Switch to it first."; return }
         guard let source = service.display(for: window.hidden == nil ? window.frame : window.realFrame), source.id != target.id else { return }
-        let tiledThere = isTiled(stage: window.stageID, display: target.id) && isLayoutCandidate(window)
-        let targetKey = LayoutKey(stage: window.stageID, display: target.id)
+        // With per-display Rooms the window joins the Room showing on the target display, so it does not vanish on arrival.
+        let room = state.perDisplayRooms ? state.roomForWindowSent(to: target.id) : window.stageID
+        if room != window.stageID, let index = service.windows.firstIndex(where: { $0.id == id }) { service.windows[index].stageID = room }
+        let tiledThere = isTiled(stage: room, display: target.id) && isLayoutCandidate(window)
+        let targetKey = LayoutKey(stage: room, display: target.id)
         let moved = tiledThere ? joinLayout(id, from: sourceKey, to: targetKey) : moveFreeform(window, from: source, to: target, leaving: sourceKey)
-        if moved { notice = "\(window.appName) moved to \(target.name)." }
+        if !moved, room != window.stageID, let index = service.windows.firstIndex(where: { $0.id == id }) { service.windows[index].stageID = window.stageID }
+        if moved {
+            _ = displayTracker.update(window: id, display: target.id)  // our own move, not a drag
+            notice = "\(window.appName) moved to \(target.name)."
+        }
     }
 
     private func joinLayout(_ id: UUID, from sourceKey: LayoutKey?, to targetKey: LayoutKey) -> Bool {

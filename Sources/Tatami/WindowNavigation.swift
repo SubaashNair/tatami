@@ -7,7 +7,7 @@ extension AppModel {
     /// Windows a navigation key can reach: visible, not minimized, on the active Stage (or always visible).
     private func navigableWindows() -> [LiveWindow] {
         // Without management every window is on screen whatever Stage it was assigned, so Stages only matter while managing.
-        service.windows.filter { $0.hidden == nil && !$0.minimized && (!managing || $0.stageID == state.activeStageID || state.excludedBundleIDs.contains($0.bundleID)) }
+        service.windows.filter { $0.hidden == nil && !$0.minimized && (!managing || isShownOnItsDisplay($0)) }
     }
 
     private func isTiled(_ id: UUID) -> Bool { layoutKey(containing: id) != nil }
