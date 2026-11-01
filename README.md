@@ -338,10 +338,7 @@ docs/             guides, plans and the product requirements
 | Read | For |
 |---|---|
 | [How to use Tatami](docs/how-to-use.md) | Setup, daily loop, test checklist, troubleshooting |
-| [Product requirements](docs/betterstage-inspired-prd.md) | The long-term specification |
-| [Feature parity roadmap](docs/betterstage-parity.md) | What is built, what is next |
 | [Implementation status](docs/implementation-status.md) | Architecture notes and scope decisions |
-| [Reverse-engineering study](docs/rea-prd-betterstage-aerospace.md) | BetterStage and AeroSpace compared |
 
 ## Contributing
 
@@ -353,4 +350,4 @@ swift build && swift test      # unit tests need no screen or permissions
 
 ## License
 
-[MIT](LICENSE). Tatami is an independent project. It is not affiliated with BetterStage or AeroSpace, which are named here only as inspiration and comparison; their names belong to their owners.
+[MIT](LICENSE). Tatami is an independent project. It is not affiliated with AeroSpace, which is named here only as inspiration and comparison; its name belongs to its owner.

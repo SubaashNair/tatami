@@ -196,8 +196,7 @@ import TatamiCore
     var canUndo: Bool { undoSnapshot != nil }
 
     /// Two managers moving the same windows fight each other and can strand windows off-screen.
-    static let conflictingManagers = ["bobko.aerospace": "AeroSpace", "com.koekeishiya.yabai": "yabai", "com.amethyst.Amethyst": "Amethyst",
-                                      "app.betterstage.BetterStage": "BetterStage", "com.betterstage.app": "BetterStage"]
+    static let conflictingManagers = ["bobko.aerospace": "AeroSpace", "com.koekeishiya.yabai": "yabai", "com.amethyst.Amethyst": "Amethyst"]
 
     func runningConflictingManager() -> String? {
         let running = NSWorkspace.shared.runningApplications

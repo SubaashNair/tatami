@@ -3,3 +3,6 @@ dist/
 .DS_Store
 *.xcuserstate
 .swiftpm/
+
+# Internal planning notes, never published
+docs/internal/

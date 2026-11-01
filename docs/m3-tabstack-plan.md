@@ -1,6 +1,6 @@
 # M3: TabStack core
 
-Status: decisions settled (design review 2026-09-27), ready to build. Part of [betterstage-parity.md](betterstage-parity.md). Covers PRD TIL-01 to TIL-04, TIL-06, TIL-07, TIL-12 to TIL-15 and the M3 rows of the parity table. Drag overlay, appearance, presets, native-tab apps, Launch Here, and divider handles are M4.
+Status: decisions settled (design review 2026-09-27), ready to build. Part of the internal feature roadmap (not published). Covers PRD TIL-01 to TIL-04, TIL-06, TIL-07, TIL-12 to TIL-15 and the M3 rows of the parity table. Drag overlay, appearance, presets, native-tab apps, Launch Here, and divider handles are M4.
 
 ## Decisions
 
