@@ -19,8 +19,14 @@ extension AppModel {
             guard displays.indices.contains(displayNumber - 1) else { return .failure("There is no display \(displayNumber). Run: tatami list displays") }
             target = displays[displayNumber - 1]
         }
+        return .success(assignHome(target?.id, to: room.id))
+    }
+
+    /// Sets or clears where a Room lives, from the command or the Room settings sheet. Returns the message to show.
+    @discardableResult func assignHome(_ displayID: String?, to roomID: UUID) -> String {
+        guard let room = state.stages.first(where: { $0.id == roomID }) else { return "That Room no longer exists." }
         undoSnapshot = snapshot(name: "Before changing where a Room lives")
-        state.setHome(target?.id, for: room.id, displays: service.displays.map(\.id))
+        state.setHome(displayID, for: roomID, displays: service.displays.map(\.id))
         persist()
         if managing {
             suppressFollowUntil = Date().addingTimeInterval(followSuppression)
@@ -29,8 +35,16 @@ extension AppModel {
             refocusIfParked()
         }
         publish()
-        guard let target else { return .success("\(room.name) no longer lives on a display.") }
-        return .success("\(room.name) now lives on \(target.name), and new windows of its apps open there as tabs. Each display shows its own Room now.")
+        guard let displayID else { return "\(room.name) no longer lives on a display." }
+        let name = service.displays.first { $0.id == displayID }?.name ?? "that display"
+        return "\(room.name) now lives on \(name), and new windows of its apps open there as tabs. Each display shows its own Room now."
+    }
+
+    /// How new windows open in a Room (nil follows the default).
+    func setRoomPlacement(_ placement: NewWindowPlacement?, for roomID: UUID) {
+        state.setPlacement(placement, for: roomID)
+        persist()
+        publish()
     }
 
     /// Keeps every connected display on its home Room unless you switched it yourself. True when a display changed Room.
