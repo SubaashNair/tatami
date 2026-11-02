@@ -227,6 +227,8 @@ extension AppModel {
         oversizedCheckPending = false
         guard managing else { return }
         if NSEvent.pressedMouseButtons != 0 { scheduleOversizedCheck(); return }  // never fight the user's own resizing
+        // After wake or a display change apps report stale sizes, and a window floated on them stays floating all session.
+        if service.displaysAreSettling { scheduleOversizedCheck(); return }
         var oversized: [UUID: CGSize] = [:]
         for id in minSizeWindows {
             guard let expected = expectedFrames[id], let live = service.liveFrame(id) else { continue }

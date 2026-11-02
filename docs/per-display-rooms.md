@@ -27,3 +27,14 @@ Each phase needs testing on a real multi-display setup before the next starts, b
 4. Drag a window to the other display: it should join the Room showing there and stay visible.
 5. Send a window with the display key: same result.
 6. Turn the setting off: every display returns to one Room and every window is reachable. `⌃⌥⌘R` (rescue) always brings everything back.
+
+## Room homes (planned build order)
+
+A Room can live on a display, so "coding apps on display 1, chat on display 2, teaching on display 3" is a setting. Apps are routed to a Room with App Routing; the Room's home decides the display.
+
+- Setting a home turns per-display Rooms on and makes that display show the Room.
+- A Room with a home opens its new windows as tabs in the focused pane (a Room can pick another layout).
+- A routed window is moved to its Room's home. If that display is showing another Room the window waits there, hidden, until you switch the display to the Room, like any inactive Room.
+- An unplugged home display is ignored. With the mode off homes are ignored. Merge All drops the home of the surviving Room.
+
+Steps: 1. core rules (`RoomHomes.swift`, done), 2. moving windows home and keeping each display on its home Room, 3. the Room settings screen and the AeroSpace import.

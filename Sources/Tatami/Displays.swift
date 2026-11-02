@@ -10,16 +10,36 @@ struct ReconnectOffer {
 
 /// Display disconnect and reconnect (M1 decisions 8 and 14).
 extension AppModel {
+    /// The displays present at launch count as known, so one that is unplugged later is noticed.
+    func primeDisplayPresence() {
+        _ = displayPresence.update(current: Set(service.displays.map(\.id)), now: ProcessInfo.processInfo.systemUptime)
+        for display in service.displays { lastKnownDisplays[display.id] = display }
+    }
+
     func displaysChanged() {
-        let before = service.displays
         // Read before writing: the checkpoint on disk predates the change, while live frames may already
         // have been moved by macOS when the display vanished.
         let checkpoint = (try? Data(contentsOf: checkpointURL)).flatMap { try? JSONDecoder().decode(Checkpoint.self, from: $0) }
         service.updateDisplays()
         let after = service.displays
-        let afterKeys = Set(after.map(\.id)), beforeKeys = Set(before.map(\.id))
-        let gone = before.filter { !afterKeys.contains($0.id) }
-        let returned = after.filter { !beforeKeys.contains($0.id) }
+        // A display that vanishes for a few seconds (waking from sleep) is not an unplug: nothing is moved or merged until
+        // it has been missing for the whole grace period. Windows macOS moved meanwhile are put back by the layouts.
+        let now = ProcessInfo.processInfo.systemUptime
+        let wasMissing = displayPresence.pendingMissing
+        let change = displayPresence.update(current: Set(after.map(\.id)), now: now)
+        // A display that came back inside the grace was never gone, but macOS moved its windows meanwhile: lay them out again.
+        if managing, !wasMissing.isDisjoint(with: Set(after.map(\.id))) { applyLayouts() }
+        let gone = change.gone.compactMap { lastKnownDisplays[$0] }
+        for display in after { lastKnownDisplays[display.id] = display }
+        for key in change.gone { lastKnownDisplays[key] = nil }
+        let returned = after.filter { change.returned.contains($0.id) }
+        displayRecheck?.cancel()
+        if let wait = displayPresence.nextCheck(now: now) {
+            service.holdDisplaySettling(for: wait + 4)  // windows macOS moved are not the user's doing
+            let work = DispatchWorkItem { [weak self] in MainActor.assumeIsolated { self?.displaysChanged() } }
+            displayRecheck = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + wait + 0.5, execute: work)
+        }
 
         if managing, !gone.isEmpty, let target = displayUnderPointer() ?? after.first {
             relocate(from: gone, to: target, checkpoint: checkpoint)

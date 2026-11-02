@@ -48,6 +48,10 @@ import TatamiCore
     var cliServer: CLIServer?
     /// Which display each window was last seen on (per-display Rooms).
     var displayTracker = WindowDisplayTracker()
+    /// A display counts as unplugged only after it has been missing for a while (waking from sleep drops them briefly).
+    var displayPresence = DisplayPresence(grace: 8)
+    var lastKnownDisplays: [String: DisplayInfo] = [:]
+    var displayRecheck: DispatchWorkItem?
     /// A delayed re-check is queued, so a window that is merely slow to resize is not mistaken for one with a minimum size.
     var oversizedCheckPending = false
     /// Sizes below which a window cannot go, learned when it overflowed its pane; other fits must not squeeze it further.
@@ -106,6 +110,7 @@ import TatamiCore
     }
 
     func start() {
+        primeDisplayPresence()
         trusted = service.trusted
         if trusted { _ = service.recoverPreviousSession() }
         service.stateProvider = { [weak self] in self?.state ?? WorkspaceState() }
@@ -123,8 +128,8 @@ import TatamiCore
             Task { @MainActor [weak self] in self?.displaysChanged() }
         }
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
-            // displaysChanged() diffs the old and new display lists itself; updating them first would hide a change from it.
-            Task { @MainActor [weak self] in self?.displaysChanged(); self?.refresh() }
+            // Waking drops external displays from the list for a moment and apps move their windows around: hold off decisions.
+            Task { @MainActor [weak self] in self?.service.holdDisplaySettling(for: 12); self?.displaysChanged(); self?.refresh() }
         }
         let workspace = NSWorkspace.shared.notificationCenter
         appObservers = [NSWorkspace.didLaunchApplicationNotification, NSWorkspace.didTerminateApplicationNotification].map { name in
