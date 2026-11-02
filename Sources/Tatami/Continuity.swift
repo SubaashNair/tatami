@@ -17,6 +17,9 @@ extension AppModel {
     func writeCheckpoint() {
         checkpointWork?.cancel()
         guard service.trusted, !service.windows.isEmpty else { return }  // never overwrite a good checkpoint with an empty scan
+        // While a display is missing, macOS has already moved its windows. The checkpoint must keep where they were, so that
+        // an unplug that turns out to be real can put them back.
+        guard displayPresence.pendingMissing.isEmpty else { return }
         let numbers = Dictionary(service.windows.map { ($0.id, $0.windowNumber) }, uniquingKeysWith: { a, _ in a })
         let checkpoint = Checkpoint(
             activeStageID: state.activeStageID,
