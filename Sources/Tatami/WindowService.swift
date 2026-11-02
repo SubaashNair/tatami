@@ -70,9 +70,9 @@ struct RecoveryEntry: Codable {
     private let onlyBundles = ProcessInfo.processInfo.environment["TATAMI_ONLY_BUNDLES"].map { Set($0.split(separator: ",").map(String.init)) }
     /// macOS moves windows itself around display changes and wake; for a short while, a parked window
     /// found on screen was put there by macOS, not rescued by the user, so it is re-parked.
-    private var displaysChangedAt = Date.distantPast
+    private var displaysChangedAt: TimeInterval = -.infinity  // system uptime, so a clock step after wake cannot extend it
     /// True for a few seconds after a display change, while macOS is still moving windows around by itself.
-    var displaysAreSettling: Bool { Date().timeIntervalSince(displaysChangedAt) < displayChangeGrace }
+    var displaysAreSettling: Bool { ProcessInfo.processInfo.systemUptime - displaysChangedAt < displayChangeGrace }
     private let displayChangeGrace: TimeInterval = 3
     /// Bumped on every write so a scan that started before it cannot overwrite fresher frames.
     private var writeGeneration = 0
@@ -93,8 +93,14 @@ struct RecoveryEntry: Codable {
         _ = AXIsProcessTrustedWithOptions(options)
     }
 
+    /// Treats the next `seconds` as a display change in progress: after waking from sleep apps and macOS shuffle windows
+    /// by themselves, and nothing should be decided from those moves.
+    func holdDisplaySettling(for seconds: TimeInterval) {
+        displaysChangedAt = max(displaysChangedAt, ProcessInfo.processInfo.systemUptime + seconds - displayChangeGrace)
+    }
+
     func updateDisplays() {
-        displaysChangedAt = Date()
+        displaysChangedAt = max(displaysChangedAt, ProcessInfo.processInfo.systemUptime)  // never shortens a hold already in place
         let primaryHeight = NSScreen.screens.first?.frame.height ?? 900
         let screens = NSScreen.screens
         // Hardware identity survives port changes and replugging (M1 decision 4).
@@ -178,7 +184,7 @@ struct RecoveryEntry: Codable {
     private func merge(_ scan: ScanResult, only pids: Set<pid_t>?, state: WorkspaceState, stale: Bool) {
         var merged = pids.map { pids in windows.filter { !pids.contains($0.pid) } } ?? []
         var reveal: [UUID] = [], rescue: [(UUID, CGRect)] = [], repark: [UUID] = []
-        let displaysSettling = Date().timeIntervalSince(displaysChangedAt) < displayChangeGrace
+        let displaysSettling = displaysAreSettling
         let screens = displays.map(\.fullFrame)
         for found in scan.windows {
             if var existing = windows.first(where: { isSame(found, $0) }) {
