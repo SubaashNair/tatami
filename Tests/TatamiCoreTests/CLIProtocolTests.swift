@@ -104,9 +104,21 @@ final class CLIProtocolTests: XCTestCase {
         XCTAssertEqual(parse("FOCUS", "LEFT"), .success(.focus(.left)))
     }
 
+    func testHomeSetsARoomsDisplayOrClearsIt() {
+        XCTAssertEqual(parse("home", "2", "1"), .success(.home(room: 2, display: 1)))
+        XCTAssertEqual(parse("HOME", "3", "NONE"), .success(.home(room: 3, display: nil)))
+    }
+
+    func testHomeRefusesBadNumbersAndExtraWords() {
+        for words in [["home"], ["home", "2"], ["home", "0", "1"], ["home", "10", "1"], ["home", "2", "0"], ["home", "2", "10"],
+                      ["home", "2", "x"], ["home", "2", "1", "extra"]] {
+            if case .success = CLICommand.parse(words) { XCTFail("\(words) must not parse") }
+        }
+    }
+
     func testHelpMentionsEveryCommand() {
         for word in ["room", "send", "focus", "move", "window", "pane", "move-to-pane", "float", "float-app", "rotate", "tiles",
-                     "display", "undo-layout", "rescue", "start", "pause", "list", "status"] {
+                     "display", "undo-layout", "rescue", "start", "pause", "list", "status", "home"] {
             XCTAssertTrue(CLICommand.helpText.contains(word), "help should mention \(word)")
         }
     }

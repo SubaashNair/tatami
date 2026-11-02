@@ -48,6 +48,9 @@ import TatamiCore
     var cliServer: CLIServer?
     /// Which display each window was last seen on (per-display Rooms).
     var displayTracker = WindowDisplayTracker()
+    /// Room homes: windows already seen, so only new ones are moved to their Room's display.
+    var homeChecked = Set<UUID>()
+    var homesPrimed = false
     /// A display counts as unplugged only after it has been missing for a while (waking from sleep drops them briefly).
     var displayPresence = DisplayPresence(grace: 8)
     var lastKnownDisplays: [String: DisplayInfo] = [:]
@@ -168,14 +171,19 @@ import TatamiCore
 
     /// After any scan: new windows may need hiding (routing to inactive Stages), then the UI updates.
     func windowsChanged() {
+        if !managing { homesPrimed = false }
         if managing {
+            let homesChanged = applyRoomHomes()
+            if homesChanged { suppressFollowUntil = Date().addingTimeInterval(followSuppression) }
             adoptRoomsOfMovedWindows()
+            sendNewWindowsHome()
             let structural = syncLayouts()
             let edited = checkLayoutEdits()
             if structural || edited { applyLayouts() } else {
                 let failures = applyVisibility()
                 if failures > 0 { notice = "\(failures) window(s) could not be managed. Their app may not support this action." }
             }
+            if homesChanged { refocusIfParked() }
         }
         publish()
     }
@@ -273,7 +281,7 @@ import TatamiCore
     }
 
     /// Typing must never go to a parked window: focus something visible on the new Stage, or the desktop.
-    private func focusAfterSwitch(to stage: UUID, on display: String? = nil) {
+    func focusAfterSwitch(to stage: UUID, on display: String? = nil) {
         let candidates = service.windows.filter {
             $0.stageID == stage && $0.hidden == nil && !$0.minimized && (display == nil || !state.perDisplayRooms || displayKey(of: $0) == display)
         }

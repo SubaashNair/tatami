@@ -37,4 +37,18 @@ A Room can live on a display, so "coding apps on display 1, chat on display 2, t
 - A routed window is moved to its Room's home. If that display is showing another Room the window waits there, hidden, until you switch the display to the Room, like any inactive Room.
 - An unplugged home display is ignored. With the mode off homes are ignored. Merge All drops the home of the surviving Room.
 
-Steps: 1. core rules (`RoomHomes.swift`, done), 2. moving windows home and keeping each display on its home Room, 3. the Room settings screen and the AeroSpace import.
+Steps: 1. core rules (done), 2. wiring (this change), 3. the Room settings screen and the AeroSpace import.
+
+### Trying step 2
+
+There is no settings screen yet, so set a home from a terminal:
+
+```bash
+tatami list rooms        # numbers and names
+tatami list displays     # numbers and names
+tatami home 1 1          # Room 1 lives on display 1 (its windows open there, as tabs)
+tatami home 2 2          # Room 2 lives on display 2
+tatami home 2 none       # clear it
+```
+
+Then route apps with App Routing (dashboard) to those Rooms. A window that opens **after** management started, from a routed app, is moved to its Room's display and joins the focused pane as a tab. Windows already open are not moved, and a window you move yourself stays where you put it.

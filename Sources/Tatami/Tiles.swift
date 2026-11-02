@@ -129,7 +129,7 @@ extension AppModel {
             var layout = layouts[key] ?? PaneLayout(root: .pane(Pane()))
             // Remember where it was, so switching the display to Freeform puts it back (as when Tiles is entered by key).
             freeformFrames[window.id] = window.frame  // always current: it is joining a layout now, so any old entry is stale
-            layout.place(window.id, policy: state.newWindowPlacement, in: display.area)
+            layout.place(window.id, policy: state.placement(forRoom: window.stageID), in: display.area)
             layouts[key] = layout
             changed = true
         }
