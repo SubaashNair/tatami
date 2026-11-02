@@ -172,6 +172,7 @@ public struct WorkspaceState: Codable {
         tiledDisplays = tiledDisplays.filter { live.contains($0.key) && !$0.value.isEmpty }
         freeformDisplays = freeformDisplays.filter { live.contains($0.key) && !$0.value.isEmpty }
         let liveIDs = Set(stages.map(\.id))
+        rules = rules.filter { liveIDs.contains($0.stageID) }  // a rule for a removed Room (an undone import, say) can never match
         displayRooms = displayRooms.filter { liveIDs.contains($0.value) }
         for index in stages.indices where (stages[index].homeDisplay?.count ?? 0) > 200 { stages[index].homeDisplay = nil }
         // Entries for displays that are gone only pile up; keep a stable 32 so saving can never fail because of them.
