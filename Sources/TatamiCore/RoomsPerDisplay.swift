@@ -33,6 +33,9 @@ extension WorkspaceState {
         displayRooms = [:]
     }
 
+    /// Whether a Room is the one showing on a display.
+    public func isActiveRoom(_ room: UUID, on display: String?) -> Bool { room == activeRoomID(on: display) }
+
     /// A window is visible when its Room is the one showing on the display it sits on. Always-visible apps are never hidden.
     public func isVisible(room: UUID, bundleID: String, on display: String?) -> Bool {
         excludedBundleIDs.contains(bundleID) || room == activeRoomID(on: display)
@@ -55,4 +58,23 @@ extension WorkspaceState {
         perDisplayRooms = on
         displayRooms = [:]
     }
+}
+
+/// Remembers which display each window was last seen on, so a window the user drags to another display can be told
+/// apart from one that has not moved.
+public struct WindowDisplayTracker {
+    private var known: [UUID: String] = [:]
+
+    public init() {}
+
+    /// Records where a window is now. Returns the display it came from when it moved to a different one, otherwise nil.
+    public mutating func update(window: UUID, display: String?) -> String? {
+        guard let display else { return nil }
+        defer { known[window] = display }
+        guard let previous = known[window], previous != display else { return nil }
+        return previous
+    }
+
+    /// Drops windows that no longer exist.
+    public mutating func keepOnly(_ ids: Set<UUID>) { known = known.filter { ids.contains($0.key) } }
 }

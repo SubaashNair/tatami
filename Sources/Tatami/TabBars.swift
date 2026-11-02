@@ -14,7 +14,7 @@ import TatamiCore
         guard model.managing else { panels.values.forEach { $0.orderOut(nil) }; return }
         let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
         var live = Set<UUID>()
-        for (key, layout) in model.layouts where key.stage == model.state.activeStageID {
+        for (key, layout) in model.layouts where model.state.isActiveRoom(key.stage, on: key.display) {
             guard let display = model.service.displays.first(where: { $0.id == key.display }) else { continue }
             let frames = layout.frames(in: display.area, gap: model.state.gap, tabBar: AppModel.tabBarHeight)
             for pane in layout.root.panes {

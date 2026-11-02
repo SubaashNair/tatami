@@ -51,7 +51,7 @@ extension AppModel {
     /// Cmd+` among the frontmost app's windows on the active Stage only, skipping parked ones.
     func cycleAppWindows(_ offset: Int) {
         guard let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier else { return }
-        let candidates = service.windows.filter { $0.pid == pid && $0.stageID == state.activeStageID && $0.hidden == nil && !$0.minimized }
+        let candidates = service.windows.filter { $0.pid == pid && isShownOnItsDisplay($0) && $0.hidden == nil && !$0.minimized }
         guard candidates.count > 1 else { return }
         let current = service.focusedID().flatMap { id in candidates.firstIndex { $0.id == id } } ?? 0
         let next = ((current + offset) % candidates.count + candidates.count) % candidates.count

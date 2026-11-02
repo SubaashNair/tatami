@@ -214,4 +214,43 @@ final class RoomsPerDisplayTests: XCTestCase {
         XCTAssertFalse(loaded.perDisplayRooms)
         XCTAssertTrue(loaded.displayRooms.isEmpty)
     }
+
+    // MARK: active check and display tracking (phase 2)
+
+    func testIsActiveRoomMatchesTheRoomShowingOnThatDisplay() {
+        XCTAssertTrue(state.isActiveRoom(work, on: "A"))
+        XCTAssertFalse(state.isActiveRoom(comms, on: "A"))
+        state.perDisplayRooms = true
+        switchTo(comms, on: "B")
+        XCTAssertTrue(state.isActiveRoom(work, on: "A"))
+        XCTAssertTrue(state.isActiveRoom(comms, on: "B"))
+        XCTAssertFalse(state.isActiveRoom(work, on: "B"))
+    }
+
+    func testTheTrackerReportsAMoveToAnotherDisplayOnce() {
+        var tracker = WindowDisplayTracker()
+        let window = UUID()
+        XCTAssertNil(tracker.update(window: window, display: "A"), "first sighting is not a move")
+        XCTAssertNil(tracker.update(window: window, display: "A"))
+        XCTAssertEqual(tracker.update(window: window, display: "B"), "A")
+        XCTAssertNil(tracker.update(window: window, display: "B"), "already reported")
+    }
+
+    func testTheTrackerIgnoresAWindowWithNoDisplay() {
+        var tracker = WindowDisplayTracker()
+        let window = UUID()
+        _ = tracker.update(window: window, display: "A")
+        XCTAssertNil(tracker.update(window: window, display: nil))
+        XCTAssertEqual(tracker.update(window: window, display: "B"), "A", "the old display is still remembered")
+    }
+
+    func testTheTrackerForgetsWindowsThatAreGone() {
+        var tracker = WindowDisplayTracker()
+        let kept = UUID(), gone = UUID()
+        _ = tracker.update(window: kept, display: "A")
+        _ = tracker.update(window: gone, display: "A")
+        tracker.keepOnly([kept])
+        XCTAssertNil(tracker.update(window: gone, display: "B"), "forgotten, so this is a first sighting")
+        XCTAssertEqual(tracker.update(window: kept, display: "B"), "A")
+    }
 }

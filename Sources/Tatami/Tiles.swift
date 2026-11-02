@@ -41,7 +41,7 @@ extension AppModel {
     /// Background tabs, and panes behind a zoomed pane, on the active Stage.
     func tabHiddenWindows() -> Set<UUID> {
         var hidden = Set<UUID>()
-        for (key, layout) in layouts where key.stage == state.activeStageID {
+        for (key, layout) in layouts where state.isActiveRoom(key.stage, on: key.display) {
             for pane in layout.root.panes {
                 let paneShown = layout.zoomed == nil || layout.zoomed == pane.id
                 for tab in pane.tabs where !paneShown || tab != pane.selected { hidden.insert(tab) }
@@ -49,6 +49,13 @@ extension AppModel {
         }
         return hidden
     }
+
+    /// The display a window sits on, by its real frame (a parked window keeps the frame it will return to).
+    func displayKey(of window: LiveWindow) -> String? { service.display(for: window.realFrame)?.id }
+
+    /// Whether a window's Room is the one showing on the display it sits on. With per-display Rooms off this is the old
+    /// single active Room check.
+    func isShownOnItsDisplay(_ window: LiveWindow) -> Bool { state.isVisible(room: window.stageID, bundleID: window.bundleID, on: displayKey(of: window)) }
 
     func applyVisibility() -> Int { service.applyVisibility(state: state, extraHidden: tabHiddenWindows()) }
 
@@ -66,7 +73,7 @@ extension AppModel {
     func toggleWindowMode(on chosen: DisplayInfo? = nil) {
         guard managing else { notice = "Start managing to use Tiles."; return }
         guard let display = chosen ?? targetDisplay() else { return }
-        let key = LayoutKey(stage: state.activeStageID, display: display.id)
+        let key = LayoutKey(stage: state.activeRoomID(on: display.id), display: display.id)
         if isTiled(stage: key.stage, display: key.display) { leaveTiles(key, display: display) } else { enterTiles(key, display: display) }
     }
 
@@ -146,7 +153,7 @@ extension AppModel {
         guard userEditingLayout else { return false }
         userEditingLayout = false
         var changed = false
-        for (key, layout) in layouts where key.stage == state.activeStageID {
+        for (key, layout) in layouts where state.isActiveRoom(key.stage, on: key.display) {
             guard let display = service.displays.first(where: { $0.id == key.display }) else { continue }
             var edited = layout
             for pane in layout.root.panes {
@@ -172,7 +179,7 @@ extension AppModel {
     func applyLayouts() {
         guard managing else { onLayoutsApplied?(); return }
         var targets: [UUID: CGRect] = [:]
-        for (key, layout) in layouts where key.stage == state.activeStageID {
+        for (key, layout) in layouts where state.isActiveRoom(key.stage, on: key.display) {
             guard let display = service.displays.first(where: { $0.id == key.display }) else { continue }
             let frames = layout.frames(in: display.area, gap: state.gap, tabBar: Self.tabBarHeight)
             for pane in layout.root.panes {
@@ -241,7 +248,7 @@ extension AppModel {
         var floated: [(window: LiveWindow, size: CGSize)] = []
         // Biggest demand first, so the order does not depend on dictionary order.
         for (id, size) in oversized.sorted(by: { $0.value.width + $0.value.height > $1.value.width + $1.value.height }) {
-            guard let key = layoutKey(containing: id), key.stage == state.activeStageID, var layout = layouts[key],
+            guard let key = layoutKey(containing: id), state.isActiveRoom(key.stage, on: key.display), var layout = layouts[key],
                   let pane = layout.pane(containing: id), let display = service.displays.first(where: { $0.id == key.display }) else { continue }
             let minimums = Dictionary(uniqueKeysWithValues: layout.root.panes.compactMap { other -> (UUID, CGSize)? in
                 guard other.id != pane.id, let selected = other.selected, let known = knownMinSizes[selected] else { return nil }
@@ -279,8 +286,8 @@ extension AppModel {
     /// Raising alone keeps focus where it is; the Raise Floats shortcut also activates their apps.
     func raiseFloats(activate: Bool) {
         let floats = service.windows.filter { window in
-            window.stageID == state.activeStageID && window.hidden == nil && isFloating(window) &&
-                service.display(for: window.frame).map { isTiled(stage: state.activeStageID, display: $0.id) } == true
+            window.hidden == nil && isFloating(window) &&
+                service.display(for: window.frame).map { state.isActiveRoom(window.stageID, on: $0.id) && isTiled(stage: window.stageID, display: $0.id) } == true
         }
         guard !floats.isEmpty else { return }
         service.raise(floats.map(\.id))
@@ -298,7 +305,7 @@ extension AppModel {
     /// Mutates the focused display's layout on the active Stage with undo, then applies it.
     func mutateLayout(_ change: (inout PaneLayout, DisplayInfo) -> Void) {
         guard managing, let display = targetDisplay() else { return }
-        let key = LayoutKey(stage: state.activeStageID, display: display.id)
+        let key = LayoutKey(stage: state.activeRoomID(on: display.id), display: display.id)
         guard isTiled(stage: key.stage, display: key.display) else { notice = "\(display.name) is in Freeform. \(state.shortcutPreset == .classic ? "⌥B" : "⌃⌥B") turns on Tiles."; return }
         if layouts[key] == nil { layouts[key] = PaneLayout(root: .pane(Pane())) }  // a tiled display with no windows yet
         mutate(key, followFocus: true, change)
@@ -321,7 +328,7 @@ extension AppModel {
 
     func undoLayout() {
         guard let display = targetDisplay() else { return }
-        undoLayout(key: LayoutKey(stage: state.activeStageID, display: display.id))
+        undoLayout(key: LayoutKey(stage: state.activeRoomID(on: display.id), display: display.id))
     }
 
     /// Undo for one display's layout, as chosen from that display's pane menu.
@@ -338,7 +345,7 @@ extension AppModel {
 
     /// Cmd+Tab or a click reached a window in a layout: select its tab (showing it if it was in the background).
     func noteLayoutFocus(_ id: UUID) -> Bool {
-        guard let key = layoutKey(containing: id), key.stage == state.activeStageID, var layout = layouts[key] else { return false }
+        guard let key = layoutKey(containing: id), state.isActiveRoom(key.stage, on: key.display), var layout = layouts[key] else { return false }
         let wasHidden = tabHiddenWindows().contains(id)
         layout.select(id)
         if wasHidden, layout.zoomed != nil, layout.zoomed != layout.pane(containing: id)?.id { layout.zoomed = nil }
@@ -350,7 +357,7 @@ extension AppModel {
     // MARK: keyboard navigation (TIL-06): panes of every Tiles display on the active Stage
 
     private func allPanes() -> [(key: LayoutKey, pane: UUID, frame: CGRect)] {
-        layouts.filter { $0.key.stage == state.activeStageID }.flatMap { key, layout -> [(key: LayoutKey, pane: UUID, frame: CGRect)] in
+        layouts.filter { state.isActiveRoom($0.key.stage, on: $0.key.display) }.flatMap { key, layout -> [(key: LayoutKey, pane: UUID, frame: CGRect)] in
             guard let display = service.displays.first(where: { $0.id == key.display }) else { return [] }
             return layout.frames(in: display.area, gap: state.gap, tabBar: Self.tabBarHeight).map { (key, $0.key, $0.value.pane) }
         }
@@ -358,11 +365,11 @@ extension AppModel {
 
     /// The pane holding the focused window, or the focused pane of the target display's layout.
     private func currentPane() -> (key: LayoutKey, pane: UUID, window: UUID?)? {
-        if let id = service.focusedID(), let key = layoutKey(containing: id), key.stage == state.activeStageID, let pane = layouts[key]?.pane(containing: id) {
+        if let id = service.focusedID(), let key = layoutKey(containing: id), state.isActiveRoom(key.stage, on: key.display), let pane = layouts[key]?.pane(containing: id) {
             return (key, pane.id, id)
         }
         guard let display = targetDisplay() else { return nil }
-        let key = LayoutKey(stage: state.activeStageID, display: display.id)
+        let key = LayoutKey(stage: state.activeRoomID(on: display.id), display: display.id)
         guard let layout = layouts[key] else { return nil }
         return (key, layout.focused, layout.root.pane(layout.focused)?.selected)
     }
@@ -409,7 +416,7 @@ extension AppModel {
 
     /// Panes of the active Stage in reading order across every tiled display, ignoring any zoom, so numbers stay put.
     private func numberedPanes() -> [(key: LayoutKey, pane: UUID)] {
-        let panes = layouts.filter { $0.key.stage == state.activeStageID }.flatMap { key, layout -> [(key: LayoutKey, pane: UUID, frame: CGRect)] in
+        let panes = layouts.filter { state.isActiveRoom($0.key.stage, on: $0.key.display) }.flatMap { key, layout -> [(key: LayoutKey, pane: UUID, frame: CGRect)] in
             guard let display = service.displays.first(where: { $0.id == key.display }) else { return [] }
             return layout.paneRects(in: display.area).map { (key: key, pane: $0.key, frame: $0.value) }
         }
@@ -449,7 +456,7 @@ extension AppModel {
 
     /// M3 decision 13: in Tiles, arrow snaps move a managed window to the neighbouring pane; other snaps do nothing.
     func snapInLayout(_ zone: SnapZone) -> Bool {
-        guard let id = service.focusedID(), let key = layoutKey(containing: id), key.stage == state.activeStageID else { return false }
+        guard let id = service.focusedID(), let key = layoutKey(containing: id), state.isActiveRoom(key.stage, on: key.display) else { return false }
         let directions: [SnapZone: Direction] = [.left: .left, .right: .right, .top: .up, .bottom: .down]
         if let direction = directions[zone] { moveToPane(direction) }
         return true
