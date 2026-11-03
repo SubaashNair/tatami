@@ -35,6 +35,7 @@ A Room can live on a display, so "coding apps on display 1, chat on display 2, t
 - Setting a home turns per-display Rooms on and makes that display show the Room.
 - A Room with a home opens its new windows as tabs in the focused pane (a Room can pick another layout).
 - A routed window is moved to its Room's home. If that display is showing another Room the window waits there, hidden, until you switch the display to the Room, like any inactive Room.
+- A Room can list several homes (Room Settings, or imported from AeroSpace); the first one that is connected wins. A name pattern, `main`, `secondary`, `built-in` and a position are understood. When none is connected the Room has no home for now.
 - An unplugged home display is ignored. With the mode off homes are ignored. Merge All drops the home of the surviving Room.
 
 Steps: 1. core rules (done), 2. wiring (done), 3. the Room settings screen (a Room's ⋯ menu, Room Settings…) and the AeroSpace import (App Routing, Import from AeroSpace…).

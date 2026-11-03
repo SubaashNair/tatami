@@ -9,6 +9,16 @@ extension AppModel {
         DisplayOrder.ordered(service.displays.map { ($0.id, $0.fullFrame) }).compactMap { id in service.displays.first { $0.id == id } }
     }
 
+    /// What the home preferences match against: the live displays in arrangement order (the published list lags a scan).
+    func displayDescriptors() -> [DisplayDescriptor] { Self.descriptors(for: service.displays) }
+
+    static func descriptors(for displays: [DisplayInfo]) -> [DisplayDescriptor] {
+        let order = DisplayOrder.ordered(displays.map { ($0.id, $0.fullFrame) })
+        return displays.map { display in
+            DisplayDescriptor(key: display.id, name: display.name, isBuiltIn: display.isBuiltIn, isMain: display.isMain, position: (order.firstIndex(of: display.id) ?? 0) + 1)
+        }.sorted { $0.position < $1.position }
+    }
+
     /// `tatami home <room> <display|none>`. Numbers match `tatami list rooms` and `tatami list displays`.
     func setRoomHome(room roomNumber: Int, display displayNumber: Int?) -> CLIResponse {
         guard state.stages.indices.contains(roomNumber - 1) else { return .failure("There is no Room \(roomNumber).") }
@@ -50,7 +60,7 @@ extension AppModel {
     /// Keeps every connected display on its home Room unless you switched it yourself. True when a display changed Room.
     @discardableResult func applyRoomHomes() -> Bool {
         let before = state.displayRooms
-        state.applyHomes(connected: service.displays.map(\.id))
+        state.applyHomes(displays: displayDescriptors())
         guard state.displayRooms != before else { return false }
         persist()
         return true
@@ -67,7 +77,7 @@ extension AppModel {
     /// Windows already open are left where they are, and so is a window you move afterwards. Apps without a routing rule,
     /// windows during a display change, and minimized or parked windows are never moved (the last two wait until they show).
     func sendNewWindowsHome() {
-        let connected = service.displays.map(\.id)
+        let displays = displayDescriptors()
         guard homesPrimed else {
             homeChecked = Set(service.windows.map(\.id))
             homesPrimed = true
@@ -79,7 +89,7 @@ extension AppModel {
             homeChecked.insert(window.id)
             guard !state.excludedBundleIDs.contains(window.bundleID),
                   state.destination(bundleID: window.bundleID, title: window.title) == window.stageID,
-                  let homeKey = state.homeToMoveTo(room: window.stageID, currentDisplay: current.id, connected: connected),
+                  let homeKey = state.homeToMoveTo(room: window.stageID, currentDisplay: current.id, displays: displays),
                   let target = service.displays.first(where: { $0.id == homeKey }) else { continue }
             let frame = DisplayRemap.remap(window.frame, from: current.area, to: target.area)
             if service.place(window.id, at: frame) { _ = displayTracker.update(window: window.id, display: homeKey) }  // ours, not a drag
@@ -87,5 +97,35 @@ extension AppModel {
         }
         let live = Set(service.windows.map(\.id))
         homeChecked = homeChecked.filter { live.contains($0) }
+    }
+
+    /// The home choices after the picked display, from Room Settings.
+    func setRoomHomeChoices(_ preferences: [DisplayPreference], for roomID: UUID) {
+        guard state.stages.contains(where: { $0.id == roomID }) else { return }
+        undoSnapshot = snapshot(name: "Before changing where a Room lives")
+        let wasOn = state.perDisplayRooms
+        state.setHomeFallbacks(preferences, for: roomID)
+        persist()
+        if !wasOn && state.perDisplayRooms { notice = "Each display shows its own Room now, so this Room can live on a display." }
+        if managing {
+            suppressFollowUntil = Date().addingTimeInterval(followSuppression)
+            applyRoomHomes()
+            reportFailures(applyVisibility(), action: "update displays")
+            applyLayouts()
+            refocusIfParked()
+        }
+        publish()
+    }
+
+    /// A short description of one home choice, for Room Settings.
+    func describe(_ preference: DisplayPreference) -> String {
+        switch preference {
+        case .key(let key): return displays.first { $0.id == key }?.name ?? "An unplugged display"
+        case .pattern(let text): return "A display named \"\(text)\""
+        case .builtIn: return "The built-in display"
+        case .main: return "The main display"
+        case .secondary: return "Any display that is not the main one"
+        case .position(let n): return "Display \(n) from the left"
+        }
     }
 }

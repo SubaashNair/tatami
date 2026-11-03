@@ -14,7 +14,7 @@ extension WorkspaceState {
     /// The tabs default is derived, not stored, so removing a home goes back to the desk-wide setting.
     public func placement(forRoom room: UUID) -> NewWindowPlacement {
         guard let stage = stages.first(where: { $0.id == room }) else { return newWindowPlacement }
-        return stage.placement ?? (stage.homeDisplay != nil ? .active : newWindowPlacement)
+        return stage.placement ?? (hasHome(room) ? .active : newWindowPlacement)
     }
 
     public mutating func setPlacement(_ placement: NewWindowPlacement?, for room: UUID) {
@@ -32,7 +32,7 @@ extension WorkspaceState {
     @discardableResult public mutating func setHome(_ display: String?, for room: UUID, displays: [String]) -> Bool {
         guard let index = stages.firstIndex(where: { $0.id == room }) else { return false }
         stages[index].homeDisplay = display
-        guard let display else { return true }
+        guard let display else { stages[index].homeFallbacks = []; return true }  // none means no home at all
         if !perDisplayRooms { setPerDisplayRooms(true) }
         switchRoom(room, on: display, displays: displays)
         return true
@@ -40,35 +40,27 @@ extension WorkspaceState {
 
     /// The home display of a Room, only when homes apply: the mode is on and that display is connected.
     public func effectiveHome(of room: UUID, connected: [String]) -> String? {
-        guard perDisplayRooms, let home = homeDisplay(of: room), connected.contains(home) else { return nil }
-        return home
+        effectiveHome(of: room, displays: DisplayDescriptor.keys(connected))
     }
 
     /// Whether the Room's home display is showing it right now. A routed window still goes home when it is not, and waits
     /// there, hidden, until that display is switched to the Room, as an inactive Room's windows always do.
     public func homeIsShowing(_ room: UUID, connected: [String]) -> Bool {
-        guard let home = effectiveHome(of: room, connected: connected) else { return false }
-        return activeRoomID(on: home) == room
+        homeIsShowing(room, displays: DisplayDescriptor.keys(connected))
     }
 
     /// Where a window of an app with a routing rule belongs. Nil when no rule matches, or the app is always visible.
     public func routedTarget(bundleID: String, title: String, connected: [String]) -> RoutedTarget? {
-        guard let room = destination(bundleID: bundleID, title: title) else { return nil }
-        return RoutedTarget(room: room, display: effectiveHome(of: room, connected: connected))
+        routedTarget(bundleID: bundleID, title: title, displays: DisplayDescriptor.keys(connected))
     }
 
     /// The display a window should be moved to, when its Room lives elsewhere. Nil when it is already home or has no home.
     public func homeToMoveTo(room: UUID, currentDisplay: String?, connected: [String]) -> String? {
-        guard let home = effectiveHome(of: room, connected: connected), home != currentDisplay else { return nil }
-        return home
+        homeToMoveTo(room: room, currentDisplay: currentDisplay, displays: DisplayDescriptor.keys(connected))
     }
 
     /// Puts each connected display on its home Room, unless it already has a choice of its own (you switched it).
     public mutating func applyHomes(connected: [String]) {
-        guard perDisplayRooms else { return }
-        for display in connected {
-            if let own = displayRooms[display], stages.contains(where: { $0.id == own }) { continue }  // a live choice of its own
-            if let home = homeRoom(of: display) { displayRooms[display] = home }
-        }
+        applyHomes(displays: DisplayDescriptor.keys(connected))
     }
 }

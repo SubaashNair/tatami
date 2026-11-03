@@ -7,11 +7,32 @@ public struct Stage: Identifiable, Codable, Equatable {
     public var symbol: String
     /// The display this Room lives on (a display key). Its windows open there. Used only while per-display Rooms is on.
     public var homeDisplay: String?
+    /// Further choices after `homeDisplay`, in order: the first that matches a connected display wins (HomePreferences.swift).
+    public var homeFallbacks: [DisplayPreference] = []
     /// How new windows open in this Room. Nil follows the desk-wide setting.
     public var placement: NewWindowPlacement?
-    public init(id: UUID = UUID(), name: String, symbol: String = "square.stack.3d.up", homeDisplay: String? = nil, placement: NewWindowPlacement? = nil) {
-        self.id = id; self.name = name; self.symbol = symbol; self.homeDisplay = homeDisplay; self.placement = placement
+    public init(id: UUID = UUID(), name: String, symbol: String = "square.stack.3d.up", homeDisplay: String? = nil, homeFallbacks: [DisplayPreference] = [], placement: NewWindowPlacement? = nil) {
+        self.id = id; self.name = name; self.symbol = symbol; self.homeDisplay = homeDisplay; self.homeFallbacks = homeFallbacks; self.placement = placement
     }
+
+    private enum CodingKeys: String, CodingKey { case id, name, symbol, homeDisplay, homeFallbacks, placement }
+
+    // Rooms saved before homes existed have no homeDisplay, homeFallbacks or placement: every newer key is optional.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        symbol = try c.decode(String.self, forKey: .symbol)
+        homeDisplay = try c.decodeIfPresent(String.self, forKey: .homeDisplay)
+        // A choice this version cannot read (from a newer one) is dropped, not the whole settings file.
+        homeFallbacks = (try c.decodeIfPresent([LossyPreference].self, forKey: .homeFallbacks) ?? []).compactMap(\.value)
+        placement = try c.decodeIfPresent(NewWindowPlacement.self, forKey: .placement)
+    }
+}
+
+private struct LossyPreference: Decodable {
+    let value: DisplayPreference?
+    init(from decoder: Decoder) throws { value = try? DisplayPreference(from: decoder) }
 }
 
 public struct RoutingRule: Identifiable, Codable, Equatable {
@@ -178,6 +199,7 @@ public struct WorkspaceState: Codable {
         rules = rules.filter { liveIDs.contains($0.stageID) }  // a rule for a removed Room (an undone import, say) can never match
         displayRooms = displayRooms.filter { liveIDs.contains($0.value) }
         for index in stages.indices where (stages[index].homeDisplay?.count ?? 0) > 200 { stages[index].homeDisplay = nil }
+        for index in stages.indices { stages[index].homeFallbacks = Array(stages[index].homeFallbacks.filter(\.isValid).prefix(8)) }
         // Entries for displays that are gone only pile up; keep a stable 32 so saving can never fail because of them.
         if displayRooms.count > 32 { displayRooms = Dictionary(uniqueKeysWithValues: displayRooms.sorted { $0.key < $1.key }.prefix(32).map { ($0.key, $0.value) }) }
         guard !stages.isEmpty, stages.count <= 9, Set(stages.map(\.id)).count == stages.count,

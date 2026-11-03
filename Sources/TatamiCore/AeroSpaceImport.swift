@@ -149,10 +149,12 @@ public struct AeroImportPlan: Equatable {
     public var rooms: [String]
     public var entries: [Entry]
     public var skipped: [String]
+    /// Monitor lists from `workspace-to-monitor-force-assignment`, for the workspaces that become Rooms.
+    public var monitors: [String: [DisplayPreference]] = [:]
 }
 
 public enum AeroImport {
-    public static func plan(_ rules: [AeroRule], installed: [InstalledApp]) -> AeroImportPlan {
+    public static func plan(_ rules: [AeroRule], installed: [InstalledApp], monitors: [String: [DisplayPreference]] = [:]) -> AeroImportPlan {
         var rooms: [String] = [], entries: [AeroImportPlan.Entry] = [], skipped: [String] = []
         for rule in rules {
             let label = rule.appID.map { "app id \($0)" } ?? rule.nameRegex.map { "app names \($0)" } ?? "a rule with no app"
@@ -172,7 +174,7 @@ public enum AeroImport {
             }
             entries.append(.init(apps: apps, workspace: rule.workspace, floating: rule.floating, label: label))
         }
-        return AeroImportPlan(rooms: rooms, entries: entries, skipped: skipped)
+        return AeroImportPlan(rooms: rooms, entries: entries, skipped: skipped, monitors: monitors.filter { rooms.contains($0.key) })
     }
 }
 
@@ -196,6 +198,10 @@ public struct AeroImportResult: Equatable {
     public var floatRulesAdded = 0
     /// Apps that already had a routing rule of their own, which wins.
     public var keptExisting = 0
+    /// Rooms that got a list of home displays from the monitor assignments.
+    public var homesSet = 0
+    /// Homes were set but per-display Rooms is off, so they do nothing until it is turned on.
+    public var needsPerDisplayRooms = false
     public var skipped: [String] = []
 }
 
@@ -218,6 +224,11 @@ extension WorkspaceState {
             } else {
                 result.skipped.append("Skipped workspace \(workspace): no room for another Room (limit nine, or the name is empty or too long).")
             }
+        }
+        for (workspace, preferences) in plan.monitors.sorted(by: { $0.key < $1.key }) {
+            // A home you set yourself is never replaced.
+            guard let room = roomForWorkspace[workspace], !hasHome(room) else { continue }
+            if setHomeFallbacks(preferences, for: room, enablingPerDisplayRooms: false) { result.homesSet += 1 }
         }
         for entry in plan.entries {
             if let workspace = entry.workspace, let room = roomForWorkspace[workspace] {
@@ -242,6 +253,7 @@ extension WorkspaceState {
                 }
             }
         }
+        result.needsPerDisplayRooms = result.homesSet > 0 && !perDisplayRooms
         return result
     }
 }

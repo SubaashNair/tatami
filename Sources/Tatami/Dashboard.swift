@@ -198,6 +198,14 @@ struct Dashboard: View {
         }
     }
 
+    /// " · on DISPLAY" when the Room lives on a display that is connected, a note when its choices are all unplugged.
+    private func homeLabel(of stage: Stage) -> String {
+        guard model.state.hasHome(stage.id) else { return "" }
+        let key = model.state.effectiveHome(of: stage.id, displays: AppModel.descriptors(for: model.displays))
+        guard let name = key.flatMap({ id in model.displays.first { $0.id == id }?.name }) else { return " · home not connected" }
+        return " · on \(name)"
+    }
+
     private func stageCard(_ stage: Stage, index: Int) -> some View {
         let active = stage.id == model.state.activeStageID
         let windows = model.windows.filter { $0.stageID == stage.id }
@@ -229,7 +237,7 @@ struct Dashboard: View {
                 }.padding(16)
             }.buttonStyle(.plain)
             HStack {
-                Text("\(windows.count) windows" + (stage.homeDisplay.map { key in " · on \(model.displays.first { $0.id == key }?.name ?? "an unplugged display")" } ?? "")).font(.system(size: 10)).foregroundStyle(Theme.muted).lineLimit(1)
+                Text("\(windows.count) windows" + homeLabel(of: stage)).font(.system(size: 10)).foregroundStyle(Theme.muted).lineLimit(1)
                 Spacer()
                 Menu {
                     Button("Rename") { name = stage.name; rename = stage }

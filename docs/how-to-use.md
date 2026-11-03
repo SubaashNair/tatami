@@ -100,11 +100,12 @@ Say display 1 is for coding, display 2 for chat and display 3 for teaching:
 
 1. Create a Room for each job and route the apps to it in **App Routing**.
 2. In the dashboard, open a Room's **⋯** menu, choose **Room Settings…**, and pick **Lives on** a display. This turns on "Each display shows its own Room".
-3. Leave **New windows open as** on the default (tabs in the focused pane) so a second coding app joins the first one's pane.
+3. Add more choices under **If that display is not connected, try**, such as another monitor or the built-in display. The first one that is connected wins, so the same setup works at home, at work and on the laptop alone.
+4. Leave **New windows open as** on the default (tabs in the focused pane) so a second coding app joins the first one's pane.
 
 Apps you open from then on go to their Room's display, as tabs. Windows already open stay where they are. From a terminal: `tatami home 1 1` puts Room 1 on display 1 (see the command-line guide).
 
-**Coming from AeroSpace?** In **App Routing**, choose **Import from AeroSpace…** and pick your `~/.aerospace.toml`. Each `[[on-window-detected]]` workspace becomes a Room (you name them in the preview), each app its rules send there gets a routing rule (app names are matched against your installed apps, ignoring case), and `layout floating` becomes a float rule. Rules that match window titles or other conditions are listed as skipped. The import has undo, and an app that already has a routing rule keeps it.
+**Coming from AeroSpace?** In **App Routing**, choose **Import from AeroSpace…** and pick your `~/.aerospace.toml`. Each `[[on-window-detected]]` workspace becomes a Room (you name them in the preview), each app its rules send there gets a routing rule (app names are matched against your installed apps, ignoring case), and `layout floating` becomes a float rule. Your `workspace-to-monitor-force-assignment` lists (monitor names, `main`, `secondary`, `built-in` or a position, first connected wins) become each Room's ordered home choices. Rules that match window titles or other conditions are listed as skipped. The import has undo, and an app that already has a routing rule keeps it.
 
 ### Wake from sleep and moving between desks
 

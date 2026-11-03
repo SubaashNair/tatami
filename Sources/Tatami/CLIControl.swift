@@ -118,13 +118,15 @@ extension AppModel {
             }
         case .rooms:
             // The home column only appears once a Room has a home, so output is unchanged for everyone else.
-            let anyHome = state.stages.contains { $0.homeDisplay != nil }
+            let anyHome = state.stages.contains { state.hasHome($0.id) }
+            let described = Self.descriptors(for: service.displays)
             columns = ["number", "name", "active", "windows"] + (anyHome ? ["home"] : [])
             rows = state.stages.enumerated().map { index, stage in
                 var row = ["number": "\(index + 1)", "name": stage.name, "active": stage.id == state.activeStageID ? "yes" : "no",
                            "windows": "\(service.windows.filter { $0.stageID == stage.id }.count)"]
                 if anyHome {
-                    row["home"] = stage.homeDisplay.map { key in service.displays.first { $0.id == key }?.name ?? "(unplugged)" } ?? "-"
+                    let resolved = state.effectiveHome(of: stage.id, displays: described).flatMap { key in service.displays.first { $0.id == key }?.name }
+                    row["home"] = resolved ?? (state.hasHome(stage.id) ? "(none connected)" : "-")
                 }
                 return row
             }
