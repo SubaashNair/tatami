@@ -8,6 +8,7 @@ public enum CLICommand: Equatable {
     case focus(Direction), move(Direction)
     case cycle(Int), pane(Int), movePane(Int), display(Int)
     case float, floatApp, rotate, tiles, undoLayout, rescue, start, pause
+    case roomBack
     case home(room: Int, display: Int?)
     case list(CLIListing, json: Bool)
     case status(json: Bool)
@@ -20,7 +21,7 @@ public enum CLIParseError: Error, Equatable {
 extension CLICommand {
     /// Command, its usage line and what it does. The parser's error messages and the help text both come from here.
     static let reference: [(name: String, usage: String, summary: String)] = [
-        ("room", "room <1-9|next|prev>", "switch Room"),
+        ("room", "room <1-9|next|prev|back>", "switch Room; back returns to the previous Room on this display"),
         ("send", "send <1-9>", "send the focused window to a Room"),
         ("focus", "focus <left|right|up|down>", "focus the pane or window that way"),
         ("move", "move <left|right|up|down>", "move the window to the pane that way, or swap with the freeform window there"),
@@ -77,6 +78,7 @@ extension CLICommand {
         }
 
         switch name {
+        case "room" where rest == ["back"]: return .success(.roomBack)
         case "room": return rest.first.map({ $0 == "next" || $0 == "prev" }) == true ? step(CLICommand.stageStep) : number(CLICommand.stage)
         case "send": return number(CLICommand.send)
         case "focus": return direction(CLICommand.focus)

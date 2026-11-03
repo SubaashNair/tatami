@@ -69,6 +69,7 @@ extension AppModel {
             guard state.stages.indices.contains(number - 1) else { return .failure("There is no Room \(number).") }
             switchStage(state.stages[number - 1].id)
         case .stageStep(let step): switchStage(roomID(offset: step))
+        case .roomBack: goToPreviousRoom()
         case .send(let number):
             guard state.stages.indices.contains(number - 1) else { return .failure("There is no Room \(number).") }
             guard let id = service.focusedID() else { return .failure("Focus a window first.") }

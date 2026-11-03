@@ -40,6 +40,12 @@ final class CLIProtocolTests: XCTestCase {
 
     private func parse(_ words: String...) -> Result<CLICommand, CLIParseError> { CLICommand.parse(words) }
 
+    func testRoomBackGoesToThePreviousRoom() {
+        XCTAssertEqual(parse("room", "back"), .success(.roomBack))
+        XCTAssertEqual(parse("ROOM", "BACK"), .success(.roomBack))
+        if case .success = parse("room", "back", "1") { XCTFail("extra arguments must be refused") }
+    }
+
     func testRoomCommands() {
         XCTAssertEqual(parse("room", "3"), .success(.stage(3)))
         XCTAssertEqual(parse("room", "next"), .success(.stageStep(1)))

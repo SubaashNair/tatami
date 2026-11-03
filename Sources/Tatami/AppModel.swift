@@ -55,6 +55,8 @@ import TatamiCore
     var displayPresence = DisplayPresence(grace: 8)
     var lastKnownDisplays: [String: DisplayInfo] = [:]
     var displayRecheck: DispatchWorkItem?
+    /// The Room each display showed before its current one (previous Room key).
+    var roomHistory = RoomHistory()
     /// One remembered layout per set of connected displays (DisplaySetups.swift).
     var displaySetups = DisplaySetupStore()
     var lastSetupFlush = Date.distantPast
@@ -349,6 +351,7 @@ import TatamiCore
     func deleteStage(_ id: UUID) {
         let before = snapshot(name: "Before deleting Room")
         guard let destination = state.removeStage(id) else { return }  // a refused delete must not replace the current undo
+        roomHistory.forget(id)
         undoSnapshot = before
         for i in service.windows.indices where service.windows[i].stageID == id { service.windows[i].stageID = destination }
         if managing { reportFailures(applyVisibility(), action: "delete Room") }
@@ -525,6 +528,7 @@ import TatamiCore
 
     private func handle(_ action: HotkeyAction) {
         switch action {
+        case .backRoom: goToPreviousRoom()
         case .stage(let index): if state.stages.indices.contains(index) { switchStage(state.stages[index].id) }
         case .send(let index): if state.stages.indices.contains(index), let id = service.focusedID() { send(id, to: state.stages[index].id) }
         case .cycle(let offset): switchStage(roomID(offset: offset))
