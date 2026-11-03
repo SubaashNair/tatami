@@ -49,8 +49,11 @@ extension AppModel {
             // Tiles windows are also in `displaced`; count each window once.
             let count = max(displaced.values.filter { $0.display == display.id }.count,
                             detachedLayouts.filter { $0.key.display == display.id }.values.reduce(0) { $0 + $1.windows.count })
-            if count > 0 { onReconnectOffer?(ReconnectOffer(displayName: display.name, displayKey: display.id, count: count)) }
+            // With a saved layout for this set of displays and the restore policy, the layout is applied by itself: no question.
+            let restoresByItself = managing && state.displayChangePolicy == .restore && displaySetups.setup(for: after.map(\.id)) != nil
+            if count > 0 && !restoresByItself { onReconnectOffer?(ReconnectOffer(displayName: display.name, displayKey: display.id, count: count)) }
         }
+        if !change.gone.isEmpty || !change.returned.isEmpty { scheduleSetupReconcile() }
         writeCheckpoint()
         refresh()
     }

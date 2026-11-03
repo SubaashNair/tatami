@@ -88,6 +88,8 @@ public struct WorkspaceState: Codable {
     public var cliEnabled = true
     /// Each display shows its own Room (RoomsPerDisplay.swift). Off by default: one Room everywhere.
     public var perDisplayRooms = false
+    /// What to do when the displays change to a setup Tatami has a saved layout for (DisplaySetups.swift).
+    public var displayChangePolicy: DisplayChangePolicy = .restore
     /// Display key → the Room showing there, used only while `perDisplayRooms` is on.
     public var displayRooms: [String: UUID] = [:]
     public var newWindowPlacement: NewWindowPlacement = .automatic
@@ -104,7 +106,7 @@ public struct WorkspaceState: Codable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, stages, activeStageID, saved, rules, excludedBundleIDs, followSentWindow, followActivatedWindows, showSwitchIndicator, showInDock, barHotZone, barDelay, barIgnoresNotch, scopeCommandBacktick, tiledDisplays, tilesByDefault, freeformDisplays, cliEnabled, perDisplayRooms, displayRooms, newWindowPlacement, keepEmptyPanes, behaviorRules, shortcutPreset, gap, ai
+        case version, stages, activeStageID, saved, rules, excludedBundleIDs, followSentWindow, followActivatedWindows, showSwitchIndicator, showInDock, barHotZone, barDelay, barIgnoresNotch, scopeCommandBacktick, tiledDisplays, tilesByDefault, freeformDisplays, cliEnabled, perDisplayRooms, displayChangePolicy, displayRooms, newWindowPlacement, keepEmptyPanes, behaviorRules, shortcutPreset, gap, ai
     }
 
     /// Keys written by earlier builds, read for migration only.
@@ -136,6 +138,7 @@ public struct WorkspaceState: Codable {
         freeformDisplays = try c.decodeIfPresent([String: [String]].self, forKey: .freeformDisplays) ?? defaults.freeformDisplays
         cliEnabled = try c.decodeIfPresent(Bool.self, forKey: .cliEnabled) ?? defaults.cliEnabled
         perDisplayRooms = try c.decodeIfPresent(Bool.self, forKey: .perDisplayRooms) ?? defaults.perDisplayRooms
+        displayChangePolicy = try c.decodeIfPresent(DisplayChangePolicy.self, forKey: .displayChangePolicy) ?? defaults.displayChangePolicy
         displayRooms = try c.decodeIfPresent([String: UUID].self, forKey: .displayRooms) ?? defaults.displayRooms
         newWindowPlacement = try c.decodeIfPresent(NewWindowPlacement.self, forKey: .newWindowPlacement) ?? defaults.newWindowPlacement
         keepEmptyPanes = try c.decodeIfPresent(Bool.self, forKey: .keepEmptyPanes) ?? defaults.keepEmptyPanes

@@ -223,4 +223,21 @@ final class DisplaySetupsTests: XCTestCase {
         let dropped = try JSONDecoder().decode(DisplaySetupStore.self, from: JSONSerialization.data(withJSONObject: hugeObject))
         XCTAssertTrue(dropped.setups.isEmpty, "a file with more windows than we ever save is not trusted")
     }
+
+    // MARK: the setting
+
+    func testTheDefaultIsToRestoreAndOlderFilesKeepIt() throws {
+        XCTAssertEqual(WorkspaceState().displayChangePolicy, .restore)
+        var object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(WorkspaceState())) as! [String: Any]
+        object.removeValue(forKey: "displayChangePolicy")
+        let loaded = try JSONDecoder().decode(WorkspaceState.self, from: JSONSerialization.data(withJSONObject: object))
+        XCTAssertEqual(loaded.displayChangePolicy, .restore)
+    }
+
+    func testTheChosenPolicySurvivesASaveAndLoad() throws {
+        var state = WorkspaceState()
+        state.displayChangePolicy = .ask
+        let loaded = try JSONDecoder().decode(WorkspaceState.self, from: JSONEncoder().encode(state))
+        XCTAssertEqual(loaded.displayChangePolicy, .ask)
+    }
 }
