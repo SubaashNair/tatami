@@ -211,6 +211,7 @@ Global shortcuts work only while Tatami is managing. `⌃` Control, `⌥` Option
 | Previous or next Room | `⌃⌥⌘←` / `⌃⌥⌘→` | `⌥←` / `⌥→` |
 | Cycle Rooms (`⇧` reverses) | `⌃⌥Tab` | `⌥Tab` |
 | Back to the previous Room on this display (again to flip back) | `⌃⌥` + backtick | `⌥` + backtick |
+| Send this display's Room to the next or previous display (the two Rooms swap) | `⌃⌥⌘Tab` / `⌃⌥⌘⇧Tab` | `⌘⌥Tab` / `⌘⌥⇧Tab` |
 | Switch by scrolling | `⌃⌥` + scroll | `⌥` + scroll |
 | Show Room cards | `⌃⌥⌘↑` | `⌥↑` |
 | New or close Room | `⌃⌥N` / `⌃⌥X` | `⌥N` / `⌥X` |

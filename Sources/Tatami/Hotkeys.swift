@@ -3,7 +3,7 @@ import Carbon
 import TatamiCore
 
 enum HotkeyAction {
-    case backRoom, stage(Int), send(Int), cycle(Int), snap(SnapZone), stagesBar, retile, rescue, organizer, newStage, closeStage, mergeAll, cycleAppWindows(Int), cycleMode, focusPane(Direction), moveToPane(Direction), tab(Int), zoomPane, splitPane(Axis), resizePane(Double), reflow, undoLayout, raiseFloats, sendToDisplay(Int), cycleWindows(Int), focusPaneNumber(Int), movePaneNumber(Int), rotateSplit, toggleFloat, toggleFloatApp
+    case backRoom, sendRoom(Int), stage(Int), send(Int), cycle(Int), snap(SnapZone), stagesBar, retile, rescue, organizer, newStage, closeStage, mergeAll, cycleAppWindows(Int), cycleMode, focusPane(Direction), moveToPane(Direction), tab(Int), zoomPane, splitPane(Axis), resizePane(Double), reflow, undoLayout, raiseFloats, sendToDisplay(Int), cycleWindows(Int), focusPaneNumber(Int), movePaneNumber(Int), rotateSplit, toggleFloat, toggleFloatApp
 }
 
 @MainActor final class Hotkeys {
@@ -58,6 +58,8 @@ enum HotkeyAction {
         bind(kVK_ANSI_B, base, .cycleMode)
         // Tiles (M3 decision 5). ⌃⌥⌘\ splits right; with Shift, below (⌃⌥⌘− is shrink).
         let pane = UInt32(cmdKey | optionKey | (classic ? 0 : controlKey))
+        bind(kVK_Tab, pane, .sendRoom(1))  // send this display's Room to the next display, like AeroSpace's move-workspace-to-monitor
+        bind(kVK_Tab, pane | UInt32(shiftKey), .sendRoom(-1))
         for (code, direction) in [(kVK_ANSI_I, Direction.up), (kVK_ANSI_J, .left), (kVK_ANSI_K, .down), (kVK_ANSI_L, .right)] {
             bind(code, pane, .focusPane(direction))
             bind(code, pane | UInt32(shiftKey), .moveToPane(direction))

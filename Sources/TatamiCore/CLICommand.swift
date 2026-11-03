@@ -8,7 +8,7 @@ public enum CLICommand: Equatable {
     case focus(Direction), move(Direction)
     case cycle(Int), pane(Int), movePane(Int), display(Int)
     case float, floatApp, rotate, tiles, undoLayout, rescue, start, pause
-    case roomBack
+    case roomBack, roomToDisplay(Int)
     case home(room: Int, display: Int?)
     case list(CLIListing, json: Bool)
     case status(json: Bool)
@@ -37,6 +37,7 @@ extension CLICommand {
         ("rescue", "rescue", "bring every hidden window back and pause"),
         ("start", "start", "start managing windows"),
         ("pause", "pause", "pause management and restore windows"),
+        ("room-to-display", "room-to-display <next|prev>", "send the Room on this display to the next or previous display, swapping the two Rooms"),
         ("home", "home <1-9> <1-9|none>", "make a Room live on a display (numbers from list displays), or none"),
         ("list", "list <windows|rooms|displays> [--json]", "show what Tatami sees"),
         ("status", "status [--json]", "show whether Tatami is managing, and its version"),
@@ -95,6 +96,7 @@ extension CLICommand {
         case "rescue": return plain(.rescue)
         case "start": return plain(.start)
         case "pause": return plain(.pause)
+        case "room-to-display": return step(CLICommand.roomToDisplay)
         case "home":
             guard rest.count == 2, let room = Int(rest[0]), (1...9).contains(room) else { return wrong }
             if rest[1] == "none" { return .success(.home(room: room, display: nil)) }

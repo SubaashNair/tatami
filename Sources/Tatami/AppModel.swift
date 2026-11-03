@@ -529,6 +529,7 @@ import TatamiCore
     private func handle(_ action: HotkeyAction) {
         switch action {
         case .backRoom: goToPreviousRoom()
+        case .sendRoom(let offset): sendRoomToDisplay(offset: offset)
         case .stage(let index): if state.stages.indices.contains(index) { switchStage(state.stages[index].id) }
         case .send(let index): if state.stages.indices.contains(index), let id = service.focusedID() { send(id, to: state.stages[index].id) }
         case .cycle(let offset): switchStage(roomID(offset: offset))

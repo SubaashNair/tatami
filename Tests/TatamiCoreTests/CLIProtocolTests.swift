@@ -40,6 +40,14 @@ final class CLIProtocolTests: XCTestCase {
 
     private func parse(_ words: String...) -> Result<CLICommand, CLIParseError> { CLICommand.parse(words) }
 
+    func testRoomToDisplayTakesNextOrPrevious() {
+        XCTAssertEqual(parse("room-to-display", "next"), .success(.roomToDisplay(1)))
+        XCTAssertEqual(parse("ROOM-TO-DISPLAY", "PREV"), .success(.roomToDisplay(-1)))
+        for words in [["room-to-display"], ["room-to-display", "2"], ["room-to-display", "next", "x"]] {
+            if case .success = CLICommand.parse(words) { XCTFail("\(words) must not parse") }
+        }
+    }
+
     func testRoomBackGoesToThePreviousRoom() {
         XCTAssertEqual(parse("room", "back"), .success(.roomBack))
         XCTAssertEqual(parse("ROOM", "BACK"), .success(.roomBack))
@@ -124,7 +132,7 @@ final class CLIProtocolTests: XCTestCase {
 
     func testHelpMentionsEveryCommand() {
         for word in ["room", "send", "focus", "move", "window", "pane", "move-to-pane", "float", "float-app", "rotate", "tiles",
-                     "display", "undo-layout", "rescue", "start", "pause", "list", "status", "home"] {
+                     "display", "undo-layout", "rescue", "start", "pause", "list", "status", "home", "room-to-display"] {
             XCTAssertTrue(CLICommand.helpText.contains(word), "help should mention \(word)")
         }
     }
