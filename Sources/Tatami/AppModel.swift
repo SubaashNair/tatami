@@ -55,6 +55,14 @@ import TatamiCore
     var displayPresence = DisplayPresence(grace: 8)
     var lastKnownDisplays: [String: DisplayInfo] = [:]
     var displayRecheck: DispatchWorkItem?
+    /// One remembered layout per set of connected displays (DisplaySetups.swift).
+    var displaySetups = DisplaySetupStore()
+    var lastSetupFlush = Date.distantPast
+    var setupReconcileWork: DispatchWorkItem?
+    /// True from a display change or wake until the matching layout has been applied, so a shuffled layout is never saved over a good one.
+    var setupReconcilePending = false
+    /// A display change or wake happened while paused: reconcile as soon as management resumes.
+    var setupReconcileWhenManaging = false
     /// A delayed re-check is queued, so a window that is merely slow to resize is not mistaken for one with a minimum size.
     var oversizedCheckPending = false
     /// Sizes below which a window cannot go, learned when it overflowed its pane; other fits must not squeeze it further.
@@ -115,6 +123,7 @@ import TatamiCore
 
     func start() {
         primeDisplayPresence()
+        loadDisplaySetups()
         trusted = service.trusted
         if trusted { _ = service.recoverPreviousSession() }
         service.stateProvider = { [weak self] in self?.state ?? WorkspaceState() }
@@ -133,7 +142,7 @@ import TatamiCore
         }
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
             // Waking drops external displays from the list for a moment and apps move their windows around: hold off decisions.
-            Task { @MainActor [weak self] in self?.service.holdDisplaySettling(for: 12); self?.displaysChanged(); self?.refresh() }
+            Task { @MainActor [weak self] in self?.service.holdDisplaySettling(for: 12); self?.displaysChanged(); self?.scheduleSetupReconcile(); self?.refresh() }
         }
         let workspace = NSWorkspace.shared.notificationCenter
         appObservers = [NSWorkspace.didLaunchApplicationNotification, NSWorkspace.didTerminateApplicationNotification].map { name in
@@ -142,7 +151,7 @@ import TatamiCore
             }
         }
         sleepObserver = workspace.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor [weak self] in self?.writeCheckpoint() }
+            Task { @MainActor [weak self] in self?.writeCheckpoint(); self?.flushDisplaySetups() }
         }
         // Cmd+Tab and Dock clicks activate an app without changing its focused window.
         appObservers.append(workspace.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] _ in
@@ -173,6 +182,7 @@ import TatamiCore
     /// After any scan: new windows may need hiding (routing to inactive Stages), then the UI updates.
     func windowsChanged() {
         if !managing { homesPrimed = false }
+        if managing, setupReconcileWhenManaging { setupReconcileWhenManaging = false; scheduleSetupReconcile() }
         if managing {
             let homesChanged = applyRoomHomes()
             if homesChanged { suppressFollowUntil = Date().addingTimeInterval(followSuppression) }
@@ -510,7 +520,7 @@ import TatamiCore
         if managing { let failures = hotkeys.register(preset: state.shortcutPreset, scopeCommandBacktick: state.scopeCommandBacktick); scrollSwitcher.stop(); scrollSwitcher.start(preset: state.shortcutPreset); reportFailures(failures, action: "register shortcuts") }
     }
 
-    func shutdown() { timer?.invalidate(); stopCLIServer(); hotkeys.unregister(); scrollSwitcher.stop(); _ = service.restoreOwnedWindows(); writeCheckpoint(); persist() }
+    func shutdown() { timer?.invalidate(); stopCLIServer(); hotkeys.unregister(); scrollSwitcher.stop(); _ = service.restoreOwnedWindows(); writeCheckpoint(); flushDisplaySetups(); persist() }
     func reportFailures(_ count: Int, action: String) { if count > 0 { error = "Could not \(action) for \(count) item(s). Some applications may not support the requested action." } }
 
     private func handle(_ action: HotkeyAction) {

@@ -29,13 +29,16 @@ extension AppModel {
                                  frame: Rect(window.realFrame), stageID: window.stageID, displayKey: service.display(for: window.realFrame)?.id, id: window.id)
             },
             layouts: savedLayouts())
+        saveDisplaySetup(checkpoint)
         do { try JSONEncoder().encode(checkpoint).write(to: checkpointURL, options: .atomic) }
         catch { self.error = "Could not save the workspace checkpoint: \(error.localizedDescription)" }
     }
 
     /// Re-attach windows to their Stages after Tatami (or the Mac) restarts. Frames are the journal's job.
     func restoreCheckpoint() {
-        guard let data = try? Data(contentsOf: checkpointURL), let checkpoint = try? JSONDecoder().decode(Checkpoint.self, from: data) else { return }
+        // The layout saved for this exact set of displays wins; the last checkpoint on disk may belong to another place.
+        let known = displaySetups.setup(for: service.displays.map(\.id))?.checkpoint
+        guard let checkpoint = known ?? (try? Data(contentsOf: checkpointURL)).flatMap({ try? JSONDecoder().decode(Checkpoint.self, from: $0) }) else { return }
         let stageIDs = Set(state.stages.map(\.id))
         let live = service.windows.map { LiveWindowKey(windowNumber: $0.windowNumber, pid: $0.pid, bundleID: $0.bundleID, title: $0.title) }
         var restored = 0
