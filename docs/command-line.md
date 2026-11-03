@@ -29,6 +29,7 @@ Command-line control is on by default. Turn it off with **Allow command-line con
 | `tatami rescue` | Bring every hidden window back and pause |
 | `tatami start` / `pause` | Start or pause window management |
 | `tatami home <1-9> <1-9\|none>` | Make a Room live on a display (numbers from `tatami list rooms` and `tatami list displays`), or `none` to clear it |
+| `tatami room-to-display <next\|prev>` | Send the Room on this display to the next or previous display; the two displays swap Rooms and the windows follow (needs per-display Rooms) |
 | `tatami list <windows\|rooms\|displays> [--json]` | Show what Tatami sees |
 | `tatami status [--json]` | Managing or paused, and the version |
 
