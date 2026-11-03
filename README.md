@@ -55,6 +55,7 @@ The first two images are real captures of the Tatami app, taken with a clean dat
 | Control | Keys |
 |---|---|
 | Switch to Room 1 to 9 | `⌃⌥1` to `⌃⌥9` |
+| Back to the previous Room on this display (press again to flip) | `⌃⌥` + backtick |
 | New or close Room | `⌃⌥N` / `⌃⌥X` |
 | Arrange the active Room | `⌃⌥⌘↓` |
 | AI Organizer | `⌃⌥Z` |
@@ -209,6 +210,7 @@ Global shortcuts work only while Tatami is managing. `⌃` Control, `⌥` Option
 | Send focused window to a Room | `⌃⌥⇧1` to `⌃⌥⇧9` | `⌥⇧1` to `⌥⇧9` |
 | Previous or next Room | `⌃⌥⌘←` / `⌃⌥⌘→` | `⌥←` / `⌥→` |
 | Cycle Rooms (`⇧` reverses) | `⌃⌥Tab` | `⌥Tab` |
+| Back to the previous Room on this display (again to flip back) | `⌃⌥` + backtick | `⌥` + backtick |
 | Switch by scrolling | `⌃⌥` + scroll | `⌥` + scroll |
 | Show Room cards | `⌃⌥⌘↑` | `⌥↑` |
 | New or close Room | `⌃⌥N` / `⌃⌥X` | `⌥N` / `⌥X` |

@@ -7,12 +7,28 @@ extension AppModel {
     /// Switches the Room on one display, or everywhere with the setting off (or when no display can be found).
     /// With per-display Rooms on and no display to act on, nothing changes: guessing could move every display.
     func setActiveRoom(_ id: UUID, on display: String?) {
+        let shownOn = state.perDisplayRooms ? display : nil
+        let old = state.activeRoomID(on: shownOn)
         if state.perDisplayRooms {
             guard let display else { return }
             state.switchRoom(id, on: display, displays: service.displays.map(\.id))
         } else {
             state.switchRoomEverywhere(id)
         }
+        roomHistory.record(from: old, to: id, on: shownOn)
+    }
+
+    /// The previous-Room key: back to the Room this display showed before (the whole desk's, with per-display Rooms off).
+    /// Pressing it again flips back.
+    func goToPreviousRoom() {
+        let display = state.perDisplayRooms ? targetDisplay()?.id : nil
+        if state.perDisplayRooms && display == nil { return }
+        let current = state.activeRoomID(on: display)
+        guard let target = roomHistory.back(on: display, current: current, rooms: state.stages.map(\.id)) else {
+            notice = state.perDisplayRooms ? "This display has no previous Room yet." : "There is no previous Room yet."
+            return
+        }
+        switchStage(target, on: display)
     }
 
     /// The Room `offset` steps from the one showing on the display you are working on (the single active Room when off).

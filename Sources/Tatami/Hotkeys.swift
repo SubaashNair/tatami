@@ -3,7 +3,7 @@ import Carbon
 import TatamiCore
 
 enum HotkeyAction {
-    case stage(Int), send(Int), cycle(Int), snap(SnapZone), stagesBar, retile, rescue, organizer, newStage, closeStage, mergeAll, cycleAppWindows(Int), cycleMode, focusPane(Direction), moveToPane(Direction), tab(Int), zoomPane, splitPane(Axis), resizePane(Double), reflow, undoLayout, raiseFloats, sendToDisplay(Int), cycleWindows(Int), focusPaneNumber(Int), movePaneNumber(Int), rotateSplit, toggleFloat, toggleFloatApp
+    case backRoom, stage(Int), send(Int), cycle(Int), snap(SnapZone), stagesBar, retile, rescue, organizer, newStage, closeStage, mergeAll, cycleAppWindows(Int), cycleMode, focusPane(Direction), moveToPane(Direction), tab(Int), zoomPane, splitPane(Axis), resizePane(Double), reflow, undoLayout, raiseFloats, sendToDisplay(Int), cycleWindows(Int), focusPaneNumber(Int), movePaneNumber(Int), rotateSplit, toggleFloat, toggleFloatApp
 }
 
 @MainActor final class Hotkeys {
@@ -51,6 +51,7 @@ enum HotkeyAction {
         bind(kVK_ANSI_R, UInt32(controlKey | optionKey | cmdKey), .rescue)
         bind(kVK_Tab, base, .cycle(1))
         bind(kVK_Tab, base | UInt32(shiftKey), .cycle(-1))
+        bind(kVK_ANSI_Grave, base, .backRoom)  // previous Room, like AeroSpace's workspace-back-and-forth
         bind(kVK_ANSI_N, base, .newStage)
         bind(kVK_ANSI_X, base, .closeStage)
         bind(kVK_ANSI_M, base, .mergeAll)

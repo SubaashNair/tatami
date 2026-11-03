@@ -14,7 +14,7 @@ Command-line control is on by default. Turn it off with **Allow command-line con
 
 | Command | What it does |
 |---|---|
-| `tatami room <1-9\|next\|prev>` | Switch Room |
+| `tatami room <1-9\|next\|prev\|back>` | Switch Room; `back` returns to the previous Room on the display you are working on |
 | `tatami send <1-9>` | Send the focused window to a Room |
 | `tatami focus <left\|right\|up\|down>` | Focus the pane or window that way |
 | `tatami move <left\|right\|up\|down>` | Move the window to the pane that way, or swap in Freeform |
