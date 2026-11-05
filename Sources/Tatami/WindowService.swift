@@ -12,6 +12,7 @@ struct LiveWindow: Identifiable {
     var title: String
     var frame: CGRect
     var minimized: Bool
+    var fullscreen = false
     var stageID: UUID
     /// Set while Tatami hides the window for an inactive Stage. Holds the frame to restore.
     var hidden: HiddenState?
@@ -193,6 +194,7 @@ struct RecoveryEntry: Codable {
                 if !stale {
                     existing.frame = found.frame
                     existing.minimized = found.minimized
+                    existing.fullscreen = found.fullscreen
                     // Restoring from the Dock, or dragging a parked window back, is an explicit escape hatch.
                     switch existing.hidden {
                     case .parked where !ParkPlanner.isParked(found.frame, displays: screens) && displaysSettling:

@@ -55,6 +55,10 @@ import TatamiCore
     var displayPresence = DisplayPresence(grace: 8)
     var lastKnownDisplays: [String: DisplayInfo] = [:]
     var displayRecheck: DispatchWorkItem?
+    /// Panes zoomed because their window was maximized (not by the zoom key): only those are unzoomed automatically.
+    var autoZoomedPanes = Set<UUID>()
+    /// When each window was last seen in full screen, so the frame still moving back from it is not judged.
+    var fullscreenSeen: [UUID: Date] = [:]
     /// The Room each display showed before its current one (previous Room key).
     var roomHistory = RoomHistory()
     /// One remembered layout per set of connected displays (DisplaySetups.swift).
@@ -183,6 +187,7 @@ import TatamiCore
 
     /// After any scan: new windows may need hiding (routing to inactive Stages), then the UI updates.
     func windowsChanged() {
+        for window in service.windows where window.fullscreen { fullscreenSeen[window.id] = Date() }
         if !managing { homesPrimed = false }
         if managing, setupReconcileWhenManaging { setupReconcileWhenManaging = false; scheduleSetupReconcile() }
         if managing {
@@ -190,8 +195,9 @@ import TatamiCore
             if homesChanged { suppressFollowUntil = Date().addingTimeInterval(followSuppression) }
             adoptRoomsOfMovedWindows()
             sendNewWindowsHome()
+            let maximized = followMaximizedWindows()  // before new windows are placed: only windows already in a layout are judged
             let structural = syncLayouts()
-            let edited = checkLayoutEdits()
+            let edited = checkLayoutEdits() || maximized
             if structural || edited { applyLayouts() } else {
                 let failures = applyVisibility()
                 if failures > 0 { notice = "\(failures) window(s) could not be managed. Their app may not support this action." }

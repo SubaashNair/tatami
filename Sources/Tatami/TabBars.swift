@@ -14,11 +14,17 @@ import TatamiCore
         guard model.managing else { panels.values.forEach { $0.orderOut(nil) }; return }
         let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
         var live = Set<UUID>()
+        let fullscreen = model.fullscreenDisplays
         for (key, layout) in model.layouts where model.state.isActiveRoom(key.stage, on: key.display) {
             guard let display = model.service.displays.first(where: { $0.id == key.display }) else { continue }
+            // Nothing of ours is drawn over a full screen window.
+            if fullscreen.contains(key.display) { continue }
+            // An empty pane's bar would sit on top of a window that fills the display (a floating or maximized one).
+            let covered = model.service.windows.contains { $0.hidden == nil && !$0.minimized && model.displayKey(of: $0) == key.display && WindowCoverage.fillsDisplay($0.frame, area: display.area) }
             let frames = layout.frames(in: display.area, gap: model.state.gap, tabBar: AppModel.tabBarHeight)
             for pane in layout.root.panes {
                 guard let frame = frames[pane.id]?.pane else { continue }
+                if covered && pane.tabs.isEmpty { continue }
                 live.insert(pane.id)
                 let panel = panels[pane.id] ?? makePanel(key: key, pane: pane.id)
                 panels[pane.id] = panel

@@ -33,6 +33,39 @@ extension AppModel {
         return state.isFloating(bundleID: window.bundleID, title: window.title)
     }
 
+    /// Displays that currently show a full screen window.
+    var fullscreenDisplays: Set<String> {
+        Set(service.windows.filter { $0.fullscreen && $0.hidden == nil }.compactMap { displayKey(of: $0) })
+    }
+
+    /// A window the user maximized (the green button) fills its display. That is the pane zoom, so zoom its pane instead of
+    /// snapping the window back or floating it, and unzoom (only a zoom made here) when it is clearly smaller again.
+    /// Runs before new windows are placed, and only judges windows Tatami already placed.
+    func followMaximizedWindows() -> Bool {
+        guard NSEvent.pressedMouseButtons == 0 else { return false }
+        let now = Date()
+        for (id, seen) in fullscreenSeen where now.timeIntervalSince(seen) > 30 { fullscreenSeen[id] = nil }
+        var changed = false
+        for (key, layout) in layouts where state.isActiveRoom(key.stage, on: key.display) {
+            guard layout.root.panes.count > 1, let display = service.displays.first(where: { $0.id == key.display }) else { continue }
+            var edited = layout
+            for pane in layout.root.panes {
+                guard let id = pane.selected, let window = service.windows.first(where: { $0.id == id }),
+                      window.hidden == nil, !window.minimized, !window.fullscreen else { continue }
+                let justLeftFullScreen = fullscreenSeen[id].map { now.timeIntervalSince($0) < 4 } ?? false
+                switch MaximizeRules.action(isZoomed: layout.zoomed == pane.id, zoomedByUs: autoZoomedPanes.contains(pane.id), frame: window.frame,
+                                            expected: expectedFrames[id], area: display.area, justLeftFullScreen: justLeftFullScreen) {
+                case .zoom: edited.zoomed = pane.id; autoZoomedPanes.insert(pane.id)
+                case .unzoom: edited.zoomed = nil; autoZoomedPanes.remove(pane.id)
+                case .none: break
+                }
+            }
+            if edited.zoomed == nil { for pane in layout.root.panes { autoZoomedPanes.remove(pane.id) } }  // no zoom left here, however it ended
+            if edited != layout { recordHistory(key); layouts[key] = edited; changed = true }
+        }
+        return changed
+    }
+
     /// Windows a layout may hold: not excluded from staging, not floating, not minimized by the user.
     func isLayoutCandidate(_ window: LiveWindow) -> Bool {
         !state.excludedBundleIDs.contains(window.bundleID) && !isFloating(window) && !(window.minimized && window.hidden == nil)
@@ -116,7 +149,10 @@ extension AppModel {
             }
             var layout = layouts[key]!
             for id in layout.windows {
-                guard let window = byID[id], window.stageID == key.stage, isLayoutCandidate(window) else {
+                guard let window = byID[id] else {
+                    layout.remove(id, keepEmptyPanes: state.keepEmptyPanes); changed = true; continue
+                }
+                guard window.stageID == key.stage, isLayoutCandidate(window) else {
                     layout.remove(id, keepEmptyPanes: state.keepEmptyPanes); changed = true; continue
                 }
             }
@@ -157,8 +193,9 @@ extension AppModel {
             guard let display = service.displays.first(where: { $0.id == key.display }) else { continue }
             var edited = layout
             for pane in layout.root.panes {
-                guard let id = pane.selected, let expected = expectedFrames[id],
-                      let window = service.windows.first(where: { $0.id == id }), window.hidden == nil else { continue }
+                guard let id = pane.selected, let expected = expectedFrames[id], layout.zoomed != pane.id,
+                      let window = service.windows.first(where: { $0.id == id }), window.hidden == nil, !window.fullscreen,
+                      !WindowCoverage.fillsDisplay(window.frame, area: display.area) else { continue }  // a maximized window is a zoom, not an edge drag
                 let actual = window.frame
                 let resized = abs(actual.width - expected.width) > 3 || abs(actual.height - expected.height) > 3
                 let moved = abs(actual.minX - expected.minX) > 3 || abs(actual.minY - expected.minY) > 3
@@ -192,7 +229,8 @@ extension AppModel {
         var failures = applyVisibility()
         var oversized: [UUID: CGSize] = [:]
         for (id, frame) in targets where !hidden.contains(id) {
-            guard let window = service.windows.first(where: { $0.id == id }), window.hidden == nil else { continue }
+            // A full screen window is not ours to place, and it must not count as too big for its pane.
+            guard let window = service.windows.first(where: { $0.id == id }), window.hidden == nil, !window.fullscreen else { continue }
             expectedFrames[id] = frame
             if !Self.close(window.frame, frame) && !service.move(id, to: frame) { failures += 1 }
             // Apps with a minimum size stay at it, anchored top-left, with a warning on the tab (M3 decision 7).
@@ -250,6 +288,14 @@ extension AppModel {
         for (id, size) in oversized.sorted(by: { $0.value.width + $0.value.height > $1.value.width + $1.value.height }) {
             guard let key = layoutKey(containing: id), state.isActiveRoom(key.stage, on: key.display), var layout = layouts[key],
                   let pane = layout.pane(containing: id), let display = service.displays.first(where: { $0.id == key.display }) else { continue }
+            // A window as big as the display needs the whole display: zoom its pane instead of floating it. In a single pane
+            // there is nothing to zoom and nothing to fit, so it is left as it is.
+            if WindowCoverage.fillsDisplay(CGRect(origin: display.area.origin, size: size), area: display.area) {
+                if layout.root.panes.count > 1, layout.zoomed != pane.id {
+                    recordHistory(key); layout.zoomed = pane.id; layouts[key] = layout; autoZoomedPanes.insert(pane.id); changed = true
+                }
+                continue
+            }
             let minimums = Dictionary(uniqueKeysWithValues: layout.root.panes.compactMap { other -> (UUID, CGSize)? in
                 guard other.id != pane.id, let selected = other.selected, let known = knownMinSizes[selected] else { return nil }
                 return (other.id, known)
