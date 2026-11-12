@@ -117,6 +117,15 @@ extension AppModel {
         publish()
     }
 
+    /// The colour of a Room's tab bars.
+    func setRoomTint(_ tint: RoomTint?, for roomID: UUID) {
+        guard let index = state.stages.firstIndex(where: { $0.id == roomID }) else { return }
+        state.stages[index].tint = tint
+        persist()
+        publish()
+        onLayoutsApplied?()  // redraw the tab bars
+    }
+
     /// A short description of one home choice, for Room Settings.
     func describe(_ preference: DisplayPreference) -> String {
         switch preference {

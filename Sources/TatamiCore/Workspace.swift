@@ -11,11 +11,13 @@ public struct Stage: Identifiable, Codable, Equatable {
     public var homeFallbacks: [DisplayPreference] = []
     /// How new windows open in this Room. Nil follows the desk-wide setting.
     public var placement: NewWindowPlacement?
-    public init(id: UUID = UUID(), name: String, symbol: String = "square.stack.3d.up", homeDisplay: String? = nil, homeFallbacks: [DisplayPreference] = [], placement: NewWindowPlacement? = nil) {
-        self.id = id; self.name = name; self.symbol = symbol; self.homeDisplay = homeDisplay; self.homeFallbacks = homeFallbacks; self.placement = placement
+    /// A colour for this Room's tab bars, so panes of different Rooms are told apart at a glance.
+    public var tint: RoomTint?
+    public init(id: UUID = UUID(), name: String, symbol: String = "square.stack.3d.up", homeDisplay: String? = nil, homeFallbacks: [DisplayPreference] = [], placement: NewWindowPlacement? = nil, tint: RoomTint? = nil) {
+        self.id = id; self.name = name; self.symbol = symbol; self.homeDisplay = homeDisplay; self.homeFallbacks = homeFallbacks; self.placement = placement; self.tint = tint
     }
 
-    private enum CodingKeys: String, CodingKey { case id, name, symbol, homeDisplay, homeFallbacks, placement }
+    private enum CodingKeys: String, CodingKey { case id, name, symbol, homeDisplay, homeFallbacks, placement, tint }
 
     // Rooms saved before homes existed have no homeDisplay, homeFallbacks or placement: every newer key is optional.
     public init(from decoder: Decoder) throws {
@@ -27,6 +29,7 @@ public struct Stage: Identifiable, Codable, Equatable {
         // A choice this version cannot read (from a newer one) is dropped, not the whole settings file.
         homeFallbacks = (try c.decodeIfPresent([LossyPreference].self, forKey: .homeFallbacks) ?? []).compactMap(\.value)
         placement = try c.decodeIfPresent(NewWindowPlacement.self, forKey: .placement)
+        tint = (try? c.decodeIfPresent(RoomTint.self, forKey: .tint)) ?? nil  // a colour from a newer version is ignored
     }
 }
 

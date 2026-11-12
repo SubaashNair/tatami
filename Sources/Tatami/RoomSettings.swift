@@ -58,6 +58,22 @@ struct RoomSettingsSheet: View {
                 Text("With tabs, a second coding app joins the first one's pane instead of splitting the screen.")
                     .font(.system(size: 11)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true)
             }
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Tab bar colour").font(.system(size: 12, weight: .medium))
+                HStack(spacing: 8) {
+                    Button { model.setRoomTint(nil, for: stageID) } label: {
+                        Image(systemName: stage?.tint == nil ? "circle.slash.fill" : "circle.slash").frame(width: 20, height: 20)
+                    }.buttonStyle(.plain).help("No colour")
+                    ForEach(RoomTint.allCases, id: \.self) { tint in
+                        Button { model.setRoomTint(tint, for: stageID) } label: {
+                            Circle().fill(tint.color).frame(width: 18, height: 18)
+                                .overlay(Circle().stroke(Color.primary.opacity(stage?.tint == tint ? 0.8 : 0), lineWidth: 2))
+                        }.buttonStyle(.plain).help(tint.label)
+                    }
+                }
+                Text("Tints this Room's tab bars so panes of different Rooms are told apart at a glance.")
+                    .font(.system(size: 11)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true)
+            }
             HStack { Spacer(); Button("Done", action: close).buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction) }
         }.padding(32).frame(width: 480)
     }

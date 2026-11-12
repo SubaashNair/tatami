@@ -55,6 +55,8 @@ import TatamiCore
     var displayPresence = DisplayPresence(grace: 8)
     var lastKnownDisplays: [String: DisplayInfo] = [:]
     var displayRecheck: DispatchWorkItem?
+    /// A window asked for with a pane's plus button: when it appears it joins that pane (until the time runs out).
+    var pendingNewTab: [pid_t: (pane: UUID, key: LayoutKey, until: Date, known: Set<UUID>)] = [:]
     /// Panes zoomed because their window was maximized (not by the zoom key): only those are unzoomed automatically.
     var autoZoomedPanes = Set<UUID>()
     /// When each window was last seen in full screen, so the frame still moving back from it is not judged.
@@ -188,6 +190,7 @@ import TatamiCore
     /// After any scan: new windows may need hiding (routing to inactive Stages), then the UI updates.
     func windowsChanged() {
         for window in service.windows where window.fullscreen { fullscreenSeen[window.id] = Date() }
+        pendingNewTab = pendingNewTab.filter { $0.value.until > Date() }  // an armed plus button that found no window expires
         if !managing { homesPrimed = false }
         if managing, setupReconcileWhenManaging { setupReconcileWhenManaging = false; scheduleSetupReconcile() }
         if managing {

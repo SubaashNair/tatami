@@ -56,6 +56,11 @@ struct TabBarView: View {
 
     private var pane: Pane? { model.layouts[key]?.root.pane(paneID) }
     private var focusedPane: Bool { model.layouts[key]?.focused == paneID }
+    private var tint: Color? { model.state.stages.first { $0.id == key.stage }?.tint?.color }
+
+    /// The shortcut modifiers of the active preset, so menus show the real keys (Standard ⌃⌥⌘, Classic ⌘⌥).
+    private var chord: EventModifiers { model.state.shortcutPreset == .classic ? [.command, .option] : [.control, .option, .command] }
+    private var baseChord: EventModifiers { model.state.shortcutPreset == .classic ? [.option] : [.control, .option] }
 
     var body: some View {
         HStack(spacing: 2) {
@@ -67,19 +72,27 @@ struct TabBarView: View {
             if let pane, !pane.tabs.isEmpty {
                 ForEach(pane.tabs, id: \.self) { id in
                     if let window = model.windows.first(where: { $0.id == id }) {
-                        TabView(window: window, selected: pane.selected == id, tooSmall: model.minSizeWindows.contains(id))
+                        TabView(window: window, selected: pane.selected == id, tooSmall: model.minSizeWindows.contains(id), onClose: { model.closeTabs([id]) })
                             .onTapGesture { model.selectTab(id) }
+                            .draggable(TabDrag(id: id))  // drag to reorder, or onto another pane's bar
+                            .dropDestination(for: TabDrag.self) { items, _ in model.dropTab(items.first?.id, to: key, pane: paneID, before: id) }
                             .contextMenu { tabMenu(window, pane: pane) }
                     }
                 }
             } else {
                 Text("Empty pane. New windows can open here.").font(.system(size: 11)).foregroundStyle(.secondary).frame(maxWidth: .infinity)
             }
+            if let pane, !pane.tabs.isEmpty {
+                Button { model.newWindow(inPane: paneID, key: key) } label: { Image(systemName: "plus").font(.system(size: 10, weight: .semibold)).frame(width: 20, height: 20).contentShape(Rectangle()) }
+                    .buttonStyle(.plain).help("New window of this tab's app (it asks the app with ⌘N), added to this pane")
+            }
             paneMenu
         }
         .padding(.horizontal, 4).padding(.vertical, 3)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 7))
+        .background(tint.map { $0.opacity(0.28) } ?? .clear, in: RoundedRectangle(cornerRadius: 7))
+        .dropDestination(for: TabDrag.self) { items, _ in model.dropTab(items.first?.id, to: key, pane: paneID, before: nil) }  // dropped on the bar itself: goes last
         .overlay(RoundedRectangle(cornerRadius: 7).stroke(focusedPane ? Color.accentColor.opacity(0.7) : Color.primary.opacity(0.08), lineWidth: focusedPane ? 1.5 : 1))
     }
 
@@ -88,11 +101,11 @@ struct TabBarView: View {
         Button("Close Other Tabs") { model.closeOtherTabs(window.id) }.disabled(pane.tabs.count < 2)
         Button("Close Tabs to the Right") { model.closeTabsToRight(window.id) }.disabled(pane.tabs.last == window.id)
         Divider()
-        Button("Split Right") { model.splitTab(window.id, axis: .horizontal) }.disabled(pane.tabs.count < 2)
-        Button("Split Below") { model.splitTab(window.id, axis: .vertical) }.disabled(pane.tabs.count < 2)
+        Button("Split Right") { model.splitTab(window.id, axis: .horizontal) }.disabled(pane.tabs.count < 2).keyboardShortcut("\\", modifiers: chord)
+        Button("Split Below") { model.splitTab(window.id, axis: .vertical) }.disabled(pane.tabs.count < 2).keyboardShortcut("\\", modifiers: chord.union(.shift))
         Divider()
-        Button("Keep Floating") { model.setBehavior(window.id, .floating, saveRule: false) }
-        Button("Always Float \(window.appName)") { model.setBehavior(window.id, .floating, saveRule: true) }
+        Button("Keep Floating") { model.setBehavior(window.id, .floating, saveRule: false) }.keyboardShortcut("t", modifiers: chord)
+        Button("Always Float \(window.appName)") { model.setBehavior(window.id, .floating, saveRule: true) }.keyboardShortcut("t", modifiers: chord.union(.shift))
         Menu("Move to Room") {
             ForEach(model.state.stages) { stage in Button(stage.name) { model.send(window.id, to: stage.id) }.disabled(stage.id == key.stage) }
         }
@@ -103,14 +116,14 @@ struct TabBarView: View {
 
     private var paneMenu: some View {
         Menu {
-            Button("Split Side by Side") { model.paneAction(key) { layout, _ in layout.split(paneID, axis: .horizontal, moving: nil) } }
-            Button("Split Top and Bottom") { model.paneAction(key) { layout, _ in layout.split(paneID, axis: .vertical, moving: nil) } }
-            Button("Rotate Split (Side by Side / Stacked)") { model.paneAction(key) { layout, _ in layout.rotateSplit(of: paneID) } }
-            Button(model.layouts[key]?.zoomed == paneID ? "Restore Panes" : "Zoom Pane") { model.paneAction(key) { layout, _ in layout.toggleZoom(paneID) } }
+            Button("Split Side by Side") { model.paneAction(key) { layout, _ in layout.split(paneID, axis: .horizontal, moving: nil) } }.keyboardShortcut("\\", modifiers: chord)
+            Button("Split Top and Bottom") { model.paneAction(key) { layout, _ in layout.split(paneID, axis: .vertical, moving: nil) } }.keyboardShortcut("\\", modifiers: chord.union(.shift))
+            Button("Rotate Split (Side by Side / Stacked)") { model.paneAction(key) { layout, _ in layout.rotateSplit(of: paneID) } }.keyboardShortcut("/", modifiers: chord)
+            Button(model.layouts[key]?.zoomed == paneID ? "Restore Panes" : "Zoom Pane") { model.paneAction(key) { layout, _ in layout.toggleZoom(paneID) } }.keyboardShortcut(.return, modifiers: chord)
             Divider()
             Button("Even Out Panes") { model.paneAction(key) { layout, _ in layout.evenOut() } }
-            Button("Reflow as Grid") { model.paneAction(key) { layout, display in layout.reflow(aspect: display.area.width / max(display.area.height, 1)) } }
-            Button("Undo Layout Change") { model.undoLayout(key: key) }
+            Button("Reflow as Grid") { model.paneAction(key) { layout, display in layout.reflow(aspect: display.area.width / max(display.area.height, 1)) } }.keyboardShortcut("g", modifiers: chord)
+            Button("Undo Layout Change") { model.undoLayout(key: key) }.keyboardShortcut("z", modifiers: chord)
             Menu("Move Selected Tab to Display") {
                 ForEach(model.orderedDisplays) { display in
                     Button(display.name) { if let id = model.layouts[key]?.root.pane(paneID)?.selected { model.sendWindow(id, to: display) } }
@@ -119,7 +132,7 @@ struct TabBarView: View {
             }.disabled(model.displays.count < 2)
             Divider()
             Button("Close Pane") { model.paneAction(key) { layout, _ in layout.removePane(paneID) } }.disabled((model.layouts[key]?.root.panes.count ?? 1) < 2)
-            Button("Switch Display to Freeform") { model.toggleWindowMode(on: model.displays.first { $0.id == key.display }) }
+            Button("Switch Display to Freeform") { model.toggleWindowMode(on: model.displays.first { $0.id == key.display }) }.keyboardShortcut("b", modifiers: baseChord)
         } label: { Image(systemName: "ellipsis").font(.system(size: 11, weight: .semibold)) }
             .menuStyle(.borderlessButton).menuIndicator(.hidden).frame(width: 24).help("Pane actions")
     }
@@ -129,12 +142,18 @@ private struct TabView: View {
     let window: LiveWindow
     let selected: Bool
     let tooSmall: Bool
+    let onClose: () -> Void
     @State private var hovering = false
 
     var body: some View {
         HStack(spacing: 5) {
             if let icon = window.icon { Image(nsImage: icon).resizable().scaledToFit().frame(width: 14, height: 14) }
             Text(window.title.isEmpty ? window.appName : window.title).font(.system(size: 11, weight: selected ? .semibold : .regular)).lineLimit(1)
+            Spacer(minLength: 0)
+            if hovering {  // only on hover, so a stray click on the selected tab never closes a window
+                Button(action: onClose) { Image(systemName: "xmark").font(.system(size: 8, weight: .bold)).foregroundStyle(.secondary).frame(width: 14, height: 14).contentShape(Rectangle()) }
+                    .buttonStyle(.plain).help("Close this \(window.appName) window").accessibilityLabel("Close window")
+            }
             if tooSmall {
                 Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 9)).foregroundStyle(.orange)
                     .help("\(window.appName) cannot shrink to this pane, so it overlaps its neighbour. Choose Keep Floating to take it out of the layout.")

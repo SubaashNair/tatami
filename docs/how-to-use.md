@@ -116,6 +116,14 @@ Tatami saves your layout (Rooms, tabs, panes and window positions) for each **se
 - Two monitors of the same model can look identical to the system and may be confused with each other.
 - Setups are kept for 120 days, up to eight, in `setups.json` in Tatami's data folder.
 
+### The tab bar
+
+- **Click** a tab to select it. The **×** on the selected or hovered tab closes that window.
+- **Drag** a tab to reorder it, or drop it on another tab (it goes in front) or on another pane's bar (it goes last). Tabs can move between panes of the same Room, also on another display.
+- **+** asks the selected tab's app for a new window (it sends the app ⌘N) and adds it to this pane. Some apps use ⌘N for something else.
+- **⋯** opens the pane menu: split, rotate, zoom, even out, reflow, undo, move to a display, close the pane. Each item shows its keyboard shortcut.
+- **Colour:** a Room's **⋯** menu, **Room Settings…**, **Tab bar colour** tints its bars.
+
 ## 5. Let AI sort a messy desktop
 
 1. Preferences → AI Organizer: pick a provider and save your key (stored in Keychain). Ollama or LM Studio work locally with no key.

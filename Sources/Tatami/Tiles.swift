@@ -165,7 +165,12 @@ extension AppModel {
             var layout = layouts[key] ?? PaneLayout(root: .pane(Pane()))
             // Remember where it was, so switching the display to Freeform puts it back (as when Tiles is entered by key).
             freeformFrames[window.id] = window.frame  // always current: it is joining a layout now, so any old entry is stale
-            layout.place(window.id, policy: state.placement(forRoom: window.stageID), in: display.area)
+            if let pending = pendingNewTab[window.pid], pending.until > Date(), pending.key == key, !pending.known.contains(window.id), layout.root.pane(pending.pane) != nil {
+                layout.add(window.id, to: pending.pane)  // the plus button asked for this window: it joins that pane as a tab
+                pendingNewTab[window.pid] = nil
+            } else {
+                layout.place(window.id, policy: state.placement(forRoom: window.stageID), in: display.area)
+            }
             layouts[key] = layout
             changed = true
         }
@@ -517,6 +522,45 @@ extension AppModel {
     }
 
     func closeTabs(_ ids: [UUID]) { ids.forEach(service.close) }
+
+    /// A tab dragged onto another tab (in front of it) or onto a pane's bar (last). Within one display's layout it reorders or
+    /// moves between panes; from another display of the same Room the window is sent there first. A different Room is refused.
+    /// True only when the tab ended up where it was dropped.
+    @discardableResult func dropTab(_ dragged: UUID?, to key: LayoutKey, pane: UUID, before target: UUID?) -> Bool {
+        guard managing, let dragged, dragged != target, let source = layoutKey(containing: dragged) else { return false }
+        let keepEmpty = state.keepEmptyPanes
+        if source != key {
+            guard source.stage == key.stage, let display = service.displays.first(where: { $0.id == key.display }) else {
+                notice = "A tab can only be dropped on a pane in the same Room."
+                return false
+            }
+            sendWindow(dragged, to: display)  // joins that display's layout; the move below puts it in the pane that was dropped on
+            guard layoutKey(containing: dragged) == key else { return false }  // the send did not happen
+        }
+        mutate(key) { layout, _ in layout.moveTab(dragged, to: pane, before: target, keepEmptyPanes: keepEmpty) }
+        return true
+    }
+
+    /// The pane's plus button: ask the selected tab's app for a new window (⌘N). The first genuinely new window of that app
+    /// in the next few seconds joins this pane as a tab.
+    func newWindow(inPane paneID: UUID, key: LayoutKey) {
+        guard managing, let selectedID = layouts[key]?.root.pane(paneID)?.selected,
+              let window = service.windows.first(where: { $0.id == selectedID }) else { notice = "Select a tab first."; return }
+        service.focus(selectedID)  // bring the app forward so the key goes to it
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                guard NSWorkspace.shared.frontmostApplication?.processIdentifier == window.pid else {
+                    self.notice = "\(window.appName) did not come forward, so no new window was asked for."
+                    return
+                }
+                // Armed only now that the key is really being sent, and only for windows that do not exist yet.
+                let known = Set(self.service.windows.filter { $0.pid == window.pid }.map(\.id))
+                self.pendingNewTab[window.pid] = (paneID, key, Date().addingTimeInterval(4), known)
+                KeyPress.commandN()
+            }
+        }
+    }
 
     func closeOtherTabs(_ id: UUID) {
         guard let pane = layoutKey(containing: id).flatMap({ layouts[$0]?.pane(containing: id) }) else { return }

@@ -284,6 +284,34 @@ public struct PaneLayout: Codable, Equatable {
         if root.pane(target) != nil { add(window, to: target) }
     }
 
+    /// Moves a tab by dragging: in front of `target` (a tab of the destination pane), or at the end. Works inside one pane
+    /// (reordering) and between panes. The moved tab is selected and its pane focused. False, with nothing changed, when
+    /// the tab or pane is unknown, the target is not in the destination pane, or the tab is already there.
+    @discardableResult public mutating func moveTab(_ window: WindowID, to pane: UUID, before target: WindowID?, keepEmptyPanes: Bool) -> Bool {
+        guard let source = self.pane(containing: window), let destination = root.pane(pane) else { return false }
+        if let target {
+            guard destination.tabs.contains(target), target != window else { return false }
+        }
+        if source.id == pane {
+            var order = destination.tabs.filter { $0 != window }
+            let index = target.flatMap { order.firstIndex(of: $0) } ?? order.count
+            order.insert(window, at: index)
+            guard order != destination.tabs else { return false }
+            updatePane(pane) { $0.tabs = order; $0.select(window) }
+            focused = pane
+            return true
+        }
+        remove(window, keepEmptyPanes: keepEmptyPanes)
+        guard root.pane(pane) != nil else { return false }
+        updatePane(pane) { copy in
+            let index = target.flatMap { copy.tabs.firstIndex(of: $0) } ?? copy.tabs.count
+            copy.tabs.insert(window, at: index)
+            copy.select(window)
+        }
+        focused = pane
+        return true
+    }
+
     public mutating func swap(_ first: UUID, _ second: UUID) {
         guard let a = root.pane(first), let b = root.pane(second), first != second else { return }
         root = root.mapPanes { pane in
