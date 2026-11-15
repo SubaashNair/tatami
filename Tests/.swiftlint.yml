@@ -1,0 +1,3 @@
+# Tests may force cast: a wrong cast there is a failing test, not a crash in someone's session. App code may not.
+disabled_rules:
+  - force_cast

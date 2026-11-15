@@ -116,9 +116,9 @@ public struct AIPlan: Decodable {
         throw AIPlanError.invalidShape
     }
 
-    /// Top-level `{...}` spans, respecting braces inside JSON strings.
     // ponytail: rescans from each unmatched '{', O(n²) worst case; replies are a few KB, input is capped at
     // maxReplyCharacters and parsed off the main actor. A single-pass stack scanner if that ever shows up in a profile.
+    /// Top-level `{...}` spans, respecting braces inside JSON strings.
     static func balancedObjects(in text: String) -> [String] {
         let chars = Array(text)
         var results: [String] = []

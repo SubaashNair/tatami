@@ -376,7 +376,6 @@ struct Dashboard: View {
         }
     }
 
-
     /// What the active Stage's displays are doing: Tiles by default, Freeform where chosen.
     private var modeLabel: String {
         let stage = model.state.activeStageID
