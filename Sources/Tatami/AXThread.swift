@@ -149,6 +149,8 @@ struct ScannedWindow {
     let title: String
     let frame: CGRect
     let minimized: Bool
+    /// In macOS full screen (its own Space), which is not a tile to place and not a window to float.
+    var fullscreen = false
 }
 
 struct ScanResult {
@@ -171,7 +173,8 @@ enum AXScanner {
                 guard subrole.value == kAXStandardWindowSubrole as String, frame.width > 80, frame.height > 60 else { continue }
                 result.windows.append(ScannedWindow(element: element, pid: app.pid, bundleID: app.bundleID, appName: app.name,
                                                     windowNumber: AX.windowNumber(element), title: AX.attribute(element, kAXTitleAttribute) ?? "Untitled window",
-                                                    frame: frame, minimized: AX.attribute(element, kAXMinimizedAttribute) ?? false))
+                                                    frame: frame, minimized: AX.attribute(element, kAXMinimizedAttribute) ?? false,
+                                                    fullscreen: AX.attribute(element, "AXFullScreen") ?? false))
             }
         }
         return result
