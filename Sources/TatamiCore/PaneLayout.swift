@@ -25,6 +25,12 @@ public struct Pane: Codable, Equatable, Identifiable {
         if !tabs.contains(window) { tabs.append(window) }
         select(window)
     }
+    /// Adds at the end without changing the visible tab (unless the pane showed none).
+    mutating func append(_ window: WindowID) {
+        guard !tabs.contains(window) else { return }
+        tabs.append(window); mru.append(window)
+        if selected == nil { selected = window }
+    }
     mutating func select(_ window: WindowID) {
         guard tabs.contains(window) else { return }
         selected = window
@@ -243,6 +249,7 @@ public struct PaneLayout: Codable, Equatable {
     }
 
     public mutating func add(_ window: WindowID, to pane: UUID) {
+        guard root.pane(pane) != nil else { return }  // a stale pane id must not take the window out of its pane
         if let current = self.pane(containing: window), current.id != pane { remove(window, keepEmptyPanes: true) }
         updatePane(pane) { $0.add(window) }
         focused = pane
@@ -275,13 +282,42 @@ public struct PaneLayout: Codable, Equatable {
         root = (root.mapPanes { $0.id == id ? nil : $0 }?.normalized()) ?? .pane(Pane())
         if zoomed == id { zoomed = nil }
         if root.pane(focused) == nil { focused = root.paneIDs[0] }
-        for window in pane.tabs { updatePane(focused) { $0.add(window) } }
+        // Appended behind the visible tab, so the window the user is looking at stays in front.
+        for window in pane.tabs { updatePane(focused) { $0.append(window) } }
     }
 
     public mutating func move(_ window: WindowID, to target: UUID, keepEmptyPanes: Bool) {
         guard root.pane(target) != nil, pane(containing: window)?.id != target else { return }
         remove(window, keepEmptyPanes: keepEmptyPanes)
         if root.pane(target) != nil { add(window, to: target) }
+    }
+
+    /// Moves a tab by dragging: in front of `target` (a tab of the destination pane), or at the end. Works inside one pane
+    /// (reordering) and between panes. The moved tab is selected and its pane focused. False, with nothing changed, when
+    /// the tab or pane is unknown, the target is not in the destination pane, or the tab is already there.
+    @discardableResult public mutating func moveTab(_ window: WindowID, to pane: UUID, before target: WindowID?, keepEmptyPanes: Bool) -> Bool {
+        guard let source = self.pane(containing: window), let destination = root.pane(pane) else { return false }
+        if let target {
+            guard destination.tabs.contains(target), target != window else { return false }
+        }
+        if source.id == pane {
+            var order = destination.tabs.filter { $0 != window }
+            let index = target.flatMap { order.firstIndex(of: $0) } ?? order.count
+            order.insert(window, at: index)
+            guard order != destination.tabs else { return false }
+            updatePane(pane) { $0.tabs = order; $0.select(window) }
+            focused = pane
+            return true
+        }
+        remove(window, keepEmptyPanes: keepEmptyPanes)
+        guard root.pane(pane) != nil else { return false }
+        updatePane(pane) { copy in
+            let index = target.flatMap { copy.tabs.firstIndex(of: $0) } ?? copy.tabs.count
+            copy.tabs.insert(window, at: index)
+            copy.select(window)
+        }
+        focused = pane
+        return true
     }
 
     public mutating func swap(_ first: UUID, _ second: UUID) {
@@ -375,6 +411,15 @@ public struct PaneLayout: Codable, Equatable {
 
     public mutating func toggleZoom(_ pane: UUID) { zoomed = zoomed == pane ? nil : pane }
 
+    /// True when only the visible tabs or the focused pane differ. Switching tabs is not a layout change, so Undo Layout
+    /// Change skips it, and tab clicks never push a real change (a split, a move) out of the bounded history.
+    public func hasSameArrangement(as other: PaneLayout) -> Bool {
+        func arrangement(_ layout: PaneLayout) -> LayoutNode? {
+            layout.root.mapPanes { pane in var copy = pane; copy.selected = nil; copy.mru = []; return copy }
+        }
+        return zoomed == other.zoomed && arrangement(self) == arrangement(other)
+    }
+
     // MARK: sizing
 
     public mutating func evenOut() { root = root.evened() }
@@ -394,9 +439,10 @@ public struct PaneLayout: Codable, Equatable {
             let total = children.map(\.weight).reduce(0, +)
             let rect = root.rect(at: prefix[...], in: area)
             let limit = total * Self.minShare
-            var delta = amount(total, rect)
-            delta = min(delta, children[neighbour].weight - limit)
-            delta = max(delta, limit - children[index].weight)
+            // Neither side may be pushed below the minimum. A side already under it (deep splits halve the share each time)
+            // is not shrunk further, and the range always holds 0, so a weight can never go negative.
+            let grow = max(children[neighbour].weight - limit, 0), shrink = min(limit - children[index].weight, 0)
+            let delta = min(max(amount(total, rect), shrink), grow)
             children[index].weight += delta
             children[neighbour].weight -= delta
             root = root.replacingNode(at: prefix[...], with: .split(splitAxis, children))
@@ -474,6 +520,9 @@ public struct PaneLayout: Codable, Equatable {
     public func pruned() -> PaneLayout {
         var copy = self
         for pane in root.panes where pane.tabs.isEmpty { copy.removePane(pane.id) }
+        // A saved layout can name a focused or zoomed pane that is no longer in its tree.
+        if copy.root.pane(copy.focused) == nil { copy.focused = copy.root.paneIDs[0] }
+        if let zoomed = copy.zoomed, copy.root.pane(zoomed) == nil { copy.zoomed = nil }
         return copy
     }
 

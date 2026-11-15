@@ -1,0 +1,41 @@
+# SwiftLint baseline for Tatami. Size and complexity limits sit just above the code as it is, so a run is clean
+# and new code that grows past them is flagged. Tightening them means splitting AppModel, Tiles and WindowService,
+# which is a refactor for after the beta.
+included:
+  - Sources
+  - Tests
+excluded:
+  - .build
+
+disabled_rules:
+  - line_length                       # house style keeps a statement and the reason for it on one line
+  - identifier_name                   # short names (a, b, i, x, y, id) are deliberate in geometry code and tests
+  - large_tuple                       # small labelled tuples carry private results between helpers
+  - statement_position                # `else` on its own line keeps long if/else-if chains vertical and readable
+  - trailing_comma                    # multi-line literals keep a trailing comma, so adding a line is a one-line diff
+  - switch_case_alignment             # short switches are written on one line
+  - void_function_in_ternary          # `flag ? open() : close()` is used for one-line toggles
+  - optional_data_string_conversion   # String(decoding:as:) never fails, which is what output text wants
+  - for_where                         # `if` keeps a side effect (a move, a write) out of the loop header
+
+type_name:
+  excluded: [AX]                      # the Accessibility helper namespace
+nesting:
+  type_level: 2                       # Codable keys inside a nested decoding type
+
+cyclomatic_complexity:
+  ignores_case_statements: true   # the hotkey and CLI routers are one switch case per command
+  warning: 20
+  error: 40
+function_body_length:
+  warning: 80
+  error: 150
+function_parameter_count:
+  warning: 6
+  error: 8
+type_body_length:
+  warning: 500
+  error: 700
+file_length:
+  warning: 700
+  error: 1000

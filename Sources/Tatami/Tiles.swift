@@ -165,7 +165,12 @@ extension AppModel {
             var layout = layouts[key] ?? PaneLayout(root: .pane(Pane()))
             // Remember where it was, so switching the display to Freeform puts it back (as when Tiles is entered by key).
             freeformFrames[window.id] = window.frame  // always current: it is joining a layout now, so any old entry is stale
-            layout.place(window.id, policy: state.placement(forRoom: window.stageID), in: display.area)
+            if let pending = pendingNewTab[window.pid], pending.until > Date(), pending.key == key, !pending.known.contains(window.id), layout.root.pane(pending.pane) != nil {
+                layout.add(window.id, to: pending.pane)  // the plus button asked for this window: it joins that pane as a tab
+                pendingNewTab[window.pid] = nil
+            } else {
+                layout.place(window.id, policy: state.placement(forRoom: window.stageID), in: display.area)
+            }
             layouts[key] = layout
             changed = true
         }
@@ -181,8 +186,14 @@ extension AppModel {
     func checkLayoutEdits() -> Bool {
         if NSEvent.pressedMouseButtons != 0 {
             userEditingLayout = true
+            guard !editRecheckPending else { return false }
+            editRecheckPending = true
             DispatchQueue.main.asyncAfter(deadline: .now() + Self.editRecheckDelay) { [weak self] in
-                MainActor.assumeIsolated { if self?.checkLayoutEdits() == true { self?.applyLayouts() } }
+                MainActor.assumeIsolated {
+                    guard let self else { return }
+                    self.editRecheckPending = false
+                    if self.checkLayoutEdits() { self.applyLayouts() }
+                }
             }
             return false
         }
@@ -366,7 +377,7 @@ extension AppModel {
         let before = layout
         change(&layout, display)
         guard layout != before else { return }
-        histories[key, default: LayoutHistory()].record(before)
+        if !layout.hasSameArrangement(as: before) { histories[key, default: LayoutHistory()].record(before) }
         layouts[key] = layout
         applyLayouts()
         if let selected = layout.root.pane(layout.focused)?.selected { service.focus(selected) }
@@ -516,7 +527,56 @@ extension AppModel {
         service.focus(id)
     }
 
-    func closeTabs(_ ids: [UUID]) { ids.forEach(service.close) }
+    func closeTabs(_ ids: [UUID]) {
+        let refused = ids.filter { !service.close($0) }
+        if let name = refused.first.flatMap({ id in service.windows.first { $0.id == id }?.appName }) {
+            notice = "\(name) would not close the window. Finish any open dialog in it, then try again."
+        }
+    }
+
+    /// A tab dragged onto another tab (in front of it) or onto a pane's bar (last). Within one display's layout it reorders or
+    /// moves between panes; from another display of the same Room the window is sent there first. A different Room is refused.
+    /// True only when the tab ended up where it was dropped.
+    @discardableResult func dropTab(_ dragged: UUID?, to key: LayoutKey, pane: UUID, before target: UUID?) -> Bool {
+        guard managing, let dragged, dragged != target, let source = layoutKey(containing: dragged) else { return false }
+        let keepEmpty = state.keepEmptyPanes
+        if source != key {
+            guard source.stage == key.stage, let display = service.displays.first(where: { $0.id == key.display }) else {
+                notice = "A tab can only be dropped on a pane in the same Room."
+                return false
+            }
+            sendWindow(dragged, to: display)  // joins that display's layout; the move below puts it in the pane that was dropped on
+            guard layoutKey(containing: dragged) == key else { return false }  // the send did not happen
+        }
+        mutate(key) { layout, _ in layout.moveTab(dragged, to: pane, before: target, keepEmptyPanes: keepEmpty) }
+        return true
+    }
+
+    /// The pane's plus button: ask the selected tab's app for a new window (⌘N). The first genuinely new window of that app
+    /// in the next few seconds joins this pane as a tab.
+    func newWindow(inPane paneID: UUID, key: LayoutKey) {
+        guard managing, let selectedID = layouts[key]?.root.pane(paneID)?.selected,
+              let window = service.windows.first(where: { $0.id == selectedID }) else { notice = "Select a tab first."; return }
+        service.focus(selectedID)  // bring the app forward so the key goes to it
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                guard NSWorkspace.shared.frontmostApplication?.processIdentifier == window.pid else {
+                    self.notice = "\(window.appName) did not come forward, so no new window was asked for."
+                    return
+                }
+                // A second click while one is still waiting would open two windows and race for the pane.
+                if let pending = self.pendingNewTab[window.pid], pending.until > Date() {
+                    self.notice = "Still waiting for the new \(window.appName) window."
+                    return
+                }
+                // Armed only now that the key is really being sent, and only for windows that do not exist yet.
+                let known = Set(self.service.windows.filter { $0.pid == window.pid }.map(\.id))
+                self.pendingNewTab[window.pid] = (paneID, key, Date().addingTimeInterval(4), known)
+                KeyPress.commandN()
+            }
+        }
+    }
 
     func closeOtherTabs(_ id: UUID) {
         guard let pane = layoutKey(containing: id).flatMap({ layouts[$0]?.pane(containing: id) }) else { return }
@@ -557,6 +617,7 @@ extension AppModel {
     /// would just shrink a window that never was in the tiles.
     private func focusedTileableWindow() -> LiveWindow? {
         guard let id = service.focusedID(), let window = service.windows.first(where: { $0.id == id }) else { notice = "Focus a window first."; return nil }
+        guard !window.fullscreen else { notice = "\(window.appName) is full screen. Leave full screen first."; return nil }
         guard managing, !state.excludedBundleIDs.contains(window.bundleID), !window.minimized,
               service.display(for: window.frame).map({ isTiled(stage: window.stageID, display: $0.id) }) == true else {
             notice = "Float and tile apply to windows on a tiled display while Tatami is managing."

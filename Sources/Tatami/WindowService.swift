@@ -55,6 +55,10 @@ struct RecoveryEntry: Codable {
     private let journalURL: URL
     /// Journal entries from the previous session that could not be restored yet.
     private var unrecovered: [RecoveryEntry] = []
+    /// Kept although the last scan did not list them (another Space, see `ScanMerge.keptWhileUnseen`).
+    private var unseenIDs: Set<UUID> = []
+    /// Unseen windows that could not be shown either: gone, so the next scan lets them go instead of retrying for ever.
+    private var givenUp: Set<UUID> = []
     /// Supplies routing rules and the active Stage for windows discovered by events.
     var stateProvider: () -> WorkspaceState = { WorkspaceState() }
     /// Called on the main thread after an event-driven rescan merged new window data.
@@ -214,7 +218,7 @@ struct RecoveryEntry: Codable {
             } else {
                 let window = LiveWindow(id: UUID(), element: found.element, pid: found.pid, bundleID: found.bundleID, appName: found.appName,
                                         windowNumber: found.windowNumber, title: found.title, frame: found.frame, minimized: found.minimized,
-                                        stageID: state.destination(bundleID: found.bundleID, title: found.title) ?? state.activeRoomID(on: display(for: found.frame)?.id))
+                                        fullscreen: found.fullscreen, stageID: state.destination(bundleID: found.bundleID, title: found.title) ?? state.activeRoomID(on: display(for: found.frame)?.id))
                 // An app that quit while parked may reopen its window where it was saved: off-screen.
                 if managing, initialScanDone, !found.minimized, ParkPlanner.isParked(found.frame, displays: screens), let area = (display(for: found.frame) ?? displays.first)?.area {
                     rescue.append((window.id, Geometry.visibleFrame(found.frame, in: area)))
@@ -223,13 +227,36 @@ struct RecoveryEntry: Codable {
             }
         }
         // An app that did not answer in time has unknown windows, not none: keep what we knew, with its Stage and hidden state.
-        let kept = Set(ScanMerge.keptAfterFailure(known: windows.map { (id: $0.id, pid: $0.pid) }, merged: Set(merged.map(\.id)), failed: scan.failed))
+        let mergedIDs = Set(merged.map(\.id))
+        var kept = Set(ScanMerge.keptAfterFailure(known: windows.map { (id: $0.id, pid: $0.pid) }, merged: mergedIDs, failed: scan.failed))
+        // A window on another Space (the desktop behind a full screen app) is missing from the list too: forgetting it would
+        // lose its Room and pane, and a parked one would stay off screen with no journal entry to bring it back.
+        let missed = windows.filter { !mergedIDs.contains($0.id) && !kept.contains($0.id) && $0.windowNumber != nil && !givenUp.contains($0.id) }
+        var unseenNow: [UUID] = []
+        if !missed.isEmpty {
+            unseenNow = ScanMerge.keptWhileUnseen(known: missed.map { (id: $0.id, pid: $0.pid, windowNumber: $0.windowNumber, hidden: $0.hidden != nil) },
+                                                  merged: mergedIDs, alive: Self.windowServerNumbers(),
+                                                  fullScreenShowing: merged.contains { $0.fullscreen && !$0.minimized })
+            kept.formUnion(unseenNow)
+        }
+        // Windows of apps this scan did not cover keep their unseen mark.
+        unseenIDs = Set(windows.filter { unseenIDs.contains($0.id) && !(pids?.contains($0.pid) ?? true) }.map(\.id)).union(unseenNow)
         merged.append(contentsOf: windows.filter { kept.contains($0.id) })
         windows = merged
+        givenUp = givenUp.intersection(Set(windows.map(\.id))).subtracting(mergedIDs)
         if pids == nil { initialScanDone = true }
         if !reveal.isEmpty { _ = show(windows.indices.filter { reveal.contains(windows[$0].id) }) }
         if managing, !repark.isEmpty { _ = hide(windows.indices.filter { repark.contains(windows[$0].id) }) }
         for (id, frame) in rescue { move(id, to: frame) }
+    }
+
+    /// Every window the window server knows, on any Space, by number → owning pid. Needs no Screen Recording permission.
+    nonisolated static func windowServerNumbers() -> [UInt32: Int32] {
+        guard let list = CGWindowListCopyWindowInfo([.optionAll], kCGNullWindowID) as? [[String: Any]] else { return [:] }
+        return list.reduce(into: [:]) { result, info in
+            if let number = (info[kCGWindowNumber as String] as? NSNumber)?.uint32Value,
+               let pid = (info[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value { result[number] = pid }
+        }
     }
 
     func display(for frame: CGRect) -> DisplayInfo? {
@@ -251,27 +278,38 @@ struct RecoveryEntry: Codable {
             !extraHidden.contains(window.id) && state.isVisible(room: window.stageID, bundleID: window.bundleID, on: display(for: window.realFrame)?.id)
         }
         let showing = windows.indices.filter { windows[$0].hidden != nil && visible(windows[$0]) }
-        let hiding = windows.indices.filter { windows[$0].hidden == nil && !windows[$0].minimized && !visible(windows[$0]) }
+        // A full screen window is in its own Space and is never moved: parking it fails, and would be retried on every scan.
+        let hiding = windows.indices.filter { windows[$0].hidden == nil && !windows[$0].minimized && !windows[$0].fullscreen && !visible(windows[$0]) }
         return show(showing) + hide(hiding)
     }
 
     private func show(_ indices: [Int]) -> Int {
         guard !indices.isEmpty else { return 0 }
-        let jobs = indices.map { (windows[$0].pid, windows[$0].element, windows[$0].hidden!) }
+        let screens = displays.map(\.fullFrame)
+        // A window parked on a display that was unplugged since (or quit within the unplug grace) would come back off every
+        // screen, with its journal entry cleared: bring it onto the main display instead.
+        func onScreen(_ real: CGRect) -> CGRect {
+            guard ParkPlanner.isParked(real, displays: screens), let area = displays.first?.area else { return real }
+            return Geometry.visibleFrame(real, in: area)
+        }
+        let jobs = indices.map { (windows[$0].pid, windows[$0].element, windows[$0].hidden!, onScreen(windows[$0].realFrame)) }
         writeGeneration += 1
         let results: [Bool] = ax.sync {
             Self.perApp(jobs.map(\.0)) { i in
-                let (_, element, hidden) = jobs[i]
+                let (_, element, hidden, target) = jobs[i]
                 switch hidden {
-                case .parked(let real): return AX.setFrame(element, real)
+                case .parked: return AX.setFrame(element, target)
                 case .minimized: return AX.setMinimized(element, false)
                 }
             }
         }
         var failures = 0
         for (i, index) in indices.enumerated() {
-            guard results[i] else { failures += 1; continue }
-            windows[index].frame = windows[index].realFrame
+            guard results[i] else {
+                if unseenIDs.contains(windows[index].id) { givenUp.insert(windows[index].id) } else { failures += 1 }
+                continue
+            }
+            windows[index].frame = jobs[i].3
             windows[index].hidden = nil; windows[index].minimized = false
         }
         try? writeJournal()
@@ -349,6 +387,7 @@ struct RecoveryEntry: Codable {
             let frame = entry.frame.cgRect
             return display(for: frame).map { Geometry.visibleFrame(frame, in: $0.area) } ?? frame
         }
+        let alive = Self.windowServerNumbers()
         let pending: [RecoveryEntry] = ax.sync {
             var claimed: [AXUIElement] = []
             return zip(entries, targets).filter { entry, target in
@@ -361,7 +400,8 @@ struct RecoveryEntry: Codable {
                     if let number = entry.windowNumber { return AX.windowNumber(element) == number }
                     return (AX.attribute(element, kAXTitleAttribute) as String?) == entry.title
                 }
-                guard let match else { return false }
+                // Not in the list, but still open on another Space: keep the entry so it is restored later, not forgotten.
+                guard let match else { return entry.windowNumber.map { alive[$0] == entry.pid } ?? false }
                 claimed.append(match)
                 return entry.parked == true ? !AX.setFrame(match, target) : !AX.setMinimized(match, false)
             }.map(\.0)
@@ -404,7 +444,8 @@ struct RecoveryEntry: Codable {
     }
 
     @discardableResult func move(_ id: UUID, to frame: CGRect) -> Bool {
-        guard let index = windows.firstIndex(where: { $0.id == id }), trusted else { return false }
+        // A full screen window is never moved or resized: macOS owns its frame until it leaves full screen.
+        guard let index = windows.firstIndex(where: { $0.id == id }), trusted, !windows[index].fullscreen else { return false }
         let element = windows[index].element
         writeGeneration += 1
         let pid = windows[index].pid
@@ -434,10 +475,12 @@ struct RecoveryEntry: Codable {
     }
 
     /// Presses the window's own close button, so apps still ask about unsaved work.
-    func close(_ id: UUID) {
-        guard let element = windows.first(where: { $0.id == id })?.element else { return }
-        ax.sync {
-            if let button: AXUIElement = AX.attribute(element, kAXCloseButtonAttribute) { AXUIElementPerformAction(button, kAXPressAction as CFString) }
+    /// False when the window has no close button (a sheet is open, or the app hides it) or the press failed.
+    func close(_ id: UUID) -> Bool {
+        guard let element = windows.first(where: { $0.id == id })?.element else { return false }
+        return ax.sync {
+            guard let button: AXUIElement = AX.attribute(element, kAXCloseButtonAttribute) else { return false }
+            return AXUIElementPerformAction(button, kAXPressAction as CFString) == .success
         }
     }
 

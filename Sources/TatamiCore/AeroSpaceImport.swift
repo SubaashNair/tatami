@@ -11,9 +11,12 @@ public struct AeroRule: Equatable {
     public var floating: Bool
     /// Conditions Tatami cannot express (window titles, startup, workspace), kept so the import can say what it skipped.
     public var unsupported: [String]
+    /// `check-further-callbacks = true`: later rules still apply to the apps this one matched. AeroSpace stops otherwise.
+    public var checkFurther: Bool
 
-    public init(appID: String?, nameRegex: String?, workspace: String?, floating: Bool, unsupported: [String]) {
+    public init(appID: String?, nameRegex: String?, workspace: String?, floating: Bool, unsupported: [String], checkFurther: Bool = false) {
         self.appID = appID; self.nameRegex = nameRegex; self.workspace = workspace; self.floating = floating; self.unsupported = unsupported
+        self.checkFurther = checkFurther
     }
 }
 
@@ -51,7 +54,7 @@ public enum AeroSpaceConfig {
             case "if.app-id": current?.appID = strings.first
             case "if.app-name-regex-substring": current?.nameRegex = strings.first
             case "run": for command in strings { apply(command, to: &current) }
-            case "check-further-callbacks": break
+            case "check-further-callbacks": current?.checkFurther = value.lowercased() == "true"
             default: if key.hasPrefix("if.") { current?.unsupported.append(key) }
             }
         }
@@ -156,18 +159,27 @@ public struct AeroImportPlan: Equatable {
 public enum AeroImport {
     public static func plan(_ rules: [AeroRule], installed: [InstalledApp], monitors: [String: [DisplayPreference]] = [:]) -> AeroImportPlan {
         var rooms: [String] = [], entries: [AeroImportPlan.Entry] = [], skipped: [String] = []
+        /// Nil when the pattern does not compile.
+        func matchedApps(_ rule: AeroRule) -> [InstalledApp]? {
+            if let id = rule.appID { return [installed.first { $0.bundleID == id } ?? InstalledApp(bundleID: id, name: id)] }
+            guard let pattern = rule.nameRegex else { return [] }
+            guard let regex = AeroNameMatcher.compile(pattern) else { return nil }
+            var seen = Set<String>()  // one app can be listed under several names
+            return installed.filter { AeroNameMatcher.matches(regex, name: $0.name) && seen.insert($0.bundleID).inserted }
+        }
+        // AeroSpace runs only the first rule that matches a window, unless that rule sets check-further-callbacks.
+        var settled = Set<String>()
         for rule in rules {
             let label = rule.appID.map { "app id \($0)" } ?? rule.nameRegex.map { "app names \($0)" } ?? "a rule with no app"
             if !rule.unsupported.isEmpty { skipped.append("Skipped \(label): it also uses \(rule.unsupported.joined(separator: ", ")), which Tatami cannot match."); continue }
+            let matched = matchedApps(rule)
+            let fresh = (matched ?? []).filter { !settled.contains($0.bundleID) }
+            if !rule.checkFurther { settled.formUnion(fresh.map(\.bundleID)) }  // even a rule Tatami skips below ends the search
             guard rule.workspace != nil || rule.floating else { skipped.append("Skipped \(label): it does not move to a workspace or float."); continue }
-            var apps: [InstalledApp] = []
-            if let id = rule.appID { apps = [installed.first { $0.bundleID == id } ?? InstalledApp(bundleID: id, name: id)] }
-            else if let pattern = rule.nameRegex {
-                guard let regex = AeroNameMatcher.compile(pattern) else { skipped.append("Skipped \(label): not a valid pattern."); continue }
-                var seen = Set<String>()  // one app can be listed under several names
-                apps = installed.filter { AeroNameMatcher.matches(regex, name: $0.name) && seen.insert($0.bundleID).inserted }
-            }
-            guard !apps.isEmpty else { skipped.append("Skipped \(label): no installed app matches."); continue }  // and no empty Room for it
+            guard let matched else { skipped.append("Skipped \(label): not a valid pattern."); continue }
+            guard !matched.isEmpty else { skipped.append("Skipped \(label): no installed app matches."); continue }  // and no empty Room for it
+            guard !fresh.isEmpty else { skipped.append("Skipped \(label): an earlier rule already handles its apps, and AeroSpace stops at the first match."); continue }
+            let apps = fresh
             if let workspace = rule.workspace, !rooms.contains(workspace) {
                 guard rooms.count < 9 else { skipped.append("Skipped \(label): workspace \(workspace) would be a tenth Room."); continue }
                 rooms.append(workspace)

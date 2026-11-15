@@ -186,7 +186,12 @@ public final class CLIServer: @unchecked Sendable {
             let client = accept(listener, nil, nil)
             if client < 0 { return }
             _ = fcntl(client, F_SETFD, FD_CLOEXEC)
-            guard admitClient() else { close(client); continue }
+            // Full: say so (one short line never blocks a fresh socket), instead of a hang-up the client reads as a bad reply.
+            guard admitClient() else {
+                setTimeouts(client, 0.2)  // SO_NOSIGPIPE first: a client that already hung up must not kill the app with SIGPIPE
+                Self.reply(.failure("Tatami is busy with other commands. Try again."), on: client)
+                close(client); continue
+            }
             clientQueue.async { [self] in serve(client) }
         }
     }

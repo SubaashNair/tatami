@@ -19,8 +19,12 @@ xattr -cr "$app"
 identity="${TATAMI_SIGN_IDENTITY:--}"
 codesign --force --sign "$identity" "$app/Contents/Helpers/tatami"  # nested code is signed first, then the app
 codesign --force --deep --sign "$identity" "$app"
-rm -rf dist/Tatami.app
+# Verify before touching dist, so a failed build never replaces a working app with a broken one.
+codesign --verify --strict "$app"
 mkdir -p dist
-ditto "$app" dist/Tatami.app
-codesign --verify --strict dist/Tatami.app
+rm -rf dist/Tatami.app.new
+ditto "$app" dist/Tatami.app.new
+codesign --verify --strict dist/Tatami.app.new
+rm -rf dist/Tatami.app
+mv dist/Tatami.app.new dist/Tatami.app
 printf 'Built %s/dist/Tatami.app\n' "$PWD"

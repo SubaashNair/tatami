@@ -78,7 +78,8 @@ extension AppModel {
     }
 
     /// One retry that tells the model why its reply could not be read (decision 3).
-    private static func requestPlan(preset: AIPreset, config: AIConfig, model: String, key: String?, user: String) async throws -> AIPlan {
+    /// Off the main actor: parsing a long or malformed reply must never stall window management.
+    nonisolated private static func requestPlan(preset: AIPreset, config: AIConfig, model: String, key: String?, user: String) async throws -> AIPlan {
         let reply = try await AIClient.complete(preset: preset, config: config, model: model, key: key, system: AIPrompt.system, user: user)
         do { return try AIPlan.parse(reply) } catch {
             try Task.checkCancellation()
@@ -101,6 +102,7 @@ extension AppModel {
         for action in plan.valid {
             switch action {
             case .createStage(let name):
+                if stageID(name) != nil { continue }  // made while the preview was open: one Room, not two of the same name
                 if state.addStage(name: name) == nil { failures += 1 }
             case .renameStage(let from, let to):
                 if let i = state.stages.firstIndex(where: { $0.name == from }) { state.stages[i].name = to } else { failures += 1 }
@@ -160,7 +162,10 @@ extension AppModel {
                 guard let self, self.aiPreset.id == preset.id else { return }  // provider changed while waiting
                 self.aiModels = list
                 self.notice = "Connected to \(preset.name). \(list.count) models available."
-            } catch { self?.error = error.localizedDescription }
+            } catch {
+                guard let self, self.aiPreset.id == preset.id else { return }  // an error for a provider no longer chosen
+                self.error = error.localizedDescription
+            }
         }
     }
 }

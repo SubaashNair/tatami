@@ -87,10 +87,10 @@ enum HotkeyAction {
             bind(kVK_ANSI_Grave, UInt32(cmdKey), .cycleAppWindows(1))
             bind(kVK_ANSI_Grave, UInt32(cmdKey | shiftKey), .cycleAppWindows(-1))
         }
-        let zones: [(Int, SnapZone)] = [(kVK_LeftArrow,.left),(kVK_RightArrow,.right),(kVK_UpArrow,.top),(kVK_DownArrow,.bottom),
-            (kVK_ANSI_U,.topLeft),(kVK_ANSI_I,.topRight),(kVK_ANSI_J,.bottomLeft),(kVK_ANSI_K,.bottomRight),
-            (kVK_ANSI_A,.leftThird),(kVK_ANSI_S,.centerThird),(kVK_ANSI_D,.rightThird),
-            (kVK_ANSI_Q,.leftTwoThirds),(kVK_ANSI_R,.centerTwoThirds),(kVK_ANSI_W,.rightTwoThirds),(kVK_ANSI_C,.center),(kVK_Return,.maximize)]
+        let zones: [(Int, SnapZone)] = [(kVK_LeftArrow, .left), (kVK_RightArrow, .right), (kVK_UpArrow, .top), (kVK_DownArrow, .bottom),
+            (kVK_ANSI_U, .topLeft), (kVK_ANSI_I, .topRight), (kVK_ANSI_J, .bottomLeft), (kVK_ANSI_K, .bottomRight),
+            (kVK_ANSI_A, .leftThird), (kVK_ANSI_S, .centerThird), (kVK_ANSI_D, .rightThird),
+            (kVK_ANSI_Q, .leftTwoThirds), (kVK_ANSI_R, .centerTwoThirds), (kVK_ANSI_W, .rightTwoThirds), (kVK_ANSI_C, .center), (kVK_Return, .maximize)]
         for (key, zone) in zones { bind(key, UInt32(controlKey | optionKey), .snap(zone)) }
         // ponytail: same combo in both presets; Control+Option+Z types nothing, so Classic needs no variant.
         bind(kVK_ANSI_Z, UInt32(controlKey | optionKey), .organizer)

@@ -225,7 +225,10 @@ final class CLITransportTests: XCTestCase {
         server = capped
         let idle = [connectRaw(), connectRaw()]
         Thread.sleep(forTimeInterval: 0.3)
-        XCTAssertThrowsError(try CLIClient.send(CLIRequest(args: ["x"]), path: path, timeout: 2))
+        // Turned away with a reply that says why, not a hang-up the client would report as a bad reply.
+        let refused = try CLIClient.send(CLIRequest(args: ["x"]), path: path, timeout: 2)
+        XCTAssertFalse(refused.ok)
+        XCTAssertTrue(refused.error?.contains("busy") == true)
         idle.forEach { close($0) }
         Thread.sleep(forTimeInterval: 0.3)
         XCTAssertEqual(try CLIClient.send(CLIRequest(args: ["again"]), path: path, timeout: 5).output, "again")

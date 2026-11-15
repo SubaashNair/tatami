@@ -123,7 +123,6 @@ extension AppModel {
     }
 }
 
-
 struct ReconnectView: View {
     let offer: ReconnectOffer
     let resolve: (Bool) -> Void

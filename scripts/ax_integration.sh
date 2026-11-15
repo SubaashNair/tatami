@@ -35,13 +35,14 @@ expect_frame() {  # expect_frame <title> <"x,y wxh"> <label>
     local actual; actual="$("$probe" TextEdit | awk -F'\t' -v t="$1" '$2 == t { print $3 }')"
     if [ "$actual" = "$2" ]; then echo "  ok   $3"; else echo "  FAIL $3: '$1' at '$actual', expected '$2'"; failures=$((failures + 1)); fi
 }
-tiles_ok() {  # every visible TextEdit window on screen, none overlapping another
-    "$probe" TextEdit | python3 -c '
-import sys
+tiles_ok() {  # every visible test window on screen, none overlapping another (TextEdit's own panels are ignored)
+    "$probe" TextEdit | TEST_WINDOWS="$A	$B	$C" python3 -c '
+import os, sys
+ours = set(os.environ["TEST_WINDOWS"].split("\t"))
 rects = []
 for line in sys.stdin:
     state, title, frame = line.rstrip("\n").split("\t")
-    if state != "visible": continue
+    if state != "visible" or title not in ours: continue
     pos, size = frame.split(" "); x, y = map(int, pos.split(",")); w, h = map(int, size.split("x"))
     rects.append((x, y, x + w, y + h))
 bad = [(a, b) for i, a in enumerate(rects) for b in rects[i+1:] if min(a[2], b[2]) - max(a[0], b[0]) > 4 and min(a[3], b[3]) - max(a[1], b[1]) > 4]
@@ -56,15 +57,24 @@ launch_tatami() {
 }
 
 echo "Setting up TextEdit windows"
-osascript -e 'tell application "TextEdit" to activate' \
-          -e 'tell application "TextEdit" to make new document' \
-          -e 'tell application "TextEdit" to set bounds of front window to {80, 120, 780, 620}' \
-          -e 'tell application "TextEdit" to make new document' \
-          -e 'tell application "TextEdit" to set bounds of front window to {820, 120, 1420, 620}' \
-          -e 'tell application "TextEdit" to make new document' \
-          -e 'tell application "TextEdit" to set bounds of front window to {300, 300, 900, 700}'
+# TextEdit numbers new documents after any it remembers ("Untitled 12"), so the names are read back, not assumed.
+names="$(osascript -e 'tell application "TextEdit"' -e 'activate' \
+          -e 'make new document' -e 'set bounds of front window to {80, 120, 780, 620}' -e 'set a to name of front window' \
+          -e 'make new document' -e 'set bounds of front window to {820, 120, 1420, 620}' -e 'set b to name of front window' \
+          -e 'make new document' -e 'set bounds of front window to {300, 300, 900, 700}' -e 'set c to name of front window' \
+          -e 'end tell' -e 'return a & tab & b & tab & c')"
+IFS=$'\t' read -r A B C <<< "$names"
 sleep 1
-A="Untitled"; B="Untitled 2"; C="Untitled 3"
+
+# These checks are about parking and exact frames, so the test desk starts in Freeform (Tiles is the shipped default
+# and has its own checks in step 11). Three Rooms, like a first run.
+w="$(uuidgen)"; s="$(uuidgen)"; b="$(uuidgen)"
+cat > "$data/workspace.json" <<JSON
+{"version": 1, "activeStageID": "$w", "tilesByDefault": false,
+ "stages": [{"id": "$w", "name": "Work", "symbol": "square.grid.2x2"},
+            {"id": "$s", "name": "Comms", "symbol": "bubble.left.and.bubble.right"},
+            {"id": "$b", "name": "Browse", "symbol": "globe"}]}
+JSON
 B_FRAME="$("$probe" TextEdit | awk -F'\t' -v t="$B" '$2 == t { print $3 }')"
 
 echo "1. Parking"

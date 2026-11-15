@@ -85,7 +85,7 @@ extension AppModel {
         }
         guard !service.displaysAreSettling else { return }
         for window in service.windows where !homeChecked.contains(window.id) {
-            guard window.hidden == nil, !window.minimized, let current = service.display(for: window.frame) else { continue }  // try again later
+            guard window.hidden == nil, !window.minimized, !window.fullscreen, let current = service.display(for: window.frame) else { continue }  // try again later
             homeChecked.insert(window.id)
             guard !state.excludedBundleIDs.contains(window.bundleID),
                   state.destination(bundleID: window.bundleID, title: window.title) == window.stageID,
@@ -115,6 +115,15 @@ extension AppModel {
             refocusIfParked()
         }
         publish()
+    }
+
+    /// The colour of a Room's tab bars.
+    func setRoomTint(_ tint: RoomTint?, for roomID: UUID) {
+        guard let index = state.stages.firstIndex(where: { $0.id == roomID }) else { return }
+        state.stages[index].tint = tint
+        persist()
+        publish()
+        onLayoutsApplied?()  // redraw the tab bars
     }
 
     /// A short description of one home choice, for Room Settings.

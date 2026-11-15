@@ -186,6 +186,10 @@ final class AXObservers {
     private let thread: AXThread
     private var observers: [pid_t: AXObserver] = [:]
     private var watchedWindows: [pid_t: Set<UInt32>] = [:]
+    /// Registrations that found the app's Accessibility server not ready yet, retried on the next scans up to a limit.
+    private var registrationRetries: [pid_t: Int] = [:]
+    private var watchRetries: [pid_t: [UInt32: Int]] = [:]
+    private static let maxRegistrationRetries = 5
     private let onEvent: (pid_t, String) -> Void
 
     static let appNotifications = [kAXWindowCreatedNotification, kAXFocusedWindowChangedNotification, kAXMainWindowChangedNotification,
@@ -202,12 +206,21 @@ final class AXObservers {
             thread.remove(AXObserverGetRunLoopSource(observer))
             observers[pid] = nil; watchedWindows[pid] = nil
         }
+        registrationRetries = registrationRetries.filter { pids.contains($0.key) }
+        watchRetries = watchRetries.filter { pids.contains($0.key) }
         let refcon = Unmanaged.passUnretained(self).toOpaque()
         for pid in pids where observers[pid] == nil {
             var observer: AXObserver?
             guard AXObserverCreate(pid, axObserverCallback, &observer) == .success, let observer else { continue }
             let application = AXUIElementCreateApplication(pid)
-            for name in Self.appNotifications { AXObserverAddNotification(observer, application, name as CFString, refcon) }
+            let results = Self.appNotifications.map { AXObserverAddNotification(observer, application, $0 as CFString, refcon) }
+            // An app that has only just launched can answer before its Accessibility server is ready. Keeping this observer
+            // would mean no window events from it for the rest of its life, so try again on the next scan (a few times).
+            if !results.contains(where: { $0 == .success || $0 == .notificationAlreadyRegistered }),
+               registrationRetries[pid, default: 0] < Self.maxRegistrationRetries {
+                registrationRetries[pid, default: 0] += 1
+                continue
+            }
             thread.add(AXObserverGetRunLoopSource(observer))
             observers[pid] = observer
         }
@@ -218,8 +231,17 @@ final class AXObservers {
         let refcon = Unmanaged.passUnretained(self).toOpaque()
         for window in windows {
             guard let observer = observers[window.pid], let number = window.windowNumber,
-                  watchedWindows[window.pid, default: []].insert(number).inserted else { continue }
-            AXObserverAddNotification(observer, window.element, kAXUIElementDestroyedNotification as CFString, refcon)
+                  watchedWindows[window.pid]?.contains(number) != true else { continue }
+            // Recorded once registered, so a window that was not ready is tried again on the next scans, a few times at most:
+            // each try against a hung app costs the AX thread a timeout.
+            let result = AXObserverAddNotification(observer, window.element, kAXUIElementDestroyedNotification as CFString, refcon)
+            let tries = (watchRetries[window.pid]?[number] ?? 0) + 1
+            if [.success, .notificationAlreadyRegistered, .notificationUnsupported].contains(result) || tries > Self.maxRegistrationRetries {
+                watchedWindows[window.pid, default: []].insert(number)
+                watchRetries[window.pid]?[number] = nil
+            } else {
+                watchRetries[window.pid, default: [:]][number] = tries
+            }
         }
     }
 

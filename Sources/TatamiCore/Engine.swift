@@ -63,6 +63,18 @@ public enum ScanMerge {
     public static func keptAfterFailure<ID: Hashable>(known: [(id: ID, pid: Int32)], merged: Set<ID>, failed: Set<Int32>) -> [ID] {
         known.filter { failed.contains($0.pid) && !merged.contains($0.id) }.map(\.id)
     }
+
+    /// The Accessibility window list covers only the current Space, so a window behind a full screen app is unseen, not closed.
+    /// Keeps a missed window while the window server still lists its number for the same app: always when Tatami parked it
+    /// (the user cannot close a window that is off screen), and while a full screen window shows for the rest. Otherwise a
+    /// visible window the list dropped was closed, or only ordered out (Slack's close button hides its window), and it goes.
+    public static func keptWhileUnseen<ID: Hashable>(known: [(id: ID, pid: Int32, windowNumber: UInt32?, hidden: Bool)], merged: Set<ID>,
+                                                     alive: [UInt32: Int32], fullScreenShowing: Bool) -> [ID] {
+        known.filter { window in
+            guard !merged.contains(window.id), let number = window.windowNumber, alive[number] == window.pid else { return false }
+            return window.hidden || fullScreenShowing
+        }.map(\.id)
+    }
 }
 
 public enum DisplayRemap {
