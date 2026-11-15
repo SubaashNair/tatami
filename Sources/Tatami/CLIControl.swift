@@ -10,14 +10,20 @@ extension AppModel {
         // An isolated data folder (tests, snapshots) must never take over the real user's socket.
         guard state.cliEnabled, cliServer == nil, ProcessInfo.processInfo.environment["TATAMI_DATA_DIR"] == nil else { return }
         let server = CLIServer(path: cliSocketPath) { [weak self] request in
-            await AppModel.handleCLI(request, on: self)  // hops to the main actor, where all window state lives
+            let received = Date()  // before the hop: a stalled main actor can hold the command past the client's wait
+            return await AppModel.handleCLI(request, on: self, received: received)  // hops to the main actor, where all window state lives
         }
         do { try server.start(); cliServer = server }
         catch { self.error = "The tatami command is unavailable (\(error)). Another Tatami may be running, or ~/Library/Application Support/Tatami is not private to you." }
     }
 
-    private static func handleCLI(_ request: CLIRequest, on model: AppModel?) -> CLIResponse {
-        model?.runCLI(request) ?? .failure("Tatami is quitting.")
+    /// Under the 10 s the `tatami` command waits. After that it has already reported a failure, and running the command late
+    /// would repeat it for a user who retried (`tatami room next` twice).
+    private static let cliExpiry: TimeInterval = 8
+
+    private static func handleCLI(_ request: CLIRequest, on model: AppModel?, received: Date) -> CLIResponse {
+        guard Date().timeIntervalSince(received) < cliExpiry else { return .failure("Tatami was busy, so the command was not run. Try again.") }
+        return model?.runCLI(request) ?? .failure("Tatami is quitting.")
     }
 
     func stopCLIServer() {

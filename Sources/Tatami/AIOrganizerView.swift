@@ -131,7 +131,8 @@ struct AISettingsBox: View {
                 if !preset.isLocal {
                     HStack {
                         SecureField(hasKey ? "Key saved in Keychain. Enter a new one to replace it." : "API key", text: $keyDraft).textFieldStyle(.roundedBorder)
-                        Button("Save") { model.saveKey(keyDraft); keyDraft = ""; refreshKey() }.disabled(keyDraft.isEmpty)
+                        // Spaces alone would save as empty, which deletes the saved key; only Remove does that.
+                        Button("Save") { model.saveKey(keyDraft); keyDraft = ""; refreshKey() }.disabled(keyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         if hasKey { Button("Remove") { model.saveKey(""); refreshKey() } }
                     }
                 }

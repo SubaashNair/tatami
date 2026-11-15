@@ -76,6 +76,8 @@ import TatamiCore
     /// Sizes below which a window cannot go, learned when it overflowed its pane; other fits must not squeeze it further.
     var knownMinSizes: [UUID: CGSize] = [:]
     var userEditingLayout = false
+    /// One re-check is queued while the mouse is down; every AX event of a drag would otherwise start its own polling chain.
+    var editRecheckPending = false
     /// Per-window Keep Floating / Manage in Layout choices that were not saved as rules.
     var behaviorOverrides: [UUID: WindowBehavior] = [:]
     var onLayoutsApplied: (() -> Void)?
@@ -120,7 +122,13 @@ import TatamiCore
             }
         } catch {
             initial = WorkspaceState()
-            loadError = "Could not load the previous settings: \(error.localizedDescription). The original file was left in place."
+            // The defaults are saved over workspace.json at the next change, so keep a copy of what could not be read.
+            let stamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
+            let backup = directory.appendingPathComponent("workspace-unreadable-\(stamp).json")
+            let kept = (try? FileManager.default.copyItem(at: stateURL, to: backup)) != nil
+            loadError = "Could not load the previous settings: \(error.localizedDescription). "
+                + (kept ? "A copy was kept as \(backup.lastPathComponent) in the Tatami settings folder."
+                        : "Tatami started with default settings, and the next change replaces the old file. Copy workspace.json aside now to keep it.")
         }
         state = initial
         service = WindowService(directory: directory)
@@ -403,6 +411,7 @@ import TatamiCore
               let window = service.windows.first(where: { $0.id == id }), let display = service.display(for: window.frame) else {
             notice = "Select a window first, or use a snap shortcut from another app."; return
         }
+        guard !window.fullscreen else { notice = "\(window.appName) is full screen. Leave full screen to snap it."; return }
         undoSnapshot = snapshot(name: "Before snapping")
         if !service.move(id, to: zone.frame(in: display.area, gap: state.gap)) { error = "This app could not resize or move the selected window." }
         publish()
@@ -412,7 +421,7 @@ import TatamiCore
         undoSnapshot = snapshot(name: "Before arranging")
         var failures = 0
         for display in displays {
-            let group = service.windows.filter { state.isActiveRoom($0.stageID, on: display.id) && !state.excludedBundleIDs.contains($0.bundleID) && !$0.minimized && service.display(for: $0.frame)?.id == display.id }
+            let group = service.windows.filter { state.isActiveRoom($0.stageID, on: display.id) && !state.excludedBundleIDs.contains($0.bundleID) && !$0.minimized && !$0.fullscreen && service.display(for: $0.frame)?.id == display.id }
             for (window, frame) in zip(group, Geometry.grid(count: group.count, area: display.area, gap: state.gap)) {
                 if !service.move(window.id, to: frame) { failures += 1 }
             }

@@ -85,7 +85,7 @@ extension AppModel {
         }
         guard !service.displaysAreSettling else { return }
         for window in service.windows where !homeChecked.contains(window.id) {
-            guard window.hidden == nil, !window.minimized, let current = service.display(for: window.frame) else { continue }  // try again later
+            guard window.hidden == nil, !window.minimized, !window.fullscreen, let current = service.display(for: window.frame) else { continue }  // try again later
             homeChecked.insert(window.id)
             guard !state.excludedBundleIDs.contains(window.bundleID),
                   state.destination(bundleID: window.bundleID, title: window.title) == window.stageID,

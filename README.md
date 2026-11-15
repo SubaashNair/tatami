@@ -13,7 +13,7 @@
   <img alt="Keyboard first" src="https://img.shields.io/badge/keyboard-first-2f4a3a">
   <a href="https://github.com/SubaashNair/tatami/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/SubaashNair/tatami/actions/workflows/ci.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-3b5a47"></a>
-  <img alt="Status: alpha" src="https://img.shields.io/badge/status-alpha-d9a441">
+  <img alt="Status: beta" src="https://img.shields.io/badge/status-beta-d9a441">
   <img alt="Local first" src="https://img.shields.io/badge/data-stays%20on%20your%20Mac-4d7a60">
 </p>
 

@@ -138,9 +138,3 @@ public struct DisplaySetupStore: Codable {
 
     private enum CodingKeys: String, CodingKey { case setups }
 }
-
-/// Decodes to nil instead of throwing, so one bad element does not fail the whole list.
-private struct Lossy<Value: Decodable>: Decodable {
-    let value: Value?
-    init(from decoder: Decoder) throws { value = try? Value(from: decoder) }
-}

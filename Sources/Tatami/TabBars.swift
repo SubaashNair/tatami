@@ -7,6 +7,7 @@ import TatamiCore
 @MainActor final class TabBarController {
     private let model: AppModel
     private var panels: [UUID: NSPanel] = [:]  // pane id → panel
+    private var panelKeys: [UUID: LayoutKey] = [:]  // the layout each panel's view reads; a Room sent to another display keeps its pane ids
 
     init(model: AppModel) { self.model = model }
 
@@ -26,17 +27,21 @@ import TatamiCore
                 guard let frame = frames[pane.id]?.pane else { continue }
                 if covered && pane.tabs.isEmpty { continue }
                 live.insert(pane.id)
-                let panel = panels[pane.id] ?? makePanel(key: key, pane: pane.id)
+                let panel = panels[pane.id] ?? makePanel()
+                if panels[pane.id] == nil || panelKeys[pane.id] != key {
+                    panel.contentView = NSHostingView(rootView: TabBarView(model: model, key: key, paneID: pane.id))
+                    panelKeys[pane.id] = key
+                }
                 panels[pane.id] = panel
                 // AX (top-left origin) → AppKit (bottom-left origin).
                 panel.setFrame(NSRect(x: frame.minX, y: primaryHeight - frame.minY - AppModel.tabBarHeight, width: frame.width, height: AppModel.tabBarHeight), display: true)
                 panel.orderFrontRegardless()
             }
         }
-        for (id, panel) in panels where !live.contains(id) { panel.orderOut(nil); panels[id] = nil }
+        for (id, panel) in panels where !live.contains(id) { panel.orderOut(nil); panels[id] = nil; panelKeys[id] = nil }
     }
 
-    private func makePanel(key: LayoutKey, pane: UUID) -> NSPanel {
+    private func makePanel() -> NSPanel {
         let panel = NSPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
         panel.isOpaque = false
         panel.backgroundColor = .clear
@@ -44,7 +49,6 @@ import TatamiCore
         panel.hidesOnDeactivate = false
         panel.isReleasedWhenClosed = false
         panel.collectionBehavior = [.canJoinAllSpaces, .ignoresCycle]
-        panel.contentView = NSHostingView(rootView: TabBarView(model: model, key: key, paneID: pane))
         return panel
     }
 }

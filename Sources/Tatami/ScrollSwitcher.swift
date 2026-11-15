@@ -8,6 +8,7 @@ import TatamiCore
     private var tap: CFMachPort?
     private var source: CFRunLoopSource?
     private var required: CGEventFlags = []
+    private var ownsGesture = false
     // Trackpads send many small continuous deltas; mouse wheels send one event per notch.
     private var trackpad = ScrollAccumulator(threshold: 40, cooldown: 0.45)
     private var wheel = ScrollAccumulator(threshold: 0.1, cooldown: 0.12)
@@ -36,7 +37,11 @@ import TatamiCore
 
     /// Returns true when the event should be swallowed.
     fileprivate func handle(_ event: CGEvent) -> Bool {
-        guard event.flags.intersection(Self.modifierMask) == required else { return false }
+        // Inertia after a trackpad swipe keeps arriving after the cooldown; counting it would switch a second Room. It is
+        // swallowed only after a swipe this switcher took, so a scroll begun in an app keeps its inertia there.
+        if event.getIntegerValueField(.scrollWheelEventMomentumPhase) != 0 { return ownsGesture }
+        ownsGesture = event.flags.intersection(Self.modifierMask) == required
+        guard ownsGesture else { return false }
         let now = ProcessInfo.processInfo.systemUptime
         let offset: Int
         if event.getIntegerValueField(.scrollWheelEventIsContinuous) != 0 {

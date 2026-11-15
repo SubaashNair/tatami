@@ -24,18 +24,26 @@ public struct Stage: Identifiable, Codable, Equatable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(UUID.self, forKey: .id)
         name = try c.decode(String.self, forKey: .name)
-        symbol = try c.decode(String.self, forKey: .symbol)
-        homeDisplay = try c.decodeIfPresent(String.self, forKey: .homeDisplay)
+        symbol = (try? c.decodeIfPresent(String.self, forKey: .symbol)) ?? "square.stack.3d.up"
+        homeDisplay = try? c.decodeIfPresent(String.self, forKey: .homeDisplay)
         // A choice this version cannot read (from a newer one) is dropped, not the whole settings file.
-        homeFallbacks = (try c.decodeIfPresent([LossyPreference].self, forKey: .homeFallbacks) ?? []).compactMap(\.value)
-        placement = try c.decodeIfPresent(NewWindowPlacement.self, forKey: .placement)
-        tint = (try? c.decodeIfPresent(RoomTint.self, forKey: .tint)) ?? nil  // a colour from a newer version is ignored
+        homeFallbacks = c.lossyList(DisplayPreference.self, forKey: .homeFallbacks) ?? []
+        placement = try? c.decodeIfPresent(NewWindowPlacement.self, forKey: .placement)  // a placement from a newer version follows the desk
+        tint = try? c.decodeIfPresent(RoomTint.self, forKey: .tint)  // a colour from a newer version is ignored
     }
 }
 
-private struct LossyPreference: Decodable {
-    let value: DisplayPreference?
-    init(from decoder: Decoder) throws { value = try? DisplayPreference(from: decoder) }
+/// One element of a saved list that this version cannot read is skipped, so it never fails the whole settings file.
+struct Lossy<T: Decodable>: Decodable {
+    let value: T?
+    init(from decoder: Decoder) throws { value = try? T(from: decoder) }
+}
+
+extension KeyedDecodingContainer {
+    /// Reads a list, skipping elements that do not decode. Nil when the key is missing or is not a list.
+    func lossyList<T: Decodable>(_ type: T.Type, forKey key: Key) -> [T]? {
+        (try? decodeIfPresent([Lossy<T>].self, forKey: key))?.compactMap(\.value)
+    }
 }
 
 public struct RoutingRule: Identifiable, Codable, Equatable {
@@ -143,8 +151,10 @@ public struct WorkspaceState: Codable {
         version = try c.decode(Int.self, forKey: .version)
         stages = try c.decode([Stage].self, forKey: .stages)
         activeStageID = try c.decode(UUID.self, forKey: .activeStageID)
-        saved = try c.decodeIfPresent([SavedWorkspace].self, forKey: .saved) ?? defaults.saved
-        rules = try c.decodeIfPresent([RoutingRule].self, forKey: .rules) ?? defaults.rules
+        // Lists and choices a newer version wrote, or a hand edit broke, are skipped one by one: a strict read would fail the
+        // whole file and the defaults would then be saved over every Room and rule.
+        saved = c.lossyList(SavedWorkspace.self, forKey: .saved) ?? defaults.saved
+        rules = c.lossyList(RoutingRule.self, forKey: .rules) ?? defaults.rules
         excludedBundleIDs = try c.decodeIfPresent([String].self, forKey: .excludedBundleIDs) ?? defaults.excludedBundleIDs
         followSentWindow = try c.decodeIfPresent(Bool.self, forKey: .followSentWindow) ?? defaults.followSentWindow
         followActivatedWindows = try c.decodeIfPresent(Bool.self, forKey: .followActivatedWindows) ?? defaults.followActivatedWindows
@@ -162,14 +172,14 @@ public struct WorkspaceState: Codable {
         freeformDisplays = try c.decodeIfPresent([String: [String]].self, forKey: .freeformDisplays) ?? defaults.freeformDisplays
         cliEnabled = try c.decodeIfPresent(Bool.self, forKey: .cliEnabled) ?? defaults.cliEnabled
         perDisplayRooms = try c.decodeIfPresent(Bool.self, forKey: .perDisplayRooms) ?? defaults.perDisplayRooms
-        displayChangePolicy = try c.decodeIfPresent(DisplayChangePolicy.self, forKey: .displayChangePolicy) ?? defaults.displayChangePolicy
+        displayChangePolicy = (try? c.decodeIfPresent(DisplayChangePolicy.self, forKey: .displayChangePolicy)) ?? defaults.displayChangePolicy
         displayRooms = try c.decodeIfPresent([String: UUID].self, forKey: .displayRooms) ?? defaults.displayRooms
-        newWindowPlacement = try c.decodeIfPresent(NewWindowPlacement.self, forKey: .newWindowPlacement) ?? defaults.newWindowPlacement
+        newWindowPlacement = (try? c.decodeIfPresent(NewWindowPlacement.self, forKey: .newWindowPlacement)) ?? defaults.newWindowPlacement
         keepEmptyPanes = try c.decodeIfPresent(Bool.self, forKey: .keepEmptyPanes) ?? defaults.keepEmptyPanes
-        behaviorRules = try c.decodeIfPresent([WindowBehaviorRule].self, forKey: .behaviorRules) ?? defaults.behaviorRules
-        shortcutPreset = try c.decodeIfPresent(ShortcutPreset.self, forKey: .shortcutPreset) ?? defaults.shortcutPreset
+        behaviorRules = c.lossyList(WindowBehaviorRule.self, forKey: .behaviorRules) ?? defaults.behaviorRules
+        shortcutPreset = (try? c.decodeIfPresent(ShortcutPreset.self, forKey: .shortcutPreset)) ?? defaults.shortcutPreset
         gap = try c.decodeIfPresent(Double.self, forKey: .gap) ?? defaults.gap
-        ai = try c.decodeIfPresent(AIConfig.self, forKey: .ai)
+        ai = try? c.decodeIfPresent(AIConfig.self, forKey: .ai)
     }
 
     public var activeStage: Stage { stages.first(where: { $0.id == activeStageID }) ?? stages[0] }

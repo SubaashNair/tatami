@@ -33,7 +33,7 @@ struct AIPreset: Identifiable, Hashable {
 }
 
 enum AIError: LocalizedError {
-    case missingKey(String), missingModel, badEndpoint, badKey, rateLimited, unreachable(local: Bool), truncated, provider(Int, String)
+    case missingKey(String), missingModel, badEndpoint, badKey, rateLimited, unreachable(local: Bool), timedOut, truncated, provider(Int, String)
     var errorDescription: String? {
         switch self {
         case .missingKey(let name): "Add your \(name) API key in Preferences → AI."
@@ -42,6 +42,7 @@ enum AIError: LocalizedError {
         case .badKey: "The provider rejected the API key. Check it in Preferences → AI."
         case .rateLimited: "The provider is rate limiting requests. Try again in a moment."
         case .unreachable(let local): local ? "Could not reach the local model server. Make sure it is running." : "Could not reach the provider. Check your internet connection."
+        case .timedOut: "The model took too long to answer. Try again, or a smaller model or request."
         case .truncated: "The model's reply was cut off. Try a simpler request."
         case .provider(let status, let message): "The provider returned an error (\(status)): \(message)"
         }
@@ -51,6 +52,8 @@ enum AIError: LocalizedError {
 /// Requests go directly from this Mac to the selected provider (PRD AIO-08).
 enum AIClient {
     static let timeout: TimeInterval = 60
+    /// A local model sends nothing until it has finished, and a cold load on a laptop can take minutes.
+    static let localTimeout: TimeInterval = 300
     static let maxTokens = 8192
 
     static func complete(preset: AIPreset, config: AIConfig, model: String, key: String?, system: String, user: String) async throws -> String {
@@ -91,7 +94,7 @@ enum AIClient {
         let key = key?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if preset.needsKey && key.isEmpty { throw AIError.missingKey(preset.name) }
 
-        var request = URLRequest(url: url, timeoutInterval: timeout)
+        var request = URLRequest(url: url, timeoutInterval: preset.isLocal(config) ? localTimeout : timeout)
         request.httpMethod = body == nil ? "GET" : "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         switch preset.format {
@@ -106,18 +109,23 @@ enum AIClient {
         let data: Data, response: URLResponse
         do { (data, response) = try await URLSession.shared.data(for: request, delegate: RejectRedirects.shared) }
         catch let error as URLError where error.code == .cancelled { throw CancellationError() }
+        catch let error as URLError where error.code == .timedOut { throw AIError.timedOut }
         catch is URLError { throw AIError.unreachable(local: preset.isLocal(config)) }
 
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         if (300..<400).contains(status) { throw AIError.provider(status, "The endpoint tried to redirect. Tatami only sends keys to the configured host.") }
         let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
+        // Some gateways answer 200 with {"error": ...}; reading it as an empty reply would waste the paid retry.
+        let errorMessage = ((json["error"] as? [String: Any])?["message"] as? String) ?? json["error"] as? String
         switch status {
-        case 200..<300: return json
+        case 200..<300:
+            if let errorMessage { throw AIError.provider(status, String(errorMessage.prefix(300))) }
+            return json
         case 401, 403: throw AIError.badKey
         case 429: throw AIError.rateLimited
         default:
             // Both formats use {"error": {"message": ...}}; cap length so a proxy HTML page doesn't flood the UI.
-            let message = ((json["error"] as? [String: Any])?["message"] as? String) ?? HTTPURLResponse.localizedString(forStatusCode: status)
+            let message = errorMessage ?? HTTPURLResponse.localizedString(forStatusCode: status)
             throw AIError.provider(status, String(message.prefix(300)))
         }
     }

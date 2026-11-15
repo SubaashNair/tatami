@@ -40,6 +40,7 @@ extension AppModel {
     func swapWindow(_ direction: Direction) {
         guard let (current, target) = neighbour(direction) else { return }
         guard !isTiled(current.id), !isTiled(target.id) else { notice = "Swapping works between freeform windows."; return }
+        guard !current.fullscreen, !target.fullscreen else { notice = "A full screen window cannot swap places. Leave full screen first."; return }
         let before = snapshot(name: "Before swapping windows")
         guard service.move(current.id, to: target.frame) else {
             _ = service.move(current.id, to: current.frame)  // a refused resize can leave it half moved

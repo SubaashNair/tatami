@@ -25,6 +25,12 @@ public struct Pane: Codable, Equatable, Identifiable {
         if !tabs.contains(window) { tabs.append(window) }
         select(window)
     }
+    /// Adds at the end without changing the visible tab (unless the pane showed none).
+    mutating func append(_ window: WindowID) {
+        guard !tabs.contains(window) else { return }
+        tabs.append(window); mru.append(window)
+        if selected == nil { selected = window }
+    }
     mutating func select(_ window: WindowID) {
         guard tabs.contains(window) else { return }
         selected = window
@@ -243,6 +249,7 @@ public struct PaneLayout: Codable, Equatable {
     }
 
     public mutating func add(_ window: WindowID, to pane: UUID) {
+        guard root.pane(pane) != nil else { return }  // a stale pane id must not take the window out of its pane
         if let current = self.pane(containing: window), current.id != pane { remove(window, keepEmptyPanes: true) }
         updatePane(pane) { $0.add(window) }
         focused = pane
@@ -275,7 +282,8 @@ public struct PaneLayout: Codable, Equatable {
         root = (root.mapPanes { $0.id == id ? nil : $0 }?.normalized()) ?? .pane(Pane())
         if zoomed == id { zoomed = nil }
         if root.pane(focused) == nil { focused = root.paneIDs[0] }
-        for window in pane.tabs { updatePane(focused) { $0.add(window) } }
+        // Appended behind the visible tab, so the window the user is looking at stays in front.
+        for window in pane.tabs { updatePane(focused) { $0.append(window) } }
     }
 
     public mutating func move(_ window: WindowID, to target: UUID, keepEmptyPanes: Bool) {
@@ -422,9 +430,10 @@ public struct PaneLayout: Codable, Equatable {
             let total = children.map(\.weight).reduce(0, +)
             let rect = root.rect(at: prefix[...], in: area)
             let limit = total * Self.minShare
-            var delta = amount(total, rect)
-            delta = min(delta, children[neighbour].weight - limit)
-            delta = max(delta, limit - children[index].weight)
+            // Neither side may be pushed below the minimum. A side already under it (deep splits halve the share each time)
+            // is not shrunk further, and the range always holds 0, so a weight can never go negative.
+            let grow = max(children[neighbour].weight - limit, 0), shrink = min(limit - children[index].weight, 0)
+            let delta = min(max(amount(total, rect), shrink), grow)
             children[index].weight += delta
             children[neighbour].weight -= delta
             root = root.replacingNode(at: prefix[...], with: .split(splitAxis, children))
@@ -502,6 +511,9 @@ public struct PaneLayout: Codable, Equatable {
     public func pruned() -> PaneLayout {
         var copy = self
         for pane in root.panes where pane.tabs.isEmpty { copy.removePane(pane.id) }
+        // A saved layout can name a focused or zoomed pane that is no longer in its tree.
+        if copy.root.pane(copy.focused) == nil { copy.focused = copy.root.paneIDs[0] }
+        if let zoomed = copy.zoomed, copy.root.pane(zoomed) == nil { copy.zoomed = nil }
         return copy
     }
 

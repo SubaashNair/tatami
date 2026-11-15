@@ -31,6 +31,8 @@ do {
     fail("Tatami is not running, or command-line control is off. Start Tatami, or turn on \"Allow command-line control\" in Preferences.", code: 3)
 } catch CLIClientError.timedOut {
     fail("Tatami did not answer in time.", code: 4)
+} catch CLIClientError.tooLarge {
+    fail("Tatami's reply was too large to read.", code: 4)
 } catch {
     fail("Tatami sent a reply this command does not understand. Update the app and the command to the same release.", code: 4)
 }

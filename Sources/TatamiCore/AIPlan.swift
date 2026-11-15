@@ -98,13 +98,17 @@ public struct AIPlan: Decodable {
     private enum CodingKeys: String, CodingKey { case summary, actions }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        summary = try c.decodeIfPresent(String.self, forKey: .summary) ?? ""
-        actions = try c.decode([RawAction].self, forKey: .actions)
+        summary = (try? c.decodeIfPresent(String.self, forKey: .summary)) ?? ""
+        // An element that is not an object at all ("x", null) is skipped, not the whole plan.
+        actions = try c.decode([Lossy<RawAction>].self, forKey: .actions).compactMap(\.value)
     }
+
+    /// Twice the longest reply the token limit allows; anything longer is cut before scanning.
+    static let maxReplyCharacters = 64_000
 
     /// Tolerates prose and code fences around the JSON, as local models often add them.
     public static func parse(_ text: String) throws -> AIPlan {
-        let objects = balancedObjects(in: text)
+        let objects = balancedObjects(in: String(text.prefix(maxReplyCharacters)))
         guard !objects.isEmpty else { throw AIPlanError.noJSON }
         for object in objects {
             if let plan = try? JSONDecoder().decode(AIPlan.self, from: Data(object.utf8)) { return plan }
@@ -113,7 +117,8 @@ public struct AIPlan: Decodable {
     }
 
     /// Top-level `{...}` spans, respecting braces inside JSON strings.
-    // ponytail: rescans from each unmatched '{', O(n²) worst case; replies are a few KB.
+    // ponytail: rescans from each unmatched '{', O(n²) worst case; replies are a few KB, input is capped at
+    // maxReplyCharacters and parsed off the main actor. A single-pass stack scanner if that ever shows up in a profile.
     static func balancedObjects(in text: String) -> [String] {
         let chars = Array(text)
         var results: [String] = []
@@ -212,10 +217,12 @@ public enum AIPrompt {
 
     public static func user(request: String, context: PlanContext, includeTitles: Bool, previousSummary: String?) -> String {
         let displays = context.displays.enumerated().map { "\($0.offset + 1): \(Int($0.element.width))x\(Int($0.element.height))" }
+        // A title is the window's own text: a newline or quote in it must not start a section of the prompt.
+        func clean(_ text: String) -> String { String(String(text.map { $0.isNewline || $0 == "\"" ? " " : $0 }).prefix(120)) }
         let windows = context.windows.map { w in
             let f = w.frame
-            let title = includeTitles ? " \"\(w.title)\"" : ""
-            return "\(w.ref) \(w.appName) (\(w.bundleID))\(title) stage=\(w.stageName) display=\(w.display) frame=\(Int(f.minX)),\(Int(f.minY)),\(Int(f.width))x\(Int(f.height))"
+            let title = includeTitles ? " \"\(clean(w.title))\"" : ""
+            return "\(w.ref) \(clean(w.appName)) (\(w.bundleID))\(title) stage=\(w.stageName) display=\(w.display) frame=\(Int(f.minX)),\(Int(f.minY)),\(Int(f.width))x\(Int(f.height))"
         }
         var parts = [
             "Stages: \(context.stageNames.joined(separator: ", "))",

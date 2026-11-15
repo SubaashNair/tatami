@@ -186,8 +186,14 @@ extension AppModel {
     func checkLayoutEdits() -> Bool {
         if NSEvent.pressedMouseButtons != 0 {
             userEditingLayout = true
+            guard !editRecheckPending else { return false }
+            editRecheckPending = true
             DispatchQueue.main.asyncAfter(deadline: .now() + Self.editRecheckDelay) { [weak self] in
-                MainActor.assumeIsolated { if self?.checkLayoutEdits() == true { self?.applyLayouts() } }
+                MainActor.assumeIsolated {
+                    guard let self else { return }
+                    self.editRecheckPending = false
+                    if self.checkLayoutEdits() { self.applyLayouts() }
+                }
             }
             return false
         }
@@ -521,7 +527,12 @@ extension AppModel {
         service.focus(id)
     }
 
-    func closeTabs(_ ids: [UUID]) { ids.forEach(service.close) }
+    func closeTabs(_ ids: [UUID]) {
+        let refused = ids.filter { !service.close($0) }
+        if let name = refused.first.flatMap({ id in service.windows.first { $0.id == id }?.appName }) {
+            notice = "\(name) would not close the window. Finish any open dialog in it, then try again."
+        }
+    }
 
     /// A tab dragged onto another tab (in front of it) or onto a pane's bar (last). Within one display's layout it reorders or
     /// moves between panes; from another display of the same Room the window is sent there first. A different Room is refused.
@@ -552,6 +563,11 @@ extension AppModel {
                 guard let self else { return }
                 guard NSWorkspace.shared.frontmostApplication?.processIdentifier == window.pid else {
                     self.notice = "\(window.appName) did not come forward, so no new window was asked for."
+                    return
+                }
+                // A second click while one is still waiting would open two windows and race for the pane.
+                if let pending = self.pendingNewTab[window.pid], pending.until > Date() {
+                    self.notice = "Still waiting for the new \(window.appName) window."
                     return
                 }
                 // Armed only now that the key is really being sent, and only for windows that do not exist yet.
@@ -601,6 +617,7 @@ extension AppModel {
     /// would just shrink a window that never was in the tiles.
     private func focusedTileableWindow() -> LiveWindow? {
         guard let id = service.focusedID(), let window = service.windows.first(where: { $0.id == id }) else { notice = "Focus a window first."; return nil }
+        guard !window.fullscreen else { notice = "\(window.appName) is full screen. Leave full screen first."; return nil }
         guard managing, !state.excludedBundleIDs.contains(window.bundleID), !window.minimized,
               service.display(for: window.frame).map({ isTiled(stage: window.stageID, display: $0.id) }) == true else {
             notice = "Float and tile apply to windows on a tiled display while Tatami is managing."
