@@ -411,6 +411,15 @@ public struct PaneLayout: Codable, Equatable {
 
     public mutating func toggleZoom(_ pane: UUID) { zoomed = zoomed == pane ? nil : pane }
 
+    /// True when only the visible tabs or the focused pane differ. Switching tabs is not a layout change, so Undo Layout
+    /// Change skips it, and tab clicks never push a real change (a split, a move) out of the bounded history.
+    public func hasSameArrangement(as other: PaneLayout) -> Bool {
+        func arrangement(_ layout: PaneLayout) -> LayoutNode? {
+            layout.root.mapPanes { pane in var copy = pane; copy.selected = nil; copy.mru = []; return copy }
+        }
+        return zoomed == other.zoomed && arrangement(self) == arrangement(other)
+    }
+
     // MARK: sizing
 
     public mutating func evenOut() { root = root.evened() }

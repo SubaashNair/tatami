@@ -377,7 +377,7 @@ extension AppModel {
         let before = layout
         change(&layout, display)
         guard layout != before else { return }
-        histories[key, default: LayoutHistory()].record(before)
+        if !layout.hasSameArrangement(as: before) { histories[key, default: LayoutHistory()].record(before) }
         layouts[key] = layout
         applyLayouts()
         if let selected = layout.root.pane(layout.focused)?.selected { service.focus(selected) }

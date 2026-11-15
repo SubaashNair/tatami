@@ -125,6 +125,21 @@ struct BetaHardeningTests {
         #expect(layout.root.pane(layout.focused) != nil)
     }
 
+    @Test func switchingTabsIsNotALayoutChangeButMovingOneIs() throws {
+        var layout = PaneLayout.balanced(windows: [a, b], aspect: 2)
+        let pane = try #require(layout.pane(containing: a)).id
+        layout.add(c, to: pane)
+        let before = layout
+        layout.cycleTab(1)  // a different tab shows, nothing moved
+        #expect(layout != before)
+        #expect(layout.hasSameArrangement(as: before))
+        layout.move(c, to: try #require(layout.pane(containing: b)).id, keepEmptyPanes: false)
+        #expect(!layout.hasSameArrangement(as: before))
+        var zoomed = before
+        zoomed.toggleZoom(pane)
+        #expect(!zoomed.hasSameArrangement(as: before))
+    }
+
     @Test func aRestoredLayoutWithAStaleFocusIsRepaired() {
         var layout = PaneLayout.balanced(windows: [a, b], aspect: 2)
         layout.focused = UUID()
