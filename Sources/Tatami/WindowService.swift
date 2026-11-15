@@ -32,6 +32,8 @@ struct DisplayInfo: Identifiable {
     let name: String
     let area: CGRect
     let fullFrame: CGRect
+    var isBuiltIn = false
+    var isMain = false
 }
 
 struct RecoveryEntry: Codable {
@@ -114,8 +116,11 @@ struct RecoveryEntry: Codable {
         }
         let keys = DisplayFingerprint.keys(for: fingerprints)
         displays = screens.indices.map { i in
-            DisplayInfo(id: keys[i], name: screens[i].localizedName,
-                        area: Geometry.accessibilityFrame(screens[i].visibleFrame, primaryHeight: primaryHeight), fullFrame: fingerprints[i].frame)
+            let number = screens[i].deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber
+            let displayID = number?.uint32Value ?? 0
+            return DisplayInfo(id: keys[i], name: screens[i].localizedName,
+                               area: Geometry.accessibilityFrame(screens[i].visibleFrame, primaryHeight: primaryHeight), fullFrame: fingerprints[i].frame,
+                               isBuiltIn: CGDisplayIsBuiltin(displayID) != 0, isMain: CGDisplayIsMain(displayID) != 0)
         }
     }
 

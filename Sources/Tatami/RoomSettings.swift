@@ -33,6 +33,25 @@ struct RoomSettingsSheet: View {
                     .font(.system(size: 11)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true)
             }
             VStack(alignment: .leading, spacing: 6) {
+                Text("If that display is not connected, try").font(.system(size: 12, weight: .medium))
+                ForEach(Array((stage?.homeFallbacks ?? []).enumerated()), id: \.offset) { index, choice in
+                    HStack {
+                        Text("\(index + 1). \(model.describe(choice))").font(.system(size: 12))
+                        Spacer()
+                        Button { removeChoice(at: index) } label: { Image(systemName: "minus.circle") }.buttonStyle(.plain).help("Remove this choice")
+                    }
+                }
+                Menu("Add a choice") {
+                    ForEach(model.displays) { display in Button(display.name) { addChoice(.key(display.id)) } }
+                    Divider()
+                    Button("The main display") { addChoice(.main) }
+                    Button("The built-in display") { addChoice(.builtIn) }
+                    Button("Any display that is not the main one") { addChoice(.secondary) }
+                }.fixedSize()
+                Text("The first choice that is connected wins, so the same setup works at home, at work and on the laptop alone. Importing from AeroSpace fills this in from its monitor lists.")
+                    .font(.system(size: 11)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true)
+            }
+            VStack(alignment: .leading, spacing: 6) {
                 Picker("New windows open as", selection: placementBinding) {
                     ForEach(Array(Self.layouts.enumerated()), id: \.offset) { _, option in Text(option.label).tag(option.placement) }
                 }
@@ -41,6 +60,18 @@ struct RoomSettingsSheet: View {
             }
             HStack { Spacer(); Button("Done", action: close).buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction) }
         }.padding(32).frame(width: 480)
+    }
+
+    private func addChoice(_ choice: DisplayPreference) {
+        let current = stage?.homeFallbacks ?? []
+        if !current.contains(choice) { model.setRoomHomeChoices(current + [choice], for: stageID) }
+    }
+
+    private func removeChoice(at index: Int) {
+        var current = stage?.homeFallbacks ?? []
+        guard current.indices.contains(index) else { return }
+        current.remove(at: index)
+        model.setRoomHomeChoices(current, for: stageID)
     }
 
     private var homeBinding: Binding<String?> {

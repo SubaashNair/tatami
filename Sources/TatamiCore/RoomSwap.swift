@@ -19,10 +19,17 @@ extension WorkspaceState {
     /// it left. Nil, with nothing changed, when per-display Rooms is off, the displays are the same, or both show one Room.
     /// `displays` are all the connected displays, so the others keep the Room they show now.
     @discardableResult public mutating func swapRooms(between a: String, and b: String, displays: [String]) -> RoomSwap? {
+        swapRooms(between: a, and: b, displays: DisplayDescriptor.keys(displays))
+    }
+
+    /// As above, with what is known about each display, so a home that came from the preference list moves with its Room too.
+    @discardableResult public mutating func swapRooms(between a: String, and b: String, displays descriptors: [DisplayDescriptor]) -> RoomSwap? {
+        let displays = descriptors.map(\.key)
         guard perDisplayRooms, a != b else { return nil }
         let first = activeRoomID(on: a), second = activeRoomID(on: b)
         guard first != second else { return nil }
         let firstTiled = isTiled(stage: first, display: a), secondTiled = isTiled(stage: second, display: b)
+        let firstLivedHere = effectiveHome(of: first, displays: descriptors) == a, secondLivedHere = effectiveHome(of: second, displays: descriptors) == b
 
         for other in displays where other != a && other != b { displayRooms[other] = activeRoomID(on: other) }
         displayRooms[a] = second
@@ -30,8 +37,9 @@ extension WorkspaceState {
         activeStageID = first
         setTiled(firstTiled, stage: first, display: b)
         setTiled(secondTiled, stage: second, display: a)
-        if let index = stages.firstIndex(where: { $0.id == first }), stages[index].homeDisplay == a { stages[index].homeDisplay = b }
-        if let index = stages.firstIndex(where: { $0.id == second }), stages[index].homeDisplay == b { stages[index].homeDisplay = a }
+        // A Room that lived on the display it left now lives where it was sent: that choice comes first from now on.
+        if firstLivedHere, let index = stages.firstIndex(where: { $0.id == first }) { stages[index].homeDisplay = b }
+        if secondLivedHere, let index = stages.firstIndex(where: { $0.id == second }) { stages[index].homeDisplay = a }
         return RoomSwap(first: first, second: second, firstDisplay: a, secondDisplay: b)
     }
 }

@@ -21,7 +21,7 @@ extension AppModel {
         let leaving = service.windows.filter { $0.stageID == first && displayKey(of: $0) == source.id && !state.excludedBundleIDs.contains($0.bundleID) }.map(\.id)
         let arriving = service.windows.filter { $0.stageID == second && displayKey(of: $0) == target.id && !state.excludedBundleIDs.contains($0.bundleID) }.map(\.id)
 
-        guard state.swapRooms(between: source.id, and: target.id, displays: service.displays.map(\.id)) != nil else { return }
+        guard state.swapRooms(between: source.id, and: target.id, displays: displayDescriptors()) != nil else { return }
         roomHistory.record(from: first, to: second, on: source.id)  // so the previous-Room key swaps them back
         roomHistory.record(from: second, to: first, on: target.id)
         suppressFollowUntil = Date().addingTimeInterval(followSuppression)

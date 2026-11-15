@@ -23,11 +23,12 @@ extension AppModel {
         let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
         guard size <= 1_000_000, let text = try? String(contentsOf: url, encoding: .utf8) else { error = "Could not read \(url.lastPathComponent) (it must be a text file under 1 MB)."; return }
         let rules = AeroSpaceConfig.parse(text)
+        let monitors = AeroSpaceConfig.parseMonitorAssignments(text)
         guard !rules.isEmpty else { error = "That file has no on-window-detected rules to import."; return }
         notice = "Reading your installed apps…"
         Task {
             let apps = await Task.detached { Self.installedApps() }.value  // scanning folders and matching names stays off the main thread
-            let plan = AeroImport.plan(rules, installed: apps)
+            let plan = AeroImport.plan(rules, installed: apps, monitors: monitors)
             notice = nil
             guard !plan.entries.isEmpty else { error = "Nothing to import. " + (plan.skipped.first ?? ""); return }
             aeroImport = AeroImportDraft(plan: plan, roomNames: Dictionary(uniqueKeysWithValues: plan.rooms.map { ($0, "Workspace \($0)") }))
@@ -43,6 +44,7 @@ extension AppModel {
         var parts = ["Imported \(result.rulesAdded) routing rule(s)"]
         if !result.roomsCreated.isEmpty { parts.append("\(result.roomsCreated.count) new Room(s)") }
         if result.floatRulesAdded > 0 { parts.append("\(result.floatRulesAdded) float rule(s)") }
+        if result.homesSet > 0 { parts.append("\(result.homesSet) Room(s) given a home display" + (result.needsPerDisplayRooms ? " (turn on Each display shows its own Room in Preferences for them to apply)" : "")) }
         if result.keptExisting > 0 { parts.append("\(result.keptExisting) app(s) kept their own rule") }
         if !result.skipped.isEmpty { parts.append("\(result.skipped.count) skipped") }
         notice = parts.joined(separator: ", ") + ". Undo removes the new Rooms and their routing rules."
