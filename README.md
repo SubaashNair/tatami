@@ -1,20 +1,20 @@
 <p align="center">
-  <img src="docs/icons/7-green-frame.svg" alt="The Tatami app icon: a cream frame with two panes over one wide pane, one pane in gold, on deep green" width="128">
+  <img src="docs/icons/10-aotatami.svg" alt="The Tatami app icon: a dark green frame with two sage panes over one wide pane, the focused pane in gold, on pale green" width="128">
 </p>
 
 <p align="center">
-  <img src="docs/images/hero.svg" alt="Tatami: keyboard first window management for macOS" width="100%">
+  <img src="docs/images/hero.svg" alt="Tatami: a little room to focus. Keyboard first window management for macOS" width="100%">
 </p>
 
 <p align="center">
   <img alt="macOS 14+" src="https://img.shields.io/badge/macOS-14%2B-1e2b24?logo=apple&logoColor=white">
-  <img alt="Swift 5.10" src="https://img.shields.io/badge/Swift-5.10-d9a441?logo=swift&logoColor=white">
-  <img alt="No dependencies" src="https://img.shields.io/badge/dependencies-none-3b5a47">
-  <img alt="Keyboard first" src="https://img.shields.io/badge/keyboard-first-2f4a3a">
+  <img alt="Swift 5.10" src="https://img.shields.io/badge/Swift-5.10-9a6f1e?logo=swift&logoColor=white">
+  <img alt="No dependencies" src="https://img.shields.io/badge/dependencies-none-3f6a52">
+  <img alt="Keyboard first" src="https://img.shields.io/badge/keyboard-first-1e3a2d">
   <a href="https://github.com/SubaashNair/tatami/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/SubaashNair/tatami/actions/workflows/ci.yml/badge.svg"></a>
-  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-3b5a47"></a>
-  <img alt="Status: beta" src="https://img.shields.io/badge/status-beta-d9a441">
-  <img alt="Local first" src="https://img.shields.io/badge/data-stays%20on%20your%20Mac-4d7a60">
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-3f6a52"></a>
+  <img alt="Status: beta" src="https://img.shields.io/badge/status-beta-9a6f1e">
+  <img alt="Local first" src="https://img.shields.io/badge/data-stays%20on%20your%20Mac-3f6a52">
 </p>
 
 <p align="center">
@@ -344,6 +344,7 @@ docs/             guides, plans and the product requirements
 |---|---|
 | [How to use Tatami](docs/how-to-use.md) | Setup, daily loop, test checklist, troubleshooting |
 | [Implementation status](docs/implementation-status.md) | Architecture notes and scope decisions |
+| [Brand](docs/brand.md) | Colours, contrast rules, the icon and the wordmark |
 
 ## Contributing
 

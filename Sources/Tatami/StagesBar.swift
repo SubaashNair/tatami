@@ -293,7 +293,7 @@ struct StagesBarView: View {
                     .overlay(Image(systemName: "plus").font(.system(size: 22, weight: .light)).foregroundStyle(.secondary))
                 Text("New Room").font(.system(size: 12)).foregroundStyle(.secondary)
             }.padding(10)
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.accentColor, lineWidth: bar.dropTarget == BarState.newStageTarget ? 2 : 0))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(nsColor: Palette.active), lineWidth: bar.dropTarget == BarState.newStageTarget ? 2 : 0))
         }.buttonStyle(.plain).help("New Room")
     }
 }
@@ -331,8 +331,8 @@ struct StageCard: View {
             }
         }
         .padding(10)
-        .background(active ? Color.accentColor.opacity(0.16) : Color.primary.opacity(hovering ? 0.08 : 0.04), in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(selected ? Color.accentColor : active ? Color.accentColor.opacity(0.55) : .clear, lineWidth: 2))
+        .background(active ? Color(nsColor: Palette.active).opacity(0.16) : Color.primary.opacity(hovering ? 0.08 : 0.04), in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(selected ? Color(nsColor: Palette.active) : active ? Color(nsColor: Palette.active).opacity(0.55) : .clear, lineWidth: 2))
         .overlay(alignment: .topTrailing) {
             if hovering && canClose {
                 Button(action: onClose) { Image(systemName: "xmark.circle.fill").font(.system(size: 15)).symbolRenderingMode(.hierarchical) }

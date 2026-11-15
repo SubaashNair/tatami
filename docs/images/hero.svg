@@ -1,30 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" role="img" aria-labelledby="t d">
   <title id="t">Tatami</title>
-  <desc id="d">Banner: Tatami, keyboard first window management for macOS, over a pattern of tatami mats.</desc>
+  <desc id="d">Banner: Tatami, a little room to focus. Keyboard first window management for macOS. Beside it the Tatami mark: a frame with two panes over one wide pane, the focused pane in gold.</desc>
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#1e2b24"/>
-      <stop offset="1" stop-color="#2f4a3a"/>
-    </linearGradient>
-    <pattern id="mats" width="240" height="120" patternUnits="userSpaceOnUse">
-      <rect x="2" y="2" width="116" height="56" rx="4" fill="none" stroke="#7fae8f" stroke-opacity=".30" stroke-width="2"/>
-      <rect x="122" y="2" width="116" height="56" rx="4" fill="none" stroke="#7fae8f" stroke-opacity=".30" stroke-width="2"/>
-      <rect x="62" y="62" width="116" height="56" rx="4" fill="none" stroke="#7fae8f" stroke-opacity=".30" stroke-width="2"/>
-      <rect x="-58" y="62" width="116" height="56" rx="4" fill="none" stroke="#7fae8f" stroke-opacity=".30" stroke-width="2"/>
-      <rect x="182" y="62" width="116" height="56" rx="4" fill="none" stroke="#7fae8f" stroke-opacity=".30" stroke-width="2"/>
-    </pattern>
+    <clipPath id="card"><rect width="1200" height="320" rx="22"/></clipPath>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e8efde"/><stop offset="1" stop-color="#dde7d1"/></linearGradient>
   </defs>
-  <rect width="1200" height="320" rx="22" fill="url(#bg)"/>
-  <rect width="1200" height="320" rx="22" fill="url(#mats)"/>
-  <g font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif">
-    <text x="72" y="160" font-size="92" font-weight="700" fill="#f4efe2">Tatami</text>
-    <text x="76" y="212" font-size="30" fill="#cfe3d6">Keyboard first window management for macOS</text>
-    <text x="76" y="262" font-size="22" fill="#9fc3ad">Rooms  ·  Tiles  ·  one key for everything</text>
+  <g clip-path="url(#card)">
+    <rect width="1200" height="320" fill="url(#bg)"/>
+    <g stroke="#7fae8f" stroke-opacity="0.13" stroke-width="2"><line x1="0" y1="6" x2="1200" y2="6"/><line x1="0" y1="15" x2="1200" y2="15"/><line x1="0" y1="24" x2="1200" y2="24"/><line x1="0" y1="33" x2="1200" y2="33"/><line x1="0" y1="42" x2="1200" y2="42"/><line x1="0" y1="51" x2="1200" y2="51"/><line x1="0" y1="60" x2="1200" y2="60"/><line x1="0" y1="69" x2="1200" y2="69"/><line x1="0" y1="78" x2="1200" y2="78"/><line x1="0" y1="87" x2="1200" y2="87"/><line x1="0" y1="96" x2="1200" y2="96"/><line x1="0" y1="105" x2="1200" y2="105"/><line x1="0" y1="114" x2="1200" y2="114"/><line x1="0" y1="123" x2="1200" y2="123"/><line x1="0" y1="132" x2="1200" y2="132"/><line x1="0" y1="141" x2="1200" y2="141"/><line x1="0" y1="150" x2="1200" y2="150"/><line x1="0" y1="159" x2="1200" y2="159"/><line x1="0" y1="168" x2="1200" y2="168"/><line x1="0" y1="177" x2="1200" y2="177"/><line x1="0" y1="186" x2="1200" y2="186"/><line x1="0" y1="195" x2="1200" y2="195"/><line x1="0" y1="204" x2="1200" y2="204"/><line x1="0" y1="213" x2="1200" y2="213"/><line x1="0" y1="222" x2="1200" y2="222"/><line x1="0" y1="231" x2="1200" y2="231"/><line x1="0" y1="240" x2="1200" y2="240"/><line x1="0" y1="249" x2="1200" y2="249"/><line x1="0" y1="258" x2="1200" y2="258"/><line x1="0" y1="267" x2="1200" y2="267"/><line x1="0" y1="276" x2="1200" y2="276"/><line x1="0" y1="285" x2="1200" y2="285"/><line x1="0" y1="294" x2="1200" y2="294"/><line x1="0" y1="303" x2="1200" y2="303"/><line x1="0" y1="312" x2="1200" y2="312"/></g>
+    <rect y="306" width="1200" height="14" fill="#7fae8f"/>
   </g>
-  <g transform="translate(900 70)" fill="none" stroke="#f4efe2" stroke-width="3" stroke-linejoin="round">
-    <rect x="0" y="0" width="230" height="150" rx="12" stroke-opacity=".9"/>
-    <rect x="12" y="12" width="98" height="60" rx="6" fill="#3b5a47" fill-opacity=".55"/>
-    <rect x="120" y="12" width="98" height="60" rx="6" fill="#d9a441" fill-opacity=".55"/>
-    <rect x="12" y="82" width="206" height="56" rx="6" fill="#3b5a47" fill-opacity=".35"/>
+  <text x="72" y="150" font-family="ui-serif, 'New York', Georgia, serif" font-size="96" font-weight="600" fill="#1e3a2d">Tatami</text>
+  <text x="76" y="204" font-family="-apple-system, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif" font-size="30" fill="#5e665c">A little room to focus.</text>
+  <text x="76" y="252" font-family="-apple-system, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif" font-size="22" fill="#3f6a52">Keyboard first window management for macOS</text>
+  <g transform="translate(880 62)" stroke="#1e3a2d" stroke-linejoin="round">
+    <rect x="0" y="0" width="248" height="188" rx="26" fill="none" stroke-width="9"/>
+    <rect x="19" y="19" width="102" height="73" rx="14" fill="#7fae8f" stroke-width="6"/>
+    <rect x="127" y="19" width="102" height="73" rx="14" fill="#d9a441" stroke-width="6"/>
+    <rect x="19" y="99" width="210" height="70" rx="14" fill="#7fae8f" stroke-width="6"/>
   </g>
 </svg>

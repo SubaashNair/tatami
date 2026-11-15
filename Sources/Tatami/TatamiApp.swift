@@ -94,7 +94,7 @@ final class OrganizerPanel: NSPanel {
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1180, height: 820), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "Tatami"
         window.titlebarAppearsTransparent = true
-        window.backgroundColor = NSColor(red: 0.96, green: 0.96, blue: 0.94, alpha: 1)
+        window.backgroundColor = Palette.paper
         window.isReleasedWhenClosed = false
         window.contentView = NSHostingView(rootView: Dashboard(model: model))
         window.setFrameAutosaveName("TatamiDashboard")
@@ -140,7 +140,7 @@ final class OrganizerPanel: NSPanel {
         panel.level = .floating
         panel.hidesOnDeactivate = false
         panel.isReleasedWhenClosed = false
-        panel.backgroundColor = NSColor(red: 0.96, green: 0.96, blue: 0.94, alpha: 1)
+        panel.backgroundColor = Palette.paper
         [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton].forEach { panel.standardWindowButton($0)?.isHidden = true }
         let host = NSHostingController(rootView: AIOrganizerView(model: model).padding(22).frame(width: 580))
         host.sizingOptions = .preferredContentSize

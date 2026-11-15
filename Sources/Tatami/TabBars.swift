@@ -97,7 +97,7 @@ struct TabBarView: View {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 7))
         .background(tint.map { $0.opacity(0.28) } ?? .clear, in: RoundedRectangle(cornerRadius: 7))
         .dropDestination(for: TabDrag.self) { items, _ in model.dropTab(items.first?.id, to: key, pane: paneID, before: nil) }  // dropped on the bar itself: goes last
-        .overlay(RoundedRectangle(cornerRadius: 7).stroke(focusedPane ? Color.accentColor.opacity(0.7) : Color.primary.opacity(0.08), lineWidth: focusedPane ? 1.5 : 1))
+        .overlay(RoundedRectangle(cornerRadius: 7).stroke(focusedPane ? Color(nsColor: Palette.focus) : Color.primary.opacity(0.08), lineWidth: focusedPane ? 1.5 : 1))
     }
 
     @ViewBuilder private func tabMenu(_ window: LiveWindow, pane: Pane) -> some View {
@@ -165,7 +165,7 @@ private struct TabView: View {
         }
         .padding(.horizontal, 8)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(selected ? Color.primary.opacity(0.12) : hovering ? Color.primary.opacity(0.06) : .clear, in: RoundedRectangle(cornerRadius: 5))
+        .background(selected ? Color(nsColor: Palette.selection) : hovering ? Color.primary.opacity(0.06) : .clear, in: RoundedRectangle(cornerRadius: 5))
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
         .help(window.title.isEmpty ? window.appName : "\(window.appName): \(window.title)")

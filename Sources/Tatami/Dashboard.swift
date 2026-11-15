@@ -3,11 +3,12 @@ import AppKit
 import TatamiCore
 
 enum Theme {
-    static let background = Color(red: 0.96, green: 0.96, blue: 0.94)
-    static let sidebar = Color(red: 0.93, green: 0.94, blue: 0.91)
-    static let ink = Color(red: 0.15, green: 0.20, blue: 0.17)
-    static let muted = Color(red: 0.46, green: 0.49, blue: 0.45)
-    static let accent = Color(red: 0.28, green: 0.40, blue: 0.28)
+    static let background = Color(nsColor: Palette.paper)
+    static let sidebar = Color(nsColor: Palette.shoji)
+    static let ink = Color(nsColor: Palette.sumi)
+    static let muted = Color(nsColor: Palette.stone)  // 4.8:1 or better on every ground; the old grey was 3.9:1
+    static let accent = Color(nsColor: Palette.igusa)
+    static let selection = Color(nsColor: Palette.aotatami)
     static let line = Color.black.opacity(0.07)
 }
 
@@ -88,7 +89,7 @@ struct Dashboard: View {
             HStack(spacing: 12) {
                 Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 38, height: 38)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("tatami").font(.system(size: 25, weight: .semibold, design: .rounded)).tracking(-1)
+                    Text("Tatami").font(.system(size: 24, weight: .semibold, design: .serif)).tracking(-0.5)  // the wordmark (docs/brand.md)
                     Text("A little room to focus.").font(.system(size: 10)).foregroundStyle(Theme.muted)
                 }
             }.padding(.top, 34).padding(.bottom, 39).padding(.horizontal, 22)
@@ -109,7 +110,7 @@ struct Dashboard: View {
                         Spacer()
                         Text("\(model.state.shortcutPreset.stageModifiers)\(index + 1)").font(.system(size: 11, design: .monospaced)).foregroundStyle(Theme.muted)
                     }.padding(.horizontal, 14).padding(.vertical, 11)
-                        .background(stage.id == model.state.activeStageID ? Color.white.opacity(0.7) : .clear, in: RoundedRectangle(cornerRadius: 8))
+                        .background(stage.id == model.state.activeStageID ? Theme.selection : .clear, in: RoundedRectangle(cornerRadius: 8))
                 }.buttonStyle(.plain).padding(.horizontal, 12)
             }
             Spacer()
@@ -134,7 +135,7 @@ struct Dashboard: View {
                 Spacer()
                 if let badge { Text(badge).font(.system(size: 10, weight: .medium)).padding(.horizontal, 6).padding(.vertical, 2).background(.black.opacity(0.05), in: Capsule()) }
             }.padding(.horizontal, 12).padding(.vertical, 12)
-                .background(model.selection == id ? Color.white : .clear, in: RoundedRectangle(cornerRadius: 8))
+                .background(model.selection == id ? Theme.selection : .clear, in: RoundedRectangle(cornerRadius: 8))
         }.buttonStyle(.plain).padding(.horizontal, 12).padding(.bottom, 3)
     }
 
