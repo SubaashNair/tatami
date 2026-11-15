@@ -1,8 +1,8 @@
-// Renders docs/icons/7-green-frame.svg into Resources/AppIcon.icns. Run: swift scripts/make_icon.swift
+// Renders docs/icons/10-aotatami.svg into Resources/AppIcon.icns. Run: swift scripts/make_icon.swift
 import AppKit
 
 let root = FileManager.default.currentDirectoryPath
-guard let svg = NSImage(contentsOfFile: root + "/docs/icons/7-green-frame.svg") else { fatalError("cannot read the logo SVG") }
+guard let svg = NSImage(contentsOfFile: root + "/docs/icons/10-aotatami.svg") else { fatalError("cannot read the logo SVG") }
 let iconset = NSTemporaryDirectory() + "AppIcon.iconset"
 try? FileManager.default.removeItem(atPath: iconset)
 try FileManager.default.createDirectory(atPath: iconset, withIntermediateDirectories: true)
