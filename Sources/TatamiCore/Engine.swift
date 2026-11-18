@@ -75,6 +75,32 @@ public enum ScanMerge {
             return window.hidden || fullScreenShowing
         }.map(\.id)
     }
+
+    public enum LateHide: Equatable { case parked, minimized, onScreen }
+
+    /// Where a window ended up after a hide that reported failure. A busy app can time out and still apply the move later,
+    /// leaving the window off screen while Tatami believes it is visible.
+    public static func lateHide(frame: CGRect, minimized: Bool, displays: [CGRect]) -> LateHide {
+        if minimized { return .minimized }
+        return ParkPlanner.isParked(frame, displays: displays) ? .parked : .onScreen
+    }
+}
+
+/// Identifies a recovery journal entry's window: the same process, and the same window number when the entry has one
+/// (titles change, numbers do not), otherwise the same title. The same rule recovery at launch uses.
+public struct JournalKey: Equatable {
+    public var pid: Int32
+    public var windowNumber: UInt32?
+    public var title: String
+    public init(pid: Int32, windowNumber: UInt32?, title: String) { self.pid = pid; self.windowNumber = windowNumber; self.title = title }
+
+    public func matches(_ entry: JournalKey) -> Bool {
+        guard entry.pid == pid else { return false }
+        if let number = entry.windowNumber { return windowNumber == number }
+        return entry.title == title
+    }
+
+    public func index(in entries: [JournalKey]) -> Int? { entries.firstIndex(where: matches) }
 }
 
 public enum DisplayRemap {

@@ -84,6 +84,30 @@ final class AuditFixesTests: XCTestCase {
         }
     }
 
+    // MARK: off-screen recovery
+
+    private let screens = [CGRect(x: 0, y: 0, width: 1512, height: 982)]
+
+    func testAHideTheAppAppliedLateIsTold() {
+        let parked = CGRect(x: 1511, y: 981, width: 800, height: 600)  // a bottom-right park corner
+        XCTAssertEqual(ScanMerge.lateHide(frame: parked, minimized: false, displays: screens), .parked)
+        XCTAssertEqual(ScanMerge.lateHide(frame: CGRect(x: 100, y: 100, width: 800, height: 600), minimized: true, displays: screens), .minimized)
+        XCTAssertEqual(ScanMerge.lateHide(frame: CGRect(x: 100, y: 100, width: 800, height: 600), minimized: false, displays: screens), .onScreen)
+    }
+
+    func testJournalEntriesMatchByWindowNumberThenTitle() {
+        let entries: [JournalKey] = [
+            JournalKey(pid: 10, windowNumber: 7, title: "Inbox"),
+            JournalKey(pid: 10, windowNumber: nil, title: "Notes"),
+            JournalKey(pid: 11, windowNumber: 8, title: "Docs"),
+        ]
+        XCTAssertEqual(JournalKey(pid: 10, windowNumber: 7, title: "Inbox (3)").index(in: entries), 0, "a number match survives a title change")
+        XCTAssertNil(JournalKey(pid: 10, windowNumber: 9, title: "Inbox").index(in: entries), "a different number is a different window")
+        XCTAssertEqual(JournalKey(pid: 10, windowNumber: 5, title: "Notes").index(in: entries), 1, "an entry without a number matches by title")
+        XCTAssertNil(JournalKey(pid: 12, windowNumber: 8, title: "Docs").index(in: entries), "another process never matches")
+        XCTAssertNil(JournalKey(pid: 10, windowNumber: nil, title: "Inbox").index(in: entries), "an entry with a number needs the number")
+    }
+
     private static func children(_ node: LayoutNode?) -> [Child] {
         if case .split(_, let children)? = node { return children }
         return []
