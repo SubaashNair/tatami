@@ -107,8 +107,8 @@ public indirect enum LayoutNode: Codable, Equatable {
             for child in children {
                 guard let node = child.node.normalized() else { continue }
                 if case .split(let inner, let grandchildren) = node, inner == axis {
-                    let total = grandchildren.map(\.weight).reduce(0, +)
-                    flat += grandchildren.map { Child(node: $0.node, weight: $0.weight * child.weight / total) }
+                    let weights = Self.usableWeights(grandchildren), total = weights.reduce(0, +)
+                    flat += zip(grandchildren, weights).map { Child(node: $0.node, weight: $1 * child.weight / total) }
                 } else {
                     flat.append(Child(node: node, weight: child.weight))
                 }
@@ -148,11 +148,17 @@ public indirect enum LayoutNode: Codable, Equatable {
         }
     }
 
+    /// The children's weights, or even weights when any is zero, negative or not a number (a corrupt saved layout).
+    static func usableWeights(_ children: [Child]) -> [Double] {
+        let weights = children.map(\.weight)
+        return weights.allSatisfy({ $0.isFinite && $0 > 0 }) ? weights : weights.map { _ in 1 }
+    }
+
     static func divide(_ rect: CGRect, _ axis: Axis, _ children: [Child]) -> [CGRect] {
-        let total = children.map(\.weight).reduce(0, +)
+        let weights = usableWeights(children), total = weights.reduce(0, +)
         var offset = 0.0
-        return children.map { child in
-            let share = child.weight / total
+        return weights.map { weight in
+            let share = weight / total
             defer { offset += share }
             return axis == .horizontal
                 ? CGRect(x: rect.minX + rect.width * offset, y: rect.minY, width: rect.width * share, height: rect.height)
@@ -519,6 +525,7 @@ public struct PaneLayout: Codable, Equatable {
     /// Removes empty panes (keeping at least one) and fixes focus.
     public func pruned() -> PaneLayout {
         var copy = self
+        if root.panes.isEmpty { copy.root = .pane(Pane()) }  // a corrupt saved layout with an empty split
         for pane in root.panes where pane.tabs.isEmpty { copy.removePane(pane.id) }
         // A saved layout can name a focused or zoomed pane that is no longer in its tree.
         if copy.root.pane(copy.focused) == nil { copy.focused = copy.root.paneIDs[0] }

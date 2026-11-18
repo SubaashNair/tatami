@@ -471,7 +471,10 @@ import TatamiCore
         _ = service.restoreOwnedWindows()
         state.stages = workspace.stages; state.activeStageID = workspace.activeStageID
         state.displayRooms = [:]  // a loaded arrangement puts every window in its own Rooms; old per-display choices no longer apply
-        for i in service.windows.indices { service.windows[i].stageID = state.activeStageID }
+        // Only windows whose Room is gone fall back to the active one. A window the snapshot cannot match (its title changed
+        // since) keeps its Room, instead of every unmatched window landing in the active Room.
+        let roomIDs = Set(state.stages.map(\.id))
+        for i in service.windows.indices where !roomIDs.contains(service.windows[i].stageID) { service.windows[i].stageID = state.activeStageID }
         var unmatched = 0, failures = 0
         for saved in workspace.windows {
             let candidates = service.windows.indices.filter { service.windows[$0].bundleID == saved.bundleID && service.windows[$0].title == saved.title }

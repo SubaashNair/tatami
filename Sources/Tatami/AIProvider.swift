@@ -155,7 +155,13 @@ enum KeychainStore {
     /// Empty value deletes the item.
     static func save(_ value: String, account: String) throws {
         let value = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !value.isEmpty else { SecItemDelete(query(account) as CFDictionary); return }
+        guard !value.isEmpty else {
+            let status = SecItemDelete(query(account) as CFDictionary)
+            guard status == errSecSuccess || status == errSecItemNotFound else {
+                throw NSError(domain: NSOSStatusErrorDomain, code: Int(status), userInfo: [NSLocalizedDescriptionKey: "Could not remove the key from the Keychain (\(status))."])
+            }
+            return
+        }
         // Update in place so a failed save keeps the old key; add only when there is none yet.
         let data = Data(value.utf8)
         var status = SecItemUpdate(query(account) as CFDictionary, [kSecValueData as String: data] as CFDictionary)

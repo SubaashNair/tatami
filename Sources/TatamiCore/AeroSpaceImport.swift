@@ -161,9 +161,15 @@ public enum AeroImport {
         var rooms: [String] = [], entries: [AeroImportPlan.Entry] = [], skipped: [String] = []
         /// Nil when the pattern does not compile.
         func matchedApps(_ rule: AeroRule) -> [InstalledApp]? {
-            if let id = rule.appID { return [installed.first { $0.bundleID == id } ?? InstalledApp(bundleID: id, name: id)] }
-            guard let pattern = rule.nameRegex else { return [] }
-            guard let regex = AeroNameMatcher.compile(pattern) else { return nil }
+            let regex = rule.nameRegex.map(AeroNameMatcher.compile)
+            if case .some(.none) = regex { return nil }  // a pattern that does not compile
+            if let id = rule.appID {
+                guard let app = installed.first(where: { $0.bundleID == id }) else { return [InstalledApp(bundleID: id, name: id)] }
+                // AeroSpace needs every condition to match, so a name pattern next to an app id narrows it further.
+                if let regex = regex ?? nil, !AeroNameMatcher.matches(regex, name: app.name) { return [] }
+                return [app]
+            }
+            guard let regex = regex ?? nil else { return [] }
             var seen = Set<String>()  // one app can be listed under several names
             return installed.filter { AeroNameMatcher.matches(regex, name: $0.name) && seen.insert($0.bundleID).inserted }
         }

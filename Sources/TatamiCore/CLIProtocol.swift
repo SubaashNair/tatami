@@ -14,7 +14,7 @@ public enum CLIRequestError: Error, Equatable {
     case malformed, tooLarge, unsupportedVersion(Int)
 }
 
-public struct CLIRequest: Codable, Equatable {
+public struct CLIRequest: Codable, Equatable, Sendable {
     public var version: Int
     public var args: [String]
     public init(args: [String], version: Int = CLIProtocol.version) { self.args = args; self.version = version }
@@ -38,7 +38,7 @@ public struct CLIRequest: Codable, Equatable {
     }
 }
 
-public struct CLIResponse: Codable, Equatable {
+public struct CLIResponse: Codable, Equatable, Sendable {
     public var version: Int
     public var ok: Bool
     public var output: String

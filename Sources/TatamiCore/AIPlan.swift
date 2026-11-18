@@ -84,6 +84,9 @@ public struct AIPlan: Decodable {
             stage = try? c.decodeIfPresent(String.self, forKey: .stage)
             zone = try? c.decodeIfPresent(String.self, forKey: .zone)
             display = (try? c.decodeIfPresent(Int.self, forKey: .display)) ?? (try? c.decodeIfPresent(String.self, forKey: .display)).flatMap { Int($0) }
+            // A display that is there but unreadable ("external", 1.5) becomes 0, which validation drops as "no display 0",
+            // instead of nil, which would snap on whatever display the window is already on.
+            if display == nil, c.contains(.display), (try? c.decodeNil(forKey: .display)) != true { display = 0 }
         }
 
         var label: String {

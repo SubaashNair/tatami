@@ -214,7 +214,9 @@ public final class CLIServer: @unchecked Sendable {
         guard Self.isSameUser(fd) else { finish(fd); return }
         _ = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) & ~O_NONBLOCK)  // accepted sockets can inherit non-blocking mode
         setTimeouts(fd, readTimeout)
-        switch readRequest(fd) {
+        let outcome = readRequest(fd)
+        setTimeouts(fd, readTimeout)  // reading shrank the timeout to what was left; the reply gets a full allowance to write
+        switch outcome {
         case .nothing:
             finish(fd)
         case .reply(let response):

@@ -193,7 +193,7 @@ extension AeroSpaceConfig {
             else if c == "'" || c == "\"" { quote = c; wasQuoted = true; buffer = "" }  // whatever came before the opening quote is spacing
             else if c == "[" && depth == 0 { depth = 1 }
             else if c == "," || c == "]" { flush(); if c == "]" { break } }
-            else { buffer.append(c) }
+            else if !wasQuoted { buffer.append(c) }  // spacing after a closing quote is not part of the name
         }
         flush()
         return result
