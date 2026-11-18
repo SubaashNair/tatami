@@ -75,6 +75,92 @@ public enum ScanMerge {
             return window.hidden || fullScreenShowing
         }.map(\.id)
     }
+
+    public enum LateHide: Equatable { case parked, minimized, onScreen }
+
+    /// Where a window ended up after a hide that reported failure. A busy app can time out and still apply the move later,
+    /// leaving the window off screen while Tatami believes it is visible.
+    public static func lateHide(frame: CGRect, minimized: Bool, displays: [CGRect]) -> LateHide {
+        if minimized { return .minimized }
+        return ParkPlanner.isParked(frame, displays: displays) ? .parked : .onScreen
+    }
+
+    public enum LateHideAction: Equatable { case none, adopt(LateHide), adoptAndShow(LateHide) }
+
+    /// What a scan does with a window whose hide failed. Off screen: track it as hidden again. While paused nothing re-applies
+    /// visibility, so it is also shown right away, or it would stay off screen until management resumes.
+    public static func lateHideAction(frame: CGRect, minimized: Bool, displays: [CGRect], managing: Bool) -> LateHideAction {
+        let landed = lateHide(frame: frame, minimized: minimized, displays: displays)
+        if landed == .onScreen { return .none }
+        return managing ? .adopt(landed) : .adoptAndShow(landed)
+    }
+}
+
+/// How a journal entry puts its window back.
+public enum JournalRestore {
+    public enum Step: Equatable { case done, keep, unminimize, moveBack }
+
+    /// For a window found while its entry is on record. A parked window the user minimized since returns to its park corner
+    /// when un-minimized, so its entry is kept, and retried, until it is.
+    public static func step(minimized: Bool, parkedNow: Bool, entryParked: Bool?) -> Step {
+        if minimized { return entryParked == true ? .keep : .unminimize }
+        return parkedNow ? .moveBack : .done
+    }
+
+    /// A move counts only when the frame read back is on screen: AX can report success for a move the app clamped or ignored.
+    public static func landed(moved: Bool, frame: CGRect?, displays: [CGRect]) -> Bool {
+        guard moved, let frame else { return false }
+        return !ParkPlanner.isParked(frame, displays: displays)
+    }
+
+    /// At launch. An entry that does not say how the window was hidden (0.1 journals, a hide that failed after trying both
+    /// the park and the minimize fallback) tries both, in that order.
+    public static func launchSteps(entryParked: Bool?) -> [Step] {
+        switch entryParked {
+        case true?: return [.moveBack]
+        case false?: return [.unminimize]
+        case nil: return [.unminimize, .moveBack]
+        }
+    }
+}
+
+/// Identifies a recovery journal entry's window: the same process, and the same window number when the entry has one
+/// (titles change, numbers do not), otherwise the same title. The same rule recovery at launch uses.
+public struct JournalKey: Equatable {
+    public var pid: Int32
+    public var windowNumber: UInt32?
+    public var title: String
+    public init(pid: Int32, windowNumber: UInt32?, title: String) { self.pid = pid; self.windowNumber = windowNumber; self.title = title }
+
+    public func matches(_ entry: JournalKey) -> Bool {
+        guard entry.pid == pid else { return false }
+        if let number = entry.windowNumber { return windowNumber == number }
+        return entry.title == title
+    }
+
+    /// Whether a scanned window takes over a journal entry. An exact entry (with a window number) always matches by number; a
+    /// title-only one is claimed only by a window that is really off screen, never by a visible namesake.
+    public func claims(_ entry: JournalKey, entryParked: Bool?, minimized: Bool, frame: CGRect, displays: [CGRect]) -> Bool {
+        guard matches(entry) else { return false }
+        if entry.windowNumber != nil { return true }
+        return minimized ? entryParked != true : ParkPlanner.isParked(frame, displays: displays)
+    }
+
+    /// The same window for removing or de-duplicating entries: equal numbers when both sides have one, the title only when
+    /// neither does. A title match across a numbered and an unnumbered side could be a namesake, and must not erase its entry.
+    public func isSameWindow(_ other: JournalKey) -> Bool {
+        guard other.pid == pid else { return false }
+        switch (windowNumber, other.windowNumber) {
+        case let (a?, b?): return a == b
+        case (nil, nil): return title == other.title
+        default: return false
+        }
+    }
+
+    /// `older` without the entries that are the same window as one in `current`.
+    public static func withoutDuplicates<T>(_ older: [T], of current: [T], key: (T) -> JournalKey) -> [T] {
+        older.filter { old in !current.contains { key($0).isSameWindow(key(old)) } }
+    }
 }
 
 public enum DisplayRemap {
