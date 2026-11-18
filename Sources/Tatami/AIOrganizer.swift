@@ -57,7 +57,8 @@ extension AppModel {
             return
         }
         var previous: String?
-        if case .ready(let plan) = aiState { previous = plan.summary }
+        // The model's earlier summary can quote window titles, so it is only sent back when titles may be sent.
+        if case .ready(let plan) = aiState, aiSendsTitles { previous = plan.summary }
         let user = AIPrompt.user(request: request, context: context, includeTitles: aiSendsTitles, previousSummary: previous)
         let key = KeychainStore.read(preset.id)
 
