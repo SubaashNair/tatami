@@ -95,17 +95,68 @@ final class AuditFixesTests: XCTestCase {
         XCTAssertEqual(ScanMerge.lateHide(frame: CGRect(x: 100, y: 100, width: 800, height: 600), minimized: false, displays: screens), .onScreen)
     }
 
-    func testJournalEntriesMatchByWindowNumberThenTitle() {
-        let entries: [JournalKey] = [
-            JournalKey(pid: 10, windowNumber: 7, title: "Inbox"),
-            JournalKey(pid: 10, windowNumber: nil, title: "Notes"),
-            JournalKey(pid: 11, windowNumber: 8, title: "Docs"),
-        ]
-        XCTAssertEqual(JournalKey(pid: 10, windowNumber: 7, title: "Inbox (3)").index(in: entries), 0, "a number match survives a title change")
-        XCTAssertNil(JournalKey(pid: 10, windowNumber: 9, title: "Inbox").index(in: entries), "a different number is a different window")
-        XCTAssertEqual(JournalKey(pid: 10, windowNumber: 5, title: "Notes").index(in: entries), 1, "an entry without a number matches by title")
-        XCTAssertNil(JournalKey(pid: 12, windowNumber: 8, title: "Docs").index(in: entries), "another process never matches")
-        XCTAssertNil(JournalKey(pid: 10, windowNumber: nil, title: "Inbox").index(in: entries), "an entry with a number needs the number")
+    private let parkedFrame = CGRect(x: 1511, y: 981, width: 800, height: 600)
+    private let onScreenFrame = CGRect(x: 100, y: 100, width: 800, height: 600)
+
+    func testALateHideIsAdoptedAndShownAgainWhilePaused() {
+        XCTAssertEqual(ScanMerge.lateHideAction(frame: parkedFrame, minimized: false, displays: screens, managing: true), .adopt(.parked))
+        XCTAssertEqual(ScanMerge.lateHideAction(frame: onScreenFrame, minimized: true, displays: screens, managing: true), .adopt(.minimized))
+        // Paused: nothing re-applies visibility, so an adopted window must be shown straight away or it stays off screen.
+        XCTAssertEqual(ScanMerge.lateHideAction(frame: parkedFrame, minimized: false, displays: screens, managing: false), .adoptAndShow(.parked))
+        XCTAssertEqual(ScanMerge.lateHideAction(frame: onScreenFrame, minimized: true, displays: screens, managing: false), .adoptAndShow(.minimized))
+        XCTAssertEqual(ScanMerge.lateHideAction(frame: onScreenFrame, minimized: false, displays: screens, managing: false), .none)
+    }
+
+    func testRestoreKeepsTheEntryOfAParkedWindowWhileItIsMinimized() {
+        // Un-minimizing returns it to its park corner, so the entry is still needed.
+        XCTAssertEqual(JournalRestore.step(minimized: true, parkedNow: false, entryParked: true), .keep)
+        XCTAssertEqual(JournalRestore.step(minimized: true, parkedNow: false, entryParked: false), .unminimize)
+        XCTAssertEqual(JournalRestore.step(minimized: true, parkedNow: false, entryParked: nil), .unminimize)
+        XCTAssertEqual(JournalRestore.step(minimized: false, parkedNow: true, entryParked: true), .moveBack)
+        XCTAssertEqual(JournalRestore.step(minimized: false, parkedNow: false, entryParked: true), .done)
+    }
+
+    func testARestoreCountsOnlyWhenTheWindowLandedOnScreen() {
+        XCTAssertFalse(JournalRestore.landed(moved: true, frame: parkedFrame, displays: screens), "AX said yes, but the app kept it parked")
+        XCTAssertFalse(JournalRestore.landed(moved: true, frame: nil, displays: screens), "no frame read back")
+        XCTAssertFalse(JournalRestore.landed(moved: false, frame: onScreenFrame, displays: screens))
+        XCTAssertTrue(JournalRestore.landed(moved: true, frame: onScreenFrame, displays: screens))
+    }
+
+    func testLaunchRecoveryTriesBothWhenTheEntryDoesNotSayHowItWasHidden() {
+        XCTAssertEqual(JournalRestore.launchSteps(entryParked: true), [.moveBack])
+        XCTAssertEqual(JournalRestore.launchSteps(entryParked: false), [.unminimize])
+        // A failed hide may have landed as a park or as the minimize fallback.
+        XCTAssertEqual(JournalRestore.launchSteps(entryParked: nil), [.unminimize, .moveBack])
+    }
+
+    func testSameWindowUsesTheTitleOnlyWhenNeitherSideHasANumber() {
+        let numbered = JournalKey(pid: 10, windowNumber: 7, title: "Untitled")
+        XCTAssertTrue(numbered.isSameWindow(JournalKey(pid: 10, windowNumber: 7, title: "Untitled 2")), "a number match survives a title change")
+        XCTAssertFalse(numbered.isSameWindow(JournalKey(pid: 10, windowNumber: 8, title: "Untitled")))
+        XCTAssertFalse(numbered.isSameWindow(JournalKey(pid: 10, windowNumber: nil, title: "Untitled")), "a namesake without a number")
+        XCTAssertFalse(JournalKey(pid: 10, windowNumber: nil, title: "Untitled").isSameWindow(numbered))
+        XCTAssertTrue(JournalKey(pid: 10, windowNumber: nil, title: "Notes").isSameWindow(JournalKey(pid: 10, windowNumber: nil, title: "Notes")))
+        XCTAssertFalse(JournalKey(pid: 11, windowNumber: 7, title: "Untitled").isSameWindow(numbered), "another process")
+    }
+
+    func testTheJournalKeepsAnOlderEntryForANamesake() {
+        let current = [JournalKey(pid: 10, windowNumber: 7, title: "Untitled")]
+        let older = [JournalKey(pid: 10, windowNumber: nil, title: "Untitled"), JournalKey(pid: 10, windowNumber: 7, title: "Untitled")]
+        XCTAssertEqual(JournalKey.withoutDuplicates(older, of: current, key: { $0 }), [older[0]], "only the same window is written once")
+    }
+
+    func testATitleOnlyEntryIsClaimedOnlyByAWindowThatIsOffScreen() {
+        let titleOnly = JournalKey(pid: 10, windowNumber: nil, title: "Untitled")
+        let scanned = JournalKey(pid: 10, windowNumber: 7, title: "Untitled")
+        XCTAssertTrue(scanned.claims(titleOnly, entryParked: true, minimized: false, frame: parkedFrame, displays: screens))
+        XCTAssertFalse(scanned.claims(titleOnly, entryParked: true, minimized: false, frame: onScreenFrame, displays: screens), "a visible namesake")
+        XCTAssertFalse(scanned.claims(titleOnly, entryParked: true, minimized: true, frame: onScreenFrame, displays: screens), "minimized by the user")
+        XCTAssertTrue(scanned.claims(titleOnly, entryParked: false, minimized: true, frame: onScreenFrame, displays: screens))
+        let numbered = JournalKey(pid: 10, windowNumber: 7, title: "Old title")
+        XCTAssertTrue(scanned.claims(numbered, entryParked: true, minimized: false, frame: onScreenFrame, displays: screens), "an exact entry")
+        XCTAssertFalse(JournalKey(pid: 10, windowNumber: 9, title: "Old title").claims(numbered, entryParked: true, minimized: false,
+                                                                                      frame: parkedFrame, displays: screens))
     }
 
     private static func children(_ node: LayoutNode?) -> [Child] {

@@ -60,9 +60,10 @@ struct RecoveryEntry: Codable {
     private var unseenIDs: Set<UUID> = []
     /// Unseen windows that could not be shown either: gone, so the next scan lets them go instead of retrying for ever.
     private var givenUp: Set<UUID> = []
-    /// Hides that reported failure: the frame to return to, whether it was a park, and until when (system uptime) to watch.
-    /// A busy app can apply the move after the timeout; a scan that then finds the window off screen adopts it as hidden.
-    private var failedHides: [UUID: (real: CGRect, parked: Bool, until: TimeInterval)] = [:]
+    /// Hides that reported failure: the frame to return to, and until when (system uptime) to watch. A busy app can apply the
+    /// move after the timeout; a scan that then finds the window off screen adopts it as hidden. Either the park or the
+    /// minimize fallback may be what landed, so the journal entry does not say which (`parked: nil`).
+    private var failedHides: [UUID: (real: CGRect, until: TimeInterval)] = [:]
     private let failedHideWatch: TimeInterval = 30
     /// Supplies routing rules and the active Stage for windows discovered by events.
     var stateProvider: () -> WorkspaceState = { WorkspaceState() }
@@ -205,11 +206,6 @@ struct RecoveryEntry: Codable {
         let now = ProcessInfo.processInfo.systemUptime, watched = failedHides.count
         failedHides = failedHides.filter { $0.value.until > now }
         if failedHides.count != watched { adopted = true }  // an expired watch must leave the journal too
-        /// A title-only entry is only claimed by a window that is really off screen, never by a visible namesake.
-        func claims(_ entry: RecoveryEntry, _ found: ScannedWindow) -> Bool {
-            if entry.windowNumber != nil { return true }
-            return found.minimized ? entry.parked != true : ParkPlanner.isParked(found.frame, displays: screens)
-        }
         for found in scan.windows {
             if var existing = windows.first(where: { isSame(found, $0) }) {
                 existing.title = found.title
@@ -220,12 +216,14 @@ struct RecoveryEntry: Codable {
                     existing.fullscreen = found.fullscreen
                     // A hide that timed out but landed late: the window is off screen, so track it as hidden again.
                     if existing.hidden == nil, let failed = failedHides[existing.id] {
-                        switch ScanMerge.lateHide(frame: found.frame, minimized: found.minimized, displays: screens) {
-                        case .parked: existing.hidden = .parked(real: failed.real)
-                        case .minimized: existing.hidden = .minimized(real: failed.real)
-                        case .onScreen: break
+                        let action = ScanMerge.lateHideAction(frame: found.frame, minimized: found.minimized, displays: screens, managing: managing)
+                        switch action {
+                        case .adopt(let landed), .adoptAndShow(let landed):
+                            existing.hidden = landed == .minimized ? .minimized(real: failed.real) : .parked(real: failed.real)
+                            failedHides[existing.id] = nil; adopted = true
+                            if case .adoptAndShow = action { reveal.append(existing.id) }  // paused: nothing else would show it
+                        case .none: break
                         }
-                        if existing.hidden != nil { failedHides[existing.id] = nil; adopted = true }
                     }
                     // Restoring from the Dock, or dragging a parked window back, is an explicit escape hatch.
                     switch existing.hidden {
@@ -238,7 +236,7 @@ struct RecoveryEntry: Codable {
                     // A tracked window that still has an exact journal entry (a show gave up, or a restore failed): `restore`
                     // clears the entry once it is on screen, and puts it back if it is still off screen, retrying each scan.
                     let key = JournalKey(pid: existing.pid, windowNumber: existing.windowNumber, title: existing.title)
-                    if existing.hidden == nil, let i = unclaimed.firstIndex(where: { $0.windowNumber != nil && key.matches($0.key) }) {
+                    if existing.hidden == nil, let i = unclaimed.firstIndex(where: { $0.windowNumber != nil && key.isSameWindow($0.key) }) {
                         restoring.append((existing.id, unclaimed.remove(at: i)))
                     }
                 }
@@ -250,7 +248,8 @@ struct RecoveryEntry: Codable {
                                         fullscreen: found.fullscreen, stageID: state.destination(bundleID: found.bundleID, title: found.title) ?? state.activeRoomID(on: display(for: found.frame)?.id))
                 let key = JournalKey(pid: found.pid, windowNumber: found.windowNumber, title: found.title)
                 // A window the journal still holds (another Space at launch, or one a show gave up on) is put back now.
-                if let i = unclaimed.firstIndex(where: { key.matches($0.key) && claims($0, found) }) {
+                if let i = unclaimed.firstIndex(where: { key.claims($0.key, entryParked: $0.parked, minimized: found.minimized,
+                                                                     frame: found.frame, displays: screens) }) {
                     restoring.append((window.id, unclaimed.remove(at: i)))
                 } else if managing, initialScanDone, !found.minimized, ParkPlanner.isParked(found.frame, displays: screens),
                           let area = (display(for: found.frame) ?? displays.first)?.area {
@@ -282,7 +281,8 @@ struct RecoveryEntry: Codable {
         if !reveal.isEmpty { _ = show(windows.indices.filter { reveal.contains(windows[$0].id) }) }
         if managing, !repark.isEmpty { _ = hide(windows.indices.filter { repark.contains(windows[$0].id) }) }
         for (id, frame) in rescue { move(id, to: frame) }
-        // Edit the live list, not the snapshot: `show` above may have added or removed entries during this merge.
+        // Runs while paused too, like launch recovery: these are windows Tatami itself moved off screen, so putting them back
+        // is undoing its own work, not managing. Edit the live list, not the snapshot: `show` above may have changed it.
         for (id, entry) in restoring where restore(id, from: entry) {
             if let i = unrecovered.firstIndex(where: { $0.key == entry.key && $0.frame == entry.frame }) { unrecovered.remove(at: i) }
             adopted = true
@@ -293,19 +293,23 @@ struct RecoveryEntry: Codable {
     /// Puts a window back from its journal entry. True when it is on screen now, or the user already took it over.
     private func restore(_ id: UUID, from entry: RecoveryEntry) -> Bool {
         guard let index = windows.firstIndex(where: { $0.id == id }) else { return false }
-        let window = windows[index]
-        if window.minimized {
-            guard entry.parked != true else { return true }  // Tatami parked it; minimized since by the user, so it is theirs
+        let window = windows[index], screens = displays.map(\.fullFrame)
+        switch JournalRestore.step(minimized: window.minimized, parkedNow: ParkPlanner.isParked(window.frame, displays: screens),
+                                   entryParked: entry.parked) {
+        case .done: return true
+        case .keep: return false
+        case .unminimize:
             let element = window.element, pid = window.pid
             writeGeneration += 1
             guard ax.sync({ AX.withoutEnhancedUI(pid: pid) { AX.setMinimized(element, false) } }) else { return false }
             windows[index].minimized = false
             return true
+        case .moveBack:
+            let frame = entry.frame.cgRect
+            guard let area = (display(for: frame) ?? displays.first)?.area else { return false }
+            let moved = move(id, to: Geometry.visibleFrame(frame, in: area))  // stores the frame read back
+            return JournalRestore.landed(moved: moved, frame: windows.first(where: { $0.id == id })?.frame, displays: screens)
         }
-        guard ParkPlanner.isParked(window.frame, displays: displays.map(\.fullFrame)) else { return true }
-        let frame = entry.frame.cgRect
-        guard let area = (display(for: frame) ?? displays.first)?.area else { return false }
-        return move(id, to: Geometry.visibleFrame(frame, in: area))
     }
 
     /// Every window the window server knows, on any Space, by number → owning pid. Needs no Screen Recording permission.
@@ -368,14 +372,14 @@ struct RecoveryEntry: Codable {
                     givenUp.insert(windows[index].id)
                     // It may still be off screen. The next scan lets the window go, so its entry moves to `unrecovered`,
                     // where it stays on record and is restored when the window shows up again.
-                    if let entry = journalEntry(windows[index]), !unrecovered.contains(where: { entry.key.matches($0.key) }) { unrecovered.append(entry) }
+                    if let entry = journalEntry(windows[index]), !unrecovered.contains(where: { entry.key.isSameWindow($0.key) }) { unrecovered.append(entry) }
                 } else { failures += 1 }
                 continue
             }
             windows[index].frame = jobs[i].3
             windows[index].hidden = nil; windows[index].minimized = false
             let key = JournalKey(pid: windows[index].pid, windowNumber: windows[index].windowNumber, title: windows[index].title)
-            unrecovered.removeAll { key.matches($0.key) }  // back on screen: an old entry must not move it again at next launch
+            unrecovered.removeAll { key.isSameWindow($0.key) }  // back on screen: an old entry must not move it again at next launch
         }
         try? writeJournal()
         return failures
@@ -419,7 +423,7 @@ struct RecoveryEntry: Codable {
             case .failed:
                 windows[index].hidden = nil; failures += 1
                 // The app may still apply the move late: stay on record so a scan or the next launch can bring it back.
-                failedHides[id] = (real, jobs[i].2 != nil, ProcessInfo.processInfo.systemUptime + failedHideWatch)
+                failedHides[id] = (real, ProcessInfo.processInfo.systemUptime + failedHideWatch)
             }
         }
         try? writeJournal()
@@ -472,7 +476,10 @@ struct RecoveryEntry: Codable {
                 // Not in the list, but still open on another Space: keep the entry so it is restored later, not forgotten.
                 guard let match else { return entry.windowNumber.map { alive[$0] == entry.pid } ?? false }
                 claimed.append(match)
-                return entry.parked == true ? !AX.setFrame(match, target) : !AX.setMinimized(match, false)
+                let restored = JournalRestore.launchSteps(entryParked: entry.parked).allSatisfy { step in
+                    step == .moveBack ? AX.setFrame(match, target) : AX.setMinimized(match, false)
+                }
+                return !restored
             }.map(\.0)
         }
         unrecovered = pending
@@ -482,13 +489,13 @@ struct RecoveryEntry: Codable {
 
     /// The entry for a window Tatami has off screen: hidden, or a hide that failed but may still land.
     private func journalEntry(_ window: LiveWindow) -> RecoveryEntry? {
-        let real: CGRect, parked: Bool
+        let real: CGRect, parked: Bool?
         switch window.hidden {
         case .parked(let frame): (real, parked) = (frame, true)
         case .minimized(let frame): (real, parked) = (frame, false)
         case nil:
             guard let failed = failedHides[window.id], failed.until > ProcessInfo.processInfo.systemUptime else { return nil }
-            (real, parked) = (failed.real, failed.parked)
+            (real, parked) = (failed.real, nil)  // launch recovery tries both
         }
         return RecoveryEntry(pid: window.pid, bundleID: window.bundleID, title: window.title, frame: Rect(real),
                              windowNumber: window.windowNumber, parked: parked)
@@ -499,7 +506,7 @@ struct RecoveryEntry: Codable {
         // Entries recovery could not restore stay on record until their app quits, so the next hide cannot erase them.
         unrecovered.removeAll { NSRunningApplication(processIdentifier: $0.pid) == nil }
         // A window that is both tracked and on record (a show just gave up on it) is written once.
-        let older = unrecovered.filter { old in !entries.contains { $0.key.matches(old.key) } }
+        let older = JournalKey.withoutDuplicates(unrecovered, of: entries, key: \.key)
         try JSONEncoder().encode(entries + older).write(to: journalURL, options: .atomic)
     }
 
