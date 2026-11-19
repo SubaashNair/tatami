@@ -156,6 +156,7 @@ extension AppModel {
                     layout.remove(id, keepEmptyPanes: state.keepEmptyPanes); changed = true; continue
                 }
             }
+            layout.returnPanes = layout.returnPanes.filter { byID[$0.key] != nil }  // a closed window never comes back
             layouts[key] = layout
         }
         let placed = Set(layouts.values.flatMap(\.windows))

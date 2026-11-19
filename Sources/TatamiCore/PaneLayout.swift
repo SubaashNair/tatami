@@ -191,6 +191,14 @@ public struct PaneLayout: Codable, Equatable {
     public var root: LayoutNode
     public var focused: UUID
     public var zoomed: UUID?
+    /// The pane each removed window last sat in, so a window that comes back (restored from the Dock, tiled again after
+    /// floating) rejoins its stack instead of being placed as a new window (issue #24). Not saved and not compared:
+    /// it only matters within a session, and the saved layout format stays as it was.
+    public var returnPanes: [WindowID: UUID] = [:]
+    private enum CodingKeys: String, CodingKey { case root, focused, zoomed }
+    public static func == (lhs: PaneLayout, rhs: PaneLayout) -> Bool {
+        lhs.root == rhs.root && lhs.focused == rhs.focused && lhs.zoomed == rhs.zoomed
+    }
     static let maxAutoPanes = 4
     static let minShare = 0.05
 
@@ -276,6 +284,7 @@ public struct PaneLayout: Codable, Equatable {
     /// Removes a window; an emptied pane goes too unless kept (M3 decision 10). At least one pane always remains.
     public mutating func remove(_ window: WindowID, keepEmptyPanes: Bool) {
         guard let pane = pane(containing: window) else { return }
+        returnPanes[window] = pane.id
         updatePane(pane.id) { $0.remove(window) }
         if !keepEmptyPanes, root.pane(pane.id)?.tabs.isEmpty == true, root.panes.count > 1 { removePane(pane.id) }
         // A zoomed pane that emptied would leave the display blank: every other pane is hidden behind it.
@@ -537,6 +546,8 @@ public struct PaneLayout: Codable, Equatable {
 
     /// M3 decision 9. Routing and Launch Here are decided by the caller before this runs.
     public mutating func place(_ window: WindowID, policy: NewWindowPlacement, in area: CGRect) {
+        // A window that was here before goes back to its pane while that pane exists: Tatami never splits a stack itself.
+        if let home = returnPanes.removeValue(forKey: window), root.pane(home) != nil { return add(window, to: home) }
         if root.panes.count == 1, root.panes[0].tabs.isEmpty { return add(window, to: root.paneIDs[0]) }
         let frames = self.frames(in: area, gap: 0, tabBar: 0)
         func own() {
